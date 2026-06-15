@@ -1,0 +1,44 @@
+{% extends "core/base.html" %}
+{% block title %}Minha jornada · Academia Técnica{% endblock %}
+{% block content %}
+<main class="container">
+    <section class="hero">
+        <div>
+            <span class="eyebrow">Sua jornada de capacitação</span>
+            <h1>Conhecimento técnico para manter tudo em movimento.</h1>
+            <p>Acesse seus treinamentos obrigatórios, acompanhe certificações e mantenha sua qualificação em dia.</p>
+        </div>
+        <div class="hero-badge">
+            <strong>{{ produtos|length }}</strong>
+            <span>produto{{ produtos|length|pluralize }} na sua trilha</span>
+        </div>
+    </section>
+
+    <section class="secao">
+        <div class="secao-titulo">
+            <div>
+                <span class="eyebrow">Treinamentos</span>
+                <h2>Escolha um produto</h2>
+            </div>
+            <p>Você verá apenas os cursos liberados para o seu perfil.</p>
+        </div>
+        <div class="produtos">
+            {% for produto in produtos %}
+                <a href="{% url 'cursos_por_produto' produto.id %}" class="produto-card">
+                    <span class="produto-icone produto-cor-{{ forloop.counter }}">0{{ forloop.counter }}</span>
+                    <div>
+                        <h3>{{ produto.nome }}</h3>
+                        <p>{{ produto.descricao|default:"Treinamentos técnicos, procedimentos e certificações." }}</p>
+                    </div>
+                    <span class="seta">→</span>
+                </a>
+            {% empty %}
+                <div class="estado-vazio">
+                    <h3>Nenhum treinamento liberado</h3>
+                    <p>Peça ao responsável pela plataforma para liberar seus cursos.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+</main>
+{% endblock %}

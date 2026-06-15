@@ -1,0 +1,49 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Academia Técnica{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'core/css/style.css' %}?v=4">
+</head>
+<body>
+    <header class="topo">
+        <a class="marca" href="{% url 'home' %}">
+            <svg class="marca-setas" viewBox="0 0 54 34" aria-hidden="true">
+                <path class="seta-logo seta-logo-verde" d="M2 24h13l-5-5 4-4 12 12-12 12-4-4 5-5H2z" transform="translate(0 -5)"/>
+                <path class="seta-logo seta-logo-amarela" d="M2 24h13l-5-5 4-4 12 12-12 12-4-4 5-5H2z" transform="translate(13 -14)"/>
+                <path class="seta-logo seta-logo-rosa" d="M2 24h13l-5-5 4-4 12 12-12 12-4-4 5-5H2z" transform="translate(26 -23)"/>
+            </svg>
+            <span>SEM PARAR</span>
+            <small>Academia Técnica</small>
+        </a>
+        <nav class="menu-topo">
+            {% if user.is_authenticated %}
+                <span class="usuario">Olá, <strong>{{ user.first_name|default:user.username }}</strong></span>
+                <a href="{% url 'home' %}">Início</a>
+                <form method="post" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button class="link-button" type="submit">Sair</button>
+                </form>
+            {% endif %}
+        </nav>
+    </header>
+    <div class="faixa-marca"></div>
+
+    {% if messages %}
+        <div class="mensagens">
+            {% for message in messages %}
+                <div class="mensagem {{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+
+    <footer class="rodape">Academia Técnica Sem Parar · Capacitação que mantém operações em movimento.</footer>
+</body>
+</html>

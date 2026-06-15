@@ -1,0 +1,24 @@
+{% extends "core/base.html" %}
+{% block title %}Primeiro acesso · Academia Técnica{% endblock %}
+{% block content %}
+<main class="auth-layout auth-simples">
+    <section class="card-formulario">
+        <span class="eyebrow">Ativação de conta</span>
+        <h2>Crie seu acesso</h2>
+        <p>Use o e-mail e a matrícula previamente cadastrados pela empresa.</p>
+        {% if form.non_field_errors %}<div class="mensagem error">{{ form.non_field_errors }}</div>{% endif %}
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+                <div class="campo-form">
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% for error in field.errors %}<small class="erro-campo">{{ error }}</small>{% endfor %}
+                </div>
+            {% endfor %}
+            <button type="submit" class="botao-principal">Criar minha senha</button>
+        </form>
+        <p class="link-apoio">Já possui acesso? <a href="{% url 'login' %}">Faça login</a></p>
+    </section>
+</main>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "core/base.html" %}
+{% block title %}{{ produto.nome }} · Academia Técnica{% endblock %}
+{% block content %}
+<main class="container">
+    <a class="voltar" href="{% url 'home' %}">← Voltar para produtos</a>
+    <section class="cabecalho-pagina">
+        <div>
+            <span class="eyebrow">Produto</span>
+            <h1>{{ produto.nome }}</h1>
+            <p>{{ produto.descricao|default:"Conteúdos e certificações obrigatórias para atuação técnica." }}</p>
+        </div>
+    </section>
+
+    <div class="lista-cursos">
+        {% for item in cursos_com_status %}
+            <article class="curso-card">
+                <div class="curso-conteudo">
+                    <div class="curso-cabecalho">
+                        <span class="status {{ item.status_classe }}">{{ item.status }}</span>
+                        <span class="meta">{{ item.total_etapas }} etapa{{ item.total_etapas|pluralize }}</span>
+                    </div>
+                    <h2>{{ item.curso.nome }}</h2>
+                    <p>{{ item.curso.descricao|default:"O conteúdo deste treinamento será disponibilizado em breve." }}</p>
+
+                    <div class="progresso-info">
+                        <div>
+                            <span>Progresso atual</span>
+                            <strong>{{ item.percentual }}%</strong>
+                        </div>
+                        <div class="barra"><span style="width: {{ item.percentual }}%"></span></div>
+                    </div>
+
+                    {% if item.ultima_conclusao %}
+                        <div class="validade">
+                            <span>Última conclusão: {{ item.ultima_conclusao.data_conclusao|date:"d/m/Y" }}</span>
+                            <span>Validade: {{ item.ultima_conclusao.data_vencimento|date:"d/m/Y" }}</span>
+                        </div>
+                    {% endif %}
+                </div>
+                <a class="botao-principal botao-auto" href="{% url 'curso_detalhe' item.curso.id %}">
+                    {% if item.percentual %}Continuar curso{% else %}Iniciar curso{% endif %}
+                </a>
+            </article>
+        {% empty %}
+            <div class="estado-vazio">
+                <h3>Nenhum curso disponível</h3>
+                <p>Ainda não há cursos de {{ produto.nome }} liberados para você.</p>
+            </div>
+        {% endfor %}
+    </div>
+</main>
+{% endblock %}

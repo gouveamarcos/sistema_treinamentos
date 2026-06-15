@@ -1,0 +1,114 @@
+{% extends "core/base.html" %}
+{% load static %}
+{% block title %}{{ curso.nome }} · Academia Técnica{% endblock %}
+{% block content %}
+<main class="curso-layout">
+    <aside class="trilha">
+        <a class="voltar" href="{% url 'cursos_por_produto' curso.produto_id %}">← Voltar aos cursos</a>
+        <span class="eyebrow">{{ curso.produto.nome }}</span>
+        <h1>{{ curso.nome }}</h1>
+        <div class="progresso-info progresso-lateral">
+            <div><span>Seu progresso</span><strong>{{ percentual|default:0 }}%</strong></div>
+            <div class="barra"><span style="width: {{ percentual|default:0 }}%"></span></div>
+            <small>Tentativa {{ progresso.tentativa_atual }}</small>
+        </div>
+
+        <nav class="etapas-menu" aria-label="Etapas do curso">
+            {% for item in itens %}
+                {% if item.liberada %}
+                    <a href="{% url 'curso_etapa' curso.id item.etapa.id %}"
+                       class="etapa-link {% if item.etapa == etapa_atual %}ativa{% endif %} {% if item.concluida %}concluida{% endif %}">
+                {% else %}
+                    <span class="etapa-link bloqueada">
+                {% endif %}
+                        <span class="etapa-numero">
+                            {% if item.concluida %}✓{% elif item.liberada %}{{ forloop.counter }}{% else %}⌕{% endif %}
+                        </span>
+                        <span>
+                            <small>{{ item.etapa.get_tipo_display }}</small>
+                            <strong>{{ item.etapa.titulo }}</strong>
+                        </span>
+                {% if item.liberada %}</a>{% else %}</span>{% endif %}
+            {% empty %}
+                <p class="aviso-conteudo">O conteúdo deste curso ainda está sendo preparado.</p>
+            {% endfor %}
+        </nav>
+    </aside>
+
+    <section class="aula">
+        {% if etapa_atual %}
+            <div class="aula-card">
+                <div class="aula-topo">
+                    <span class="tipo-etapa">{{ etapa_atual.get_tipo_display }}</span>
+                    {% if etapa_concluida %}<span class="status status-em-dia">Concluída</span>{% endif %}
+                </div>
+                <h2>{{ etapa_atual.titulo }}</h2>
+                {% if etapa_atual.descricao %}<p class="aula-descricao">{{ etapa_atual.descricao }}</p>{% endif %}
+
+                {% if etapa_atual.tipo == "video" %}
+                    {% if "YLYEWMOTETo" in etapa_atual.video_url or "PD-MdiUm1_Y" in etapa_atual.video_url %}
+                        <div class="video-container video-local">
+                            <video controls preload="metadata">
+                                <source src="{% static 'core/video/demonstracao.mp4' %}" type="video/mp4">
+                                Seu navegador não oferece suporte à reprodução de vídeo.
+                            </video>
+                        </div>
+                    {% elif etapa_atual.video_url %}
+                        <div class="video-container">
+                            <iframe
+                                src="{{ etapa_atual.video_url }}"
+                                title="{{ etapa_atual.titulo }}"
+                                referrerpolicy="strict-origin-when-cross-origin"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                allowfullscreen>
+                            </iframe>
+                        </div>
+                    {% else %}
+                        <div class="placeholder-conteudo">O vídeo desta etapa será adicionado em breve.</div>
+                    {% endif %}
+                {% endif %}
+
+                {% if etapa_atual.conteudo %}
+                    <div class="conteudo-texto">{{ etapa_atual.conteudo|linebreaks }}</div>
+                {% elif etapa_atual.tipo == "texto" %}
+                    <div class="placeholder-conteudo">O material desta etapa será adicionado em breve.</div>
+                {% endif %}
+
+                {% if etapa_atual.avaliativa %}
+                    <form method="post" class="avaliacao">
+                        {% csrf_token %}
+                        {% for questao in etapa_atual.questoes.all %}
+                            <fieldset>
+                                <legend><span>{{ forloop.counter }}</span>{{ questao.enunciado }}</legend>
+                                {% for alternativa in questao.alternativas.all %}
+                                    <label class="alternativa">
+                                        <input type="radio" name="questao_{{ questao.id }}" value="{{ alternativa.id }}" required>
+                                        <span>{{ alternativa.texto }}</span>
+                                    </label>
+                                {% empty %}
+                                    <p class="aviso-conteudo">Alternativas ainda não cadastradas.</p>
+                                {% endfor %}
+                            </fieldset>
+                        {% empty %}
+                            <div class="placeholder-conteudo">As questões desta avaliação serão adicionadas em breve.</div>
+                        {% endfor %}
+                        {% if not etapa_concluida and etapa_atual.questoes.exists %}
+                            <button class="botao-principal" type="submit">Enviar respostas</button>
+                        {% endif %}
+                    </form>
+                {% elif not etapa_concluida %}
+                    <form method="post" class="acao-etapa">
+                        {% csrf_token %}
+                        <button class="botao-principal botao-auto" type="submit">Concluir etapa e continuar</button>
+                    </form>
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="aula-card estado-vazio">
+                <h2>Curso em preparação</h2>
+                <p>Assim que o conteúdo for cadastrado, ele aparecerá aqui em uma trilha sequencial.</p>
+            </div>
+        {% endif %}
+    </section>
+</main>
+{% endblock %}

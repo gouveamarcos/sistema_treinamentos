@@ -1,0 +1,33 @@
+{% extends "core/base.html" %}
+{% block title %}Entrar · Academia Técnica{% endblock %}
+{% block content %}
+<main class="auth-layout">
+    <section class="auth-apresentacao">
+        <span class="eyebrow">Academia Técnica Sem Parar</span>
+        <h1>Prepare-se para fazer a diferença em cada atendimento.</h1>
+        <p>Treinamentos, avaliações e certificações dos produtos Abastece, Drive, Estacione e Condomínio.</p>
+    </section>
+    <section class="card-formulario">
+        <span class="eyebrow">Área do técnico</span>
+        <h2>Bem-vindo de volta</h2>
+        <p>Entre com seu e-mail e senha.</p>
+        {% if form.errors %}<div class="mensagem error">E-mail ou senha inválidos.</div>{% endif %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="campo-form">
+                <label for="id_username">E-mail</label>
+                {{ form.username }}
+            </div>
+            <div class="campo-form">
+                <label for="id_password">Senha</label>
+                {{ form.password }}
+            </div>
+            <button type="submit" class="botao-principal">Entrar</button>
+        </form>
+        <div class="links-acesso">
+            <p class="link-apoio">Primeiro acesso? <a href="{% url 'primeiro_acesso' %}">Crie sua senha</a></p>
+            <p class="link-apoio"><a href="{% url 'password_reset' %}">Esqueci minha senha</a></p>
+        </div>
+    </section>
+</main>
+{% endblock %}
