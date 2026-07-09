@@ -11,6 +11,7 @@ from .models import (
     ProgressoCurso,
     ProgressoEtapa,
     Questao,
+    ResponsavelEmpresa,
     Tecnico,
     TentativaAvaliacao,
 )
@@ -33,6 +34,19 @@ class EmpresaAdmin(admin.ModelAdmin):
     list_display = ("nome", "documento", "responsavel", "email", "ativa")
     search_fields = ("nome", "documento", "responsavel", "email")
     list_filter = ("ativa",)
+
+
+@admin.register(ResponsavelEmpresa)
+class ResponsavelEmpresaAdmin(admin.ModelAdmin):
+    list_display = ("usuario", "empresa", "papel", "ativo", "data_criacao")
+    search_fields = (
+        "usuario__username",
+        "usuario__email",
+        "empresa__nome",
+    )
+    list_filter = ("empresa", "papel", "ativo")
+    autocomplete_fields = ("usuario", "empresa")
+    readonly_fields = ("data_criacao",)
 
 
 @admin.register(Produto)

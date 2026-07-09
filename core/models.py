@@ -21,6 +21,105 @@ class Empresa(models.Model):
         return self.nome
 
 
+class ResponsavelEmpresa(models.Model):
+    class Papel(models.TextChoices):
+        OPERACIONAL = "operacional", "Responsável operacional"
+        EDITOR_CURSOS = "editor_cursos", "Editor de cursos"
+
+    empresa = models.ForeignKey(
+        Empresa, on_delete=models.CASCADE, related_name="responsaveis"
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="responsabilidades_empresas",
+    )
+    papel = models.CharField(
+        max_length=20, choices=Papel.choices, default=Papel.OPERACIONAL
+    )
+    ativo = models.BooleanField(default=True)
+    data_criacao = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ("empresa__nome", "usuario__username")
+        verbose_name = "Responsável da empresa"
+        verbose_name_plural = "Responsáveis das empresas"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("empresa", "usuario", "papel"),
+                name="responsavel_empresa_papel_unico",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.usuario} - {self.empresa} ({self.get_papel_display()})"
+
+    @property
+    def nome_grupo(self):
+        return {
+            self.Papel.OPERACIONAL: "Responsável operacional",
+            self.Papel.EDITOR_CURSOS: "Editor de cursos",
+        }[self.papel]
+
+    def save(self, *args, **kwargs):
+        papel_anterior = None
+        ativo_anterior = None
+        if self.pk:
+            anterior = type(self).objects.filter(pk=self.pk).first()
+            if anterior:
+                papel_anterior = anterior.papel
+                ativo_anterior = anterior.ativo
+
+        super().save(*args, **kwargs)
+        self._sincronizar_grupos(papel_anterior, ativo_anterior)
+
+    def delete(self, *args, **kwargs):
+        usuario = self.usuario
+        papel = self.papel
+        resultado = super().delete(*args, **kwargs)
+        self._remover_grupo_se_sem_responsabilidade(usuario, papel)
+        return resultado
+
+    def _sincronizar_grupos(self, papel_anterior, ativo_anterior):
+        from django.contrib.auth.models import Group
+
+        if self.ativo:
+            grupo = Group.objects.filter(name=self.nome_grupo).first()
+            if grupo:
+                self.usuario.groups.add(grupo)
+
+        papel_mudou = papel_anterior and papel_anterior != self.papel
+        desativou = ativo_anterior is True and not self.ativo
+        if papel_mudou or desativou:
+            self._remover_grupo_se_sem_responsabilidade(
+                self.usuario,
+                papel_anterior,
+            )
+
+    @classmethod
+    def _remover_grupo_se_sem_responsabilidade(cls, usuario, papel):
+        from django.contrib.auth.models import Group
+
+        if not papel:
+            return
+
+        ainda_tem_papel = cls.objects.filter(
+            usuario=usuario,
+            papel=papel,
+            ativo=True,
+        ).exists()
+        if ainda_tem_papel:
+            return
+
+        nome_grupo = {
+            cls.Papel.OPERACIONAL: "Responsável operacional",
+            cls.Papel.EDITOR_CURSOS: "Editor de cursos",
+        }[papel]
+        grupo = Group.objects.filter(name=nome_grupo).first()
+        if grupo:
+            usuario.groups.remove(grupo)
+
+
 class Produto(models.Model):
     nome = models.CharField(max_length=100)
     descricao = models.TextField(blank=True, null=True)

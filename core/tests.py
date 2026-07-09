@@ -2,7 +2,7 @@ from datetime import timedelta
 from io import StringIO
 import re
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.core.management import call_command
 from django.test import TestCase
@@ -21,6 +21,7 @@ from .models import (
     ProgressoCurso,
     ProgressoEtapa,
     Questao,
+    ResponsavelEmpresa,
     Tecnico,
     TentativaAvaliacao,
 )
@@ -279,3 +280,58 @@ class RedefinirAdminTest(TestCase):
         self.assertTrue(usuario.is_staff)
         self.assertTrue(usuario.is_superuser)
         self.assertTrue(usuario.check_password("NovaSenhaAdmin123!"))
+
+
+class ResponsavelEmpresaTest(TestCase):
+    def setUp(self):
+        self.empresa = Empresa.objects.create(nome="Cliente Exemplo")
+        self.usuario = User.objects.create_user(
+            username="responsavel@exemplo.com",
+            email="responsavel@exemplo.com",
+            password="SenhaForte123!",
+        )
+
+    def test_grupos_iniciais_existem(self):
+        grupo_operacional = Group.objects.get(name="Responsável operacional")
+        grupo_editor = Group.objects.get(name="Editor de cursos")
+
+        permissoes_operacionais = set(
+            grupo_operacional.permissions.values_list("codename", flat=True)
+        )
+        permissoes_editor = set(
+            grupo_editor.permissions.values_list("codename", flat=True)
+        )
+
+        self.assertTrue(
+            {"view_tecnico", "add_cursoliberado", "change_empresa"}.issubset(
+                permissoes_operacionais
+            )
+        )
+        self.assertTrue(
+            {"view_curso", "add_etapacurso", "change_questao"}.issubset(
+                permissoes_editor
+            )
+        )
+
+    def test_responsavel_ativo_recebe_grupo_do_papel(self):
+        ResponsavelEmpresa.objects.create(
+            empresa=self.empresa,
+            usuario=self.usuario,
+            papel=ResponsavelEmpresa.Papel.OPERACIONAL,
+        )
+
+        self.assertTrue(
+            self.usuario.groups.filter(name="Responsável operacional").exists()
+        )
+
+    def test_desativar_responsavel_remove_grupo_sem_outro_vinculo_ativo(self):
+        responsavel = ResponsavelEmpresa.objects.create(
+            empresa=self.empresa,
+            usuario=self.usuario,
+            papel=ResponsavelEmpresa.Papel.EDITOR_CURSOS,
+        )
+
+        responsavel.ativo = False
+        responsavel.save()
+
+        self.assertFalse(self.usuario.groups.filter(name="Editor de cursos").exists())

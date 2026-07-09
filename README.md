@@ -6,6 +6,7 @@ Plataforma Django para treinamento, avaliação e reciclagem periódica de técn
 
 - Cadastro de técnicos e ativação no primeiro acesso.
 - Cadastro de empresas/clientes e vínculo dos técnicos à empresa.
+- Cadastro de responsáveis por empresa com papéis operacionais e de edição.
 - Recuperação de senha por link temporário enviado por e-mail.
 - Cursos separados por produto.
 - Liberação individual de cursos.
@@ -30,11 +31,17 @@ Acesse `http://127.0.0.1:8000/`.
 
 No painel `/admin/`:
 
-1. Cadastre os produtos e cursos.
-2. Dentro do curso, crie as etapas na ordem desejada.
-3. Para testes e provas, cadastre questões e suas alternativas.
-4. Marque somente a alternativa correta de cada questão.
-5. Libere o curso para os técnicos em **Cursos liberados**.
+1. Cadastre empresas/clientes.
+2. Cadastre técnicos vinculados à empresa correta.
+3. Cadastre responsáveis por empresa quando outras pessoas forem apoiar a gestão.
+4. Cadastre os produtos e cursos.
+5. Dentro do curso, crie as etapas na ordem desejada.
+6. Para testes e provas, cadastre questões e suas alternativas.
+7. Marque somente a alternativa correta de cada questão.
+8. Libere o curso para os técnicos em **Cursos liberados**.
+
+Responsáveis ativos recebem automaticamente um grupo de permissões conforme o
+papel cadastrado: **Responsável operacional** ou **Editor de cursos**.
 
 URLs de vídeo devem ser próprias para incorporação, como
 `https://www.youtube.com/embed/ID_DO_VIDEO`.
