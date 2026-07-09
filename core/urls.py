@@ -64,6 +64,11 @@ urlpatterns = [
         name="relatorio_treinamentos",
     ),
     path(
+        "liberacoes/lote/",
+        views.liberar_curso_lote,
+        name="liberar_curso_lote",
+    ),
+    path(
         "produtos/<int:produto_id>/cursos/",
         views.cursos_por_produto,
         name="cursos_por_produto",

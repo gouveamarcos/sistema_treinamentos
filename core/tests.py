@@ -706,3 +706,152 @@ class RelatorioTreinamentosTest(TestCase):
         self.assertEqual(resposta.context["totais"]["total"], 1)
         self.assertContains(resposta, "Curso Outra Empresa")
         self.assertNotContains(resposta, "Curso Pendente")
+
+
+class LiberarCursoLoteTest(TestCase):
+    def setUp(self):
+        self.staff = User.objects.create_user(
+            username="admin-liberacao",
+            password="SenhaForte123!",
+            is_staff=True,
+        )
+        self.usuario_comum = User.objects.create_user(
+            username="usuario-liberacao",
+            password="SenhaForte123!",
+        )
+        self.empresa = Empresa.objects.create(nome="Empresa Liberação")
+        self.outra_empresa = Empresa.objects.create(nome="Empresa Fora")
+        self.tecnico_1 = Tecnico.objects.create(
+            empresa=self.empresa,
+            nome="Técnico Um",
+            email="tecnico1@exemplo.com",
+            matricula="LIB001",
+        )
+        self.tecnico_2 = Tecnico.objects.create(
+            empresa=self.empresa,
+            nome="Técnico Dois",
+            email="tecnico2@exemplo.com",
+            matricula="LIB002",
+        )
+        self.tecnico_inativo = Tecnico.objects.create(
+            empresa=self.empresa,
+            nome="Técnico Inativo",
+            email="inativo@exemplo.com",
+            matricula="LIB003",
+            ativo=False,
+        )
+        self.tecnico_outra_empresa = Tecnico.objects.create(
+            empresa=self.outra_empresa,
+            nome="Técnico Outra Empresa",
+            email="outra@exemplo.com",
+            matricula="LIB004",
+        )
+        self.produto = Produto.objects.create(nome="Produto Liberação")
+        self.curso = Curso.objects.create(nome="Curso Liberação", produto=self.produto)
+
+    def test_liberacao_lote_exige_staff(self):
+        resposta_anonima = self.client.get(reverse("liberar_curso_lote"))
+        self.assertEqual(resposta_anonima.status_code, 302)
+
+        self.client.force_login(self.usuario_comum)
+        resposta_comum = self.client.get(reverse("liberar_curso_lote"))
+        self.assertEqual(resposta_comum.status_code, 302)
+
+    def test_liberacao_lote_para_todos_tecnicos_ativos_da_empresa(self):
+        self.client.force_login(self.staff)
+
+        resposta = self.client.post(
+            reverse("liberar_curso_lote"),
+            {
+                "empresa": self.empresa.id,
+                "curso": self.curso.id,
+                "todos_tecnicos": "on",
+                "obrigatorio": "on",
+            },
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTrue(
+            CursoLiberado.objects.filter(
+                tecnico=self.tecnico_1,
+                curso=self.curso,
+                obrigatorio=True,
+                ativo=True,
+            ).exists()
+        )
+        self.assertTrue(
+            CursoLiberado.objects.filter(
+                tecnico=self.tecnico_2,
+                curso=self.curso,
+                ativo=True,
+            ).exists()
+        )
+        self.assertFalse(
+            CursoLiberado.objects.filter(
+                tecnico=self.tecnico_inativo,
+                curso=self.curso,
+            ).exists()
+        )
+        self.assertEqual(resposta.context["resultado"]["criados"], 2)
+
+    def test_liberacao_lote_ignora_duplicado_ativo(self):
+        CursoLiberado.objects.create(tecnico=self.tecnico_1, curso=self.curso)
+        self.client.force_login(self.staff)
+
+        resposta = self.client.post(
+            reverse("liberar_curso_lote"),
+            {
+                "empresa": self.empresa.id,
+                "curso": self.curso.id,
+                "tecnicos": [self.tecnico_1.id, self.tecnico_2.id],
+                "obrigatorio": "on",
+            },
+        )
+
+        self.assertEqual(CursoLiberado.objects.filter(curso=self.curso).count(), 2)
+        self.assertEqual(resposta.context["resultado"]["criados"], 1)
+        self.assertEqual(resposta.context["resultado"]["existentes"], 1)
+
+    def test_liberacao_lote_reativa_liberacao_inativa(self):
+        CursoLiberado.objects.create(
+            tecnico=self.tecnico_1,
+            curso=self.curso,
+            obrigatorio=False,
+            ativo=False,
+        )
+        self.client.force_login(self.staff)
+
+        resposta = self.client.post(
+            reverse("liberar_curso_lote"),
+            {
+                "empresa": self.empresa.id,
+                "curso": self.curso.id,
+                "tecnicos": [self.tecnico_1.id],
+                "obrigatorio": "on",
+            },
+        )
+
+        liberacao = CursoLiberado.objects.get(tecnico=self.tecnico_1, curso=self.curso)
+        self.assertTrue(liberacao.ativo)
+        self.assertTrue(liberacao.obrigatorio)
+        self.assertEqual(resposta.context["resultado"]["reativados"], 1)
+
+    def test_liberacao_lote_rejeita_tecnico_de_outra_empresa(self):
+        self.client.force_login(self.staff)
+
+        resposta = self.client.post(
+            reverse("liberar_curso_lote"),
+            {
+                "empresa": self.empresa.id,
+                "curso": self.curso.id,
+                "tecnicos": [self.tecnico_outra_empresa.id],
+                "obrigatorio": "on",
+            },
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(CursoLiberado.objects.filter(curso=self.curso).exists())
+        self.assertContains(
+            resposta,
+            "Selecione ao menos um técnico ou marque a liberação para todos.",
+        )

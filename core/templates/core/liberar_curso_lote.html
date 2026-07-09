@@ -1,0 +1,55 @@
+{% extends "core/base.html" %}
+{% block title %}Liberar cursos em lote · Academia Técnica{% endblock %}
+{% block content %}
+<main class="container">
+    <section class="cabecalho-pagina">
+        <div>
+            <span class="eyebrow">Operação</span>
+            <h1>Liberar cursos em lote</h1>
+            <p>Crie liberações para vários técnicos de uma mesma empresa sem repetir cadastros manualmente.</p>
+        </div>
+    </section>
+
+    <form class="card-formulario formulario-operacional" method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+            <div class="mensagem error">
+                {% for erro in form.non_field_errors %}{{ erro }}{% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="grade-formulario">
+            <div class="campo-form">
+                {{ form.empresa.label_tag }}
+                {{ form.empresa }}
+                {% for erro in form.empresa.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+            <div class="campo-form">
+                {{ form.curso.label_tag }}
+                {{ form.curso }}
+                {% for erro in form.curso.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+        </div>
+
+        <div class="campo-form">
+            {{ form.tecnicos.label_tag }}
+            {{ form.tecnicos }}
+            <small class="texto-ajuda">Selecione técnicos da empresa escolhida ou use a opção para liberar para todos os técnicos ativos.</small>
+            {% for erro in form.tecnicos.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+        </div>
+
+        <label class="check-operacional">{{ form.todos_tecnicos }} {{ form.todos_tecnicos.label }}</label>
+        <label class="check-operacional">{{ form.obrigatorio }} {{ form.obrigatorio.label }}</label>
+
+        <button class="botao-principal botao-auto" type="submit">Criar liberações</button>
+    </form>
+
+    {% if resultado %}
+        <section class="cards-resumo">
+            <article><span>Criadas</span><strong>{{ resultado.criados }}</strong></article>
+            <article><span>Reativadas/atualizadas</span><strong>{{ resultado.reativados }}</strong></article>
+            <article><span>Já existentes</span><strong>{{ resultado.existentes }}</strong></article>
+        </section>
+    {% endif %}
+</main>
+{% endblock %}

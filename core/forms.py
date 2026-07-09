@@ -1,6 +1,81 @@
 from django import forms
 from django.contrib.auth.password_validation import validate_password
 
+from .models import Curso, Empresa, Tecnico
+
+
+class LiberarCursoLoteForm(forms.Form):
+    empresa = forms.ModelChoiceField(
+        label="Empresa",
+        queryset=Empresa.objects.filter(ativa=True).order_by("nome"),
+        empty_label="Selecione a empresa",
+    )
+    curso = forms.ModelChoiceField(
+        label="Curso",
+        queryset=Curso.objects.filter(ativo=True).select_related("produto").order_by(
+            "produto__nome",
+            "nome",
+        ),
+        empty_label="Selecione o curso",
+    )
+    tecnicos = forms.ModelMultipleChoiceField(
+        label="Técnicos",
+        queryset=Tecnico.objects.none(),
+        required=False,
+        widget=forms.SelectMultiple(attrs={"size": "10"}),
+    )
+    todos_tecnicos = forms.BooleanField(
+        label="Liberar para todos os técnicos ativos da empresa",
+        required=False,
+    )
+    obrigatorio = forms.BooleanField(
+        label="Curso obrigatório",
+        required=False,
+        initial=True,
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        empresa_id = self.data.get("empresa") or self.initial.get("empresa")
+        if empresa_id:
+            self.fields["tecnicos"].queryset = Tecnico.objects.filter(
+                empresa_id=empresa_id,
+                ativo=True,
+            ).order_by("nome")
+        else:
+            self.fields["tecnicos"].queryset = Tecnico.objects.filter(
+                ativo=True,
+            ).select_related("empresa").order_by("empresa__nome", "nome")
+
+    def clean(self):
+        dados = super().clean()
+        empresa = dados.get("empresa")
+        tecnicos = dados.get("tecnicos")
+        todos_tecnicos = dados.get("todos_tecnicos")
+
+        if not empresa:
+            return dados
+
+        if todos_tecnicos:
+            dados["tecnicos"] = Tecnico.objects.filter(
+                empresa=empresa,
+                ativo=True,
+            ).order_by("nome")
+            return dados
+
+        if not tecnicos:
+            raise forms.ValidationError(
+                "Selecione ao menos um técnico ou marque a liberação para todos."
+            )
+
+        tecnicos_fora_empresa = tecnicos.exclude(empresa=empresa)
+        if tecnicos_fora_empresa.exists():
+            raise forms.ValidationError(
+                "Todos os técnicos selecionados devem pertencer à empresa escolhida."
+            )
+
+        return dados
+
 
 class ValidarCertificadoForm(forms.Form):
     codigo = forms.CharField(

@@ -83,9 +83,15 @@ a { color: inherit; }
 .card-formulario > p { color: var(--muted); font-size: 14px; line-height: 1.6; }
 .campo-form { margin: 19px 0; }
 .campo-form label { display: block; margin-bottom: 7px; font-size: 13px; font-weight: 700; }
-.campo-form input { width: 100%; padding: 13px 14px; border: 1px solid #ccd3d4; border-radius: 9px; font: inherit; }
-.campo-form input:focus { outline: 3px solid rgba(0,166,156,.14); border-color: var(--verde); }
+.campo-form input, .campo-form select { width: 100%; padding: 13px 14px; border: 1px solid #ccd3d4; border-radius: 9px; font: inherit; background: var(--branco); }
+.campo-form select[multiple] { min-height: 220px; }
+.campo-form input:focus, .campo-form select:focus { outline: 3px solid rgba(0,166,156,.14); border-color: var(--verde); }
 .link-apoio { margin: 20px 0 0; text-align: center; }.link-apoio a { color: var(--verde-escuro); font-weight: 700; }.erro-campo { display: block; margin-top: 5px; color: #a32929; }
+.texto-ajuda { display: block; margin-top: 7px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.formulario-operacional { margin-top: 28px; }
+.grade-formulario { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.check-operacional { display: flex; align-items: center; gap: 9px; margin: 14px 0; font-size: 14px; font-weight: 700; }
+.check-operacional input { width: auto; accent-color: var(--verde); }
 .links-acesso { margin-top: 20px; padding-top: 3px; border-top: 1px solid var(--borda); }
 .links-acesso .link-apoio { margin-top: 14px; }
 .card-confirmacao { text-align: center; }
@@ -157,7 +163,7 @@ a { color: inherit; }
 @media (max-width: 850px) {
     .usuario { display: none; }.hero { padding: 34px; }.hero-badge { display: none; }.produtos { grid-template-columns: 1fr; }
     .curso-card { align-items: stretch; flex-direction: column; }.botao-auto { width: 100%; }
-    .auth-layout, .validacao-grid, .certificado-dados, .cards-resumo { grid-template-columns: 1fr; }.auth-apresentacao { display: none; }
+    .auth-layout, .validacao-grid, .certificado-dados, .cards-resumo, .grade-formulario { grid-template-columns: 1fr; }.auth-apresentacao { display: none; }
     .filtros-relatorio { align-items: stretch; flex-direction: column; }.filtros-relatorio label { min-width: 0; }
     .curso-layout { grid-template-columns: 1fr; }.trilha { padding: 28px 22px; border-right: 0; border-bottom: 1px solid var(--borda); }.etapas-menu { max-height: 310px; overflow: auto; }.aula { padding: 30px 20px; }.aula-card { padding: 26px; }
 }

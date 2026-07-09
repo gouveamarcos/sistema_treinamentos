@@ -9,7 +9,7 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from .forms import PrimeiroAcessoForm, ValidarCertificadoForm
+from .forms import LiberarCursoLoteForm, PrimeiroAcessoForm, ValidarCertificadoForm
 from .models import (
     Alternativa,
     ConclusaoTreinamento,
@@ -282,6 +282,58 @@ def relatorio_treinamentos(request):
             "itens": itens,
             "totais": totais,
         },
+    )
+
+
+@staff_member_required
+@transaction.atomic
+def liberar_curso_lote(request):
+    resultado = None
+    if request.method == "POST":
+        form = LiberarCursoLoteForm(request.POST)
+        if form.is_valid():
+            curso = form.cleaned_data["curso"]
+            tecnicos = form.cleaned_data["tecnicos"]
+            obrigatorio = form.cleaned_data["obrigatorio"]
+            resultado = {"criados": 0, "reativados": 0, "existentes": 0}
+
+            for tecnico in tecnicos:
+                liberacao, criada = CursoLiberado.objects.get_or_create(
+                    tecnico=tecnico,
+                    curso=curso,
+                    defaults={"obrigatorio": obrigatorio, "ativo": True},
+                )
+                if criada:
+                    resultado["criados"] += 1
+                    continue
+
+                if not liberacao.ativo or liberacao.obrigatorio != obrigatorio:
+                    liberacao.ativo = True
+                    liberacao.obrigatorio = obrigatorio
+                    liberacao.save(update_fields=["ativo", "obrigatorio"])
+                    resultado["reativados"] += 1
+                else:
+                    resultado["existentes"] += 1
+
+            messages.success(
+                request,
+                (
+                    "Liberação em lote concluída: "
+                    f"{resultado['criados']} criada(s), "
+                    f"{resultado['reativados']} reativada(s)/atualizada(s), "
+                    f"{resultado['existentes']} já existente(s)."
+                ),
+            )
+            form = LiberarCursoLoteForm(
+                initial={"empresa": form.cleaned_data["empresa"]}
+            )
+    else:
+        form = LiberarCursoLoteForm()
+
+    return render(
+        request,
+        "core/liberar_curso_lote.html",
+        {"form": form, "resultado": resultado},
     )
 
 

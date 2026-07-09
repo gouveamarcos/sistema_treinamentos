@@ -11,6 +11,7 @@ Plataforma Django para treinamento, avaliação e reciclagem periódica de técn
 - Cursos separados por produto.
 - Liberação individual de cursos.
 - Ações em lote no admin para ativar, inativar e classificar liberações.
+- Liberação de cursos em lote por empresa e técnicos.
 - Etapas ordenadas em texto, vídeo, teste e prova.
 - Bloqueio de etapas futuras até a conclusão das anteriores.
 - Nota mínima configurável por curso.
@@ -60,6 +61,7 @@ Também podem ser visualizados para impressão ou PDF em
 
 Usuários administrativos podem acompanhar pendências, vencimentos e reciclagens
 em `/relatorios/treinamentos/`.
+Também podem criar liberações em lote em `/liberacoes/lote/`.
 
 URLs de vídeo devem ser próprias para incorporação, como
 `https://www.youtube.com/embed/ID_DO_VIDEO`.
