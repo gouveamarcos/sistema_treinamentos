@@ -1,0 +1,90 @@
+{% extends "core/base.html" %}
+{% block title %}Relatório de treinamentos · Academia Técnica{% endblock %}
+{% block content %}
+<main class="container">
+    <section class="cabecalho-pagina">
+        <div>
+            <span class="eyebrow">Operação</span>
+            <h1>Relatório de treinamentos</h1>
+            <p>Acompanhe pendências, reciclagens e certificados por empresa, técnico e curso.</p>
+        </div>
+    </section>
+
+    <form class="filtros-relatorio" method="get">
+        <label>
+            Empresa
+            <select name="empresa">
+                <option value="">Todas</option>
+                {% for empresa in empresas %}
+                    <option value="{{ empresa.id }}" {% if empresa_id == empresa.id|stringformat:"s" %}selected{% endif %}>{{ empresa.nome }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            Situação
+            <select name="situacao">
+                <option value="">Todas</option>
+                <option value="pendente" {% if situacao_filtro == "pendente" %}selected{% endif %}>Pendente</option>
+                <option value="em_andamento" {% if situacao_filtro == "em_andamento" %}selected{% endif %}>Em andamento</option>
+                <option value="em_dia" {% if situacao_filtro == "em_dia" %}selected{% endif %}>Em dia</option>
+                <option value="vence_30" {% if situacao_filtro == "vence_30" %}selected{% endif %}>Vence em até 30 dias</option>
+                <option value="vencido" {% if situacao_filtro == "vencido" %}selected{% endif %}>Vencido</option>
+                <option value="sem_vencimento" {% if situacao_filtro == "sem_vencimento" %}selected{% endif %}>Sem vencimento</option>
+            </select>
+        </label>
+        <button class="botao-principal botao-auto" type="submit">Filtrar</button>
+    </form>
+
+    <section class="cards-resumo">
+        <article><span>Total</span><strong>{{ totais.total }}</strong></article>
+        <article><span>Pendentes</span><strong>{{ totais.pendente }}</strong></article>
+        <article><span>Em andamento</span><strong>{{ totais.em_andamento }}</strong></article>
+        <article><span>Em dia</span><strong>{{ totais.em_dia }}</strong></article>
+        <article><span>Vence em 30 dias</span><strong>{{ totais.vence_30 }}</strong></article>
+        <article><span>Vencidos</span><strong>{{ totais.vencido }}</strong></article>
+    </section>
+
+    <section class="tabela-relatorio">
+        <table>
+            <thead>
+                <tr>
+                    <th>Empresa</th>
+                    <th>Técnico</th>
+                    <th>Produto</th>
+                    <th>Curso</th>
+                    <th>Situação</th>
+                    <th>Conclusão</th>
+                    <th>Validade</th>
+                    <th>Certificado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in itens %}
+                    <tr>
+                        <td>{{ item.liberacao.tecnico.empresa.nome }}</td>
+                        <td>{{ item.liberacao.tecnico.nome }}</td>
+                        <td>{{ item.liberacao.curso.produto.nome }}</td>
+                        <td>{{ item.liberacao.curso.nome }}</td>
+                        <td><span class="status {{ item.classe }}">{{ item.rotulo }}</span></td>
+                        <td>{{ item.ultima_conclusao.data_conclusao|date:"d/m/Y"|default:"-" }}</td>
+                        <td>{{ item.ultima_conclusao.data_vencimento|date:"d/m/Y"|default:"-" }}</td>
+                        <td>
+                            {% if item.ultima_conclusao %}
+                                <a href="{% url 'certificado_imprimir' item.ultima_conclusao.codigo_certificado %}">
+                                    {{ item.ultima_conclusao.codigo_certificado }}
+                                </a>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="8">Nenhum treinamento encontrado para os filtros selecionados.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</main>
+{% endblock %}

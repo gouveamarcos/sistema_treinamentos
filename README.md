@@ -21,6 +21,7 @@ Plataforma Django para treinamento, avaliação e reciclagem periódica de técn
 - Nova tentativa automática quando a certificação vence.
 - Lembretes de reciclagem por e-mail.
 - Filtros operacionais para certificações vencidas ou próximas do vencimento.
+- Relatório operacional de treinamentos por empresa, técnico, curso e situação.
 
 ## Executar localmente
 
@@ -56,6 +57,9 @@ Certificados podem ser validados publicamente em `/certificados/validar/` pelo
 código no formato `CERT-XXXXXXXX`.
 Também podem ser visualizados para impressão ou PDF em
 `/certificados/CERT-XXXXXXXX/imprimir/`.
+
+Usuários administrativos podem acompanhar pendências, vencimentos e reciclagens
+em `/relatorios/treinamentos/`.
 
 URLs de vídeo devem ser próprias para incorporação, como
 `https://www.youtube.com/embed/ID_DO_VIDEO`.

@@ -26,6 +26,9 @@
             {% if user.is_authenticated %}
                 <span class="usuario">Olá, <strong>{{ user.first_name|default:user.username }}</strong></span>
                 <a href="{% url 'home' %}">Início</a>
+                {% if user.is_staff %}
+                    <a href="{% url 'relatorio_treinamentos' %}">Relatórios</a>
+                {% endif %}
                 <form method="post" action="{% url 'logout' %}">
                     {% csrf_token %}
                     <button class="link-button" type="submit">Sair</button>

@@ -1,6 +1,8 @@
+from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -13,6 +15,7 @@ from .models import (
     ConclusaoTreinamento,
     Curso,
     CursoLiberado,
+    Empresa,
     EtapaCurso,
     Produto,
     ProgressoCurso,
@@ -21,6 +24,8 @@ from .models import (
     TentativaAvaliacao,
 )
 
+JANELA_VENCIMENTO_DIAS = 30
+
 
 def _situacao_certificado(conclusao):
     if not conclusao.data_vencimento:
@@ -28,6 +33,50 @@ def _situacao_certificado(conclusao):
     if conclusao.data_vencimento < timezone.localdate():
         return "Vencido", "status-vencido"
     return "Válido", "status-em-dia"
+
+
+def _situacao_liberacao(liberacao, hoje=None):
+    hoje = hoje or timezone.localdate()
+    limite = hoje + timedelta(days=JANELA_VENCIMENTO_DIAS)
+    tecnico = liberacao.tecnico
+    curso = liberacao.curso
+    ultima_conclusao = curso.conclusoes.filter(tecnico=tecnico).order_by(
+        "-data_conclusao"
+    ).first()
+    progresso = curso.progressos.filter(tecnico=tecnico).first()
+
+    if ultima_conclusao and ultima_conclusao.data_vencimento:
+        if ultima_conclusao.data_vencimento < hoje:
+            return ultima_conclusao, progresso, "vencido", "Vencido", "status-vencido"
+        if ultima_conclusao.data_vencimento <= limite:
+            return (
+                ultima_conclusao,
+                progresso,
+                "vence_30",
+                "Vence em até 30 dias",
+                "status-pendente",
+            )
+        return ultima_conclusao, progresso, "em_dia", "Em dia", "status-em-dia"
+
+    if ultima_conclusao:
+        return (
+            ultima_conclusao,
+            progresso,
+            "sem_vencimento",
+            "Sem vencimento",
+            "status-pendente",
+        )
+
+    if progresso and progresso.status == ProgressoCurso.Status.EM_ANDAMENTO:
+        return (
+            ultima_conclusao,
+            progresso,
+            "em_andamento",
+            "Em andamento",
+            "status-andamento",
+        )
+
+    return ultima_conclusao, progresso, "pendente", "Pendente", "status-pendente"
 
 
 def _buscar_conclusao_por_codigo(codigo):
@@ -171,6 +220,71 @@ def validar_certificado(request, codigo=None):
     return render(request, "core/validar_certificado.html", contexto)
 
 
+@staff_member_required
+def relatorio_treinamentos(request):
+    empresa_id = request.GET.get("empresa") or ""
+    situacao_filtro = request.GET.get("situacao") or ""
+    hoje = timezone.localdate()
+
+    liberacoes = CursoLiberado.objects.filter(
+        ativo=True,
+        tecnico__ativo=True,
+        curso__ativo=True,
+    ).select_related("tecnico__empresa", "curso__produto")
+
+    if empresa_id:
+        liberacoes = liberacoes.filter(tecnico__empresa_id=empresa_id)
+
+    itens = []
+    totais = {
+        "total": 0,
+        "pendente": 0,
+        "em_andamento": 0,
+        "em_dia": 0,
+        "vence_30": 0,
+        "vencido": 0,
+        "sem_vencimento": 0,
+    }
+
+    for liberacao in liberacoes.order_by(
+        "tecnico__empresa__nome",
+        "tecnico__nome",
+        "curso__produto__nome",
+        "curso__nome",
+    ):
+        ultima_conclusao, progresso, situacao, rotulo, classe = _situacao_liberacao(
+            liberacao,
+            hoje=hoje,
+        )
+        if situacao_filtro and situacao != situacao_filtro:
+            continue
+
+        totais["total"] += 1
+        totais[situacao] += 1
+        itens.append(
+            {
+                "liberacao": liberacao,
+                "ultima_conclusao": ultima_conclusao,
+                "progresso": progresso,
+                "situacao": situacao,
+                "rotulo": rotulo,
+                "classe": classe,
+            }
+        )
+
+    return render(
+        request,
+        "core/relatorio_treinamentos.html",
+        {
+            "empresas": Empresa.objects.filter(ativa=True).order_by("nome"),
+            "empresa_id": empresa_id,
+            "situacao_filtro": situacao_filtro,
+            "itens": itens,
+            "totais": totais,
+        },
+    )
+
+
 def certificado_imprimir(request, codigo):
     conclusao, codigo_consultado = _buscar_conclusao_por_codigo(codigo)
     if not conclusao:
@@ -217,14 +331,12 @@ def cursos_por_produto(request, produto_id):
         ).first()
         progresso = curso.progressos.filter(tecnico=tecnico).first()
 
-        if ultima_conclusao and ultima_conclusao.data_vencimento >= hoje:
-            status, status_classe = "Em dia", "status-em-dia"
-        elif ultima_conclusao:
-            status, status_classe = "Reciclagem pendente", "status-vencido"
-        elif progresso and progresso.status == ProgressoCurso.Status.EM_ANDAMENTO:
-            status, status_classe = "Em andamento", "status-andamento"
-        else:
-            status, status_classe = "Pendente", "status-pendente"
+        _, _, situacao, status, status_classe = _situacao_liberacao(
+            liberacao,
+            hoje=hoje,
+        )
+        if situacao in {"vencido", "vence_30"}:
+            status = "Reciclagem pendente"
 
         total = curso.etapas.filter(ativo=True).count()
         concluidas = 0

@@ -585,3 +585,124 @@ class ValidacaoCertificadoTest(TestCase):
 
         self.assertEqual(resposta.status_code, 404)
         self.assertContains(resposta, "Certificado não encontrado", status_code=404)
+
+
+class RelatorioTreinamentosTest(TestCase):
+    def setUp(self):
+        self.staff = User.objects.create_user(
+            username="admin-relatorio",
+            password="SenhaForte123!",
+            is_staff=True,
+        )
+        self.usuario_comum = User.objects.create_user(
+            username="usuario-comum",
+            password="SenhaForte123!",
+        )
+        self.empresa = Empresa.objects.create(nome="Empresa Relatório")
+        self.outra_empresa = Empresa.objects.create(nome="Outra Empresa")
+        self.tecnico = Tecnico.objects.create(
+            empresa=self.empresa,
+            nome="Técnico Relatório",
+            email="relatorio@exemplo.com",
+            matricula="REL001",
+        )
+        self.outro_tecnico = Tecnico.objects.create(
+            empresa=self.outra_empresa,
+            nome="Outro Técnico",
+            email="outro.relatorio@exemplo.com",
+            matricula="REL002",
+        )
+        self.produto = Produto.objects.create(nome="Produto Relatório")
+
+        self.curso_pendente = self._criar_liberacao("Curso Pendente")
+        self.curso_andamento = self._criar_liberacao("Curso Em Andamento")
+        self.curso_vencido = self._criar_liberacao("Curso Vencido")
+        self.curso_vence_30 = self._criar_liberacao("Curso Vence 30")
+        self.curso_em_dia = self._criar_liberacao("Curso Em Dia")
+        self.curso_outra_empresa = self._criar_liberacao(
+            "Curso Outra Empresa",
+            tecnico=self.outro_tecnico,
+        )
+
+        ProgressoCurso.objects.create(
+            tecnico=self.tecnico,
+            curso=self.curso_andamento,
+            status=ProgressoCurso.Status.EM_ANDAMENTO,
+            iniciado_em=timezone.now(),
+        )
+        ConclusaoTreinamento.objects.create(
+            tecnico=self.tecnico,
+            curso=self.curso_vencido,
+            data_conclusao=timezone.localdate() - timedelta(days=90),
+            data_vencimento=timezone.localdate() - timedelta(days=1),
+        )
+        ConclusaoTreinamento.objects.create(
+            tecnico=self.tecnico,
+            curso=self.curso_vence_30,
+            data_conclusao=timezone.localdate(),
+            data_vencimento=timezone.localdate() + timedelta(days=10),
+        )
+        ConclusaoTreinamento.objects.create(
+            tecnico=self.tecnico,
+            curso=self.curso_em_dia,
+            data_conclusao=timezone.localdate(),
+            data_vencimento=timezone.localdate() + timedelta(days=60),
+        )
+
+    def _criar_liberacao(self, nome_curso, tecnico=None):
+        curso = Curso.objects.create(nome=nome_curso, produto=self.produto)
+        CursoLiberado.objects.create(
+            tecnico=tecnico or self.tecnico,
+            curso=curso,
+            ativo=True,
+        )
+        return curso
+
+    def test_relatorio_exige_usuario_staff(self):
+        resposta_anonima = self.client.get(reverse("relatorio_treinamentos"))
+        self.assertEqual(resposta_anonima.status_code, 302)
+
+        self.client.force_login(self.usuario_comum)
+        resposta_comum = self.client.get(reverse("relatorio_treinamentos"))
+        self.assertEqual(resposta_comum.status_code, 302)
+
+    def test_relatorio_mostra_totais_e_situacoes(self):
+        self.client.force_login(self.staff)
+
+        resposta = self.client.get(reverse("relatorio_treinamentos"))
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Relatório de treinamentos")
+        self.assertContains(resposta, "Curso Pendente")
+        self.assertContains(resposta, "Curso Em Andamento")
+        self.assertContains(resposta, "Curso Vencido")
+        self.assertEqual(resposta.context["totais"]["total"], 6)
+        self.assertEqual(resposta.context["totais"]["pendente"], 2)
+        self.assertEqual(resposta.context["totais"]["em_andamento"], 1)
+        self.assertEqual(resposta.context["totais"]["vencido"], 1)
+        self.assertEqual(resposta.context["totais"]["vence_30"], 1)
+        self.assertEqual(resposta.context["totais"]["em_dia"], 1)
+
+    def test_relatorio_filtra_por_situacao(self):
+        self.client.force_login(self.staff)
+
+        resposta = self.client.get(
+            reverse("relatorio_treinamentos"),
+            {"situacao": "vencido"},
+        )
+
+        self.assertEqual(resposta.context["totais"]["total"], 1)
+        self.assertContains(resposta, "Curso Vencido")
+        self.assertNotContains(resposta, "Curso Pendente")
+
+    def test_relatorio_filtra_por_empresa(self):
+        self.client.force_login(self.staff)
+
+        resposta = self.client.get(
+            reverse("relatorio_treinamentos"),
+            {"empresa": str(self.outra_empresa.id)},
+        )
+
+        self.assertEqual(resposta.context["totais"]["total"], 1)
+        self.assertContains(resposta, "Curso Outra Empresa")
+        self.assertNotContains(resposta, "Curso Pendente")
