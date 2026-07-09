@@ -10,6 +10,7 @@ Plataforma Django para treinamento, avaliação e reciclagem periódica de técn
 - Recuperação de senha por link temporário enviado por e-mail.
 - Cursos separados por produto.
 - Liberação individual de cursos.
+- Ações em lote no admin para ativar, inativar e classificar liberações.
 - Etapas ordenadas em texto, vídeo, teste e prova.
 - Bloqueio de etapas futuras até a conclusão das anteriores.
 - Nota mínima configurável por curso.
@@ -17,6 +18,7 @@ Plataforma Django para treinamento, avaliação e reciclagem periódica de técn
 - Certificação com data de vencimento.
 - Nova tentativa automática quando a certificação vence.
 - Lembretes de reciclagem por e-mail.
+- Filtros operacionais para certificações vencidas ou próximas do vencimento.
 
 ## Executar localmente
 
@@ -42,6 +44,11 @@ No painel `/admin/`:
 
 Responsáveis ativos recebem automaticamente um grupo de permissões conforme o
 papel cadastrado: **Responsável operacional** ou **Editor de cursos**.
+
+Em **Cursos liberados**, use as ações em lote do admin para ativar/inativar
+liberações ou marcar cursos como obrigatórios/opcionais. Em **Conclusões de
+treinamento**, use o filtro de situação para encontrar certificados vencidos,
+próximos do vencimento ou em dia.
 
 URLs de vídeo devem ser próprias para incorporação, como
 `https://www.youtube.com/embed/ID_DO_VIDEO`.

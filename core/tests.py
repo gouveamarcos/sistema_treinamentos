@@ -2,9 +2,11 @@ from datetime import timedelta
 from io import StringIO
 import re
 
+from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.core.management import call_command
+from django.test import RequestFactory
 from django.test import TestCase
 from django.test import override_settings
 from django.urls import reverse
@@ -24,6 +26,11 @@ from .models import (
     ResponsavelEmpresa,
     Tecnico,
     TentativaAvaliacao,
+)
+from .admin import (
+    ConclusaoTreinamentoAdmin,
+    CursoLiberadoAdmin,
+    SituacaoVencimentoFilter,
 )
 
 
@@ -335,3 +342,102 @@ class ResponsavelEmpresaTest(TestCase):
         responsavel.save()
 
         self.assertFalse(self.usuario.groups.filter(name="Editor de cursos").exists())
+
+
+class OperacaoAdminTest(TestCase):
+    def setUp(self):
+        self.empresa = Empresa.objects.create(nome="Empresa Operacional")
+        self.tecnico = Tecnico.objects.create(
+            empresa=self.empresa,
+            nome="Técnico Operacional",
+            email="operacional@exemplo.com",
+            matricula="OP001",
+        )
+        self.produto = Produto.objects.create(nome="Produto Operacional")
+        self.curso = Curso.objects.create(nome="Curso Operacional", produto=self.produto)
+        self.site = AdminSite()
+
+    def test_acoes_de_liberacao_em_lote(self):
+        liberacao = CursoLiberado.objects.create(
+            tecnico=self.tecnico,
+            curso=self.curso,
+            obrigatorio=True,
+            ativo=True,
+        )
+        admin_liberacao = CursoLiberadoAdmin(CursoLiberado, self.site)
+        queryset = CursoLiberado.objects.filter(pk=liberacao.pk)
+
+        admin_liberacao.marcar_como_inativas(None, queryset)
+        liberacao.refresh_from_db()
+        self.assertFalse(liberacao.ativo)
+
+        admin_liberacao.marcar_como_ativas(None, queryset)
+        admin_liberacao.marcar_como_opcionais(None, queryset)
+        liberacao.refresh_from_db()
+        self.assertTrue(liberacao.ativo)
+        self.assertFalse(liberacao.obrigatorio)
+
+        admin_liberacao.marcar_como_obrigatorias(None, queryset)
+        liberacao.refresh_from_db()
+        self.assertTrue(liberacao.obrigatorio)
+
+    def test_status_e_dias_para_vencer_no_admin(self):
+        conclusao = ConclusaoTreinamento.objects.create(
+            tecnico=self.tecnico,
+            curso=self.curso,
+            data_conclusao=timezone.localdate(),
+            data_vencimento=timezone.localdate() + timedelta(days=10),
+        )
+        admin_conclusao = ConclusaoTreinamentoAdmin(
+            ConclusaoTreinamento,
+            self.site,
+        )
+
+        self.assertEqual(
+            admin_conclusao.situacao_vencimento(conclusao),
+            "Vence em até 30 dias",
+        )
+        self.assertEqual(admin_conclusao.dias_para_vencer(conclusao), 10)
+
+    def test_filtro_de_vencimento_no_admin(self):
+        ConclusaoTreinamento.objects.create(
+            tecnico=self.tecnico,
+            curso=self.curso,
+            data_conclusao=timezone.localdate() - timedelta(days=40),
+            data_vencimento=timezone.localdate() - timedelta(days=1),
+        )
+        ConclusaoTreinamento.objects.create(
+            tecnico=self.tecnico,
+            curso=self.curso,
+            data_conclusao=timezone.localdate(),
+            data_vencimento=timezone.localdate() + timedelta(days=10),
+        )
+        ConclusaoTreinamento.objects.create(
+            tecnico=self.tecnico,
+            curso=self.curso,
+            data_conclusao=timezone.localdate(),
+            data_vencimento=timezone.localdate() + timedelta(days=60),
+        )
+
+        admin_conclusao = ConclusaoTreinamentoAdmin(
+            ConclusaoTreinamento,
+            self.site,
+        )
+        request = RequestFactory().get(
+            "/admin/core/conclusaotreinamento/",
+            {"situacao_vencimento": "proximos_30"},
+        )
+        filtro = SituacaoVencimentoFilter(
+            request,
+            request.GET.copy(),
+            ConclusaoTreinamento,
+            admin_conclusao,
+        )
+
+        filtradas = filtro.queryset(None, ConclusaoTreinamento.objects.all())
+
+        self.assertEqual(filtradas.count(), 1)
+        self.assertEqual(
+            filtradas.first().data_vencimento,
+            timezone.localdate() + timedelta(days=10),
+        )

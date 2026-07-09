@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 from django.contrib import admin
+from django.utils import timezone
 
 from .models import (
     Alternativa,
@@ -15,6 +18,36 @@ from .models import (
     Tecnico,
     TentativaAvaliacao,
 )
+
+
+class SituacaoVencimentoFilter(admin.SimpleListFilter):
+    title = "situação do vencimento"
+    parameter_name = "situacao_vencimento"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("vencido", "Vencido"),
+            ("proximos_30", "Vence em até 30 dias"),
+            ("em_dia", "Em dia"),
+            ("sem_vencimento", "Sem vencimento"),
+        )
+
+    def queryset(self, request, queryset):
+        hoje = timezone.localdate()
+        limite = hoje + timedelta(days=30)
+
+        if self.value() == "vencido":
+            return queryset.filter(data_vencimento__lt=hoje)
+        if self.value() == "proximos_30":
+            return queryset.filter(
+                data_vencimento__gte=hoje,
+                data_vencimento__lte=limite,
+            )
+        if self.value() == "em_dia":
+            return queryset.filter(data_vencimento__gt=limite)
+        if self.value() == "sem_vencimento":
+            return queryset.filter(data_vencimento__isnull=True)
+        return queryset
 
 
 class EtapaCursoInline(admin.TabularInline):
@@ -110,6 +143,28 @@ class CursoLiberadoAdmin(admin.ModelAdmin):
     )
     list_filter = ("tecnico__empresa", "curso__produto", "obrigatorio", "ativo")
     autocomplete_fields = ("tecnico", "curso")
+    actions = (
+        "marcar_como_ativas",
+        "marcar_como_inativas",
+        "marcar_como_obrigatorias",
+        "marcar_como_opcionais",
+    )
+
+    @admin.action(description="Marcar liberações selecionadas como ativas")
+    def marcar_como_ativas(self, request, queryset):
+        queryset.update(ativo=True)
+
+    @admin.action(description="Marcar liberações selecionadas como inativas")
+    def marcar_como_inativas(self, request, queryset):
+        queryset.update(ativo=False)
+
+    @admin.action(description="Marcar liberações selecionadas como obrigatórias")
+    def marcar_como_obrigatorias(self, request, queryset):
+        queryset.update(obrigatorio=True)
+
+    @admin.action(description="Marcar liberações selecionadas como opcionais")
+    def marcar_como_opcionais(self, request, queryset):
+        queryset.update(obrigatorio=False)
 
 
 @admin.register(ProgressoCurso)
@@ -155,9 +210,41 @@ class TentativaAvaliacaoAdmin(admin.ModelAdmin):
 
 @admin.register(ConclusaoTreinamento)
 class ConclusaoTreinamentoAdmin(admin.ModelAdmin):
-    list_display = ("tecnico", "curso", "data_conclusao", "data_vencimento")
+    list_display = (
+        "tecnico",
+        "curso",
+        "data_conclusao",
+        "data_vencimento",
+        "situacao_vencimento",
+        "dias_para_vencer",
+    )
     search_fields = ("tecnico__nome", "tecnico__empresa__nome", "curso__nome")
-    list_filter = ("tecnico__empresa", "curso", "data_conclusao", "data_vencimento")
+    list_filter = (
+        "tecnico__empresa",
+        SituacaoVencimentoFilter,
+        "curso",
+        "data_conclusao",
+        "data_vencimento",
+    )
+
+    @admin.display(description="Situação")
+    def situacao_vencimento(self, obj):
+        if not obj.data_vencimento:
+            return "Sem vencimento"
+
+        hoje = timezone.localdate()
+        if obj.data_vencimento < hoje:
+            return "Vencido"
+        if obj.data_vencimento <= hoje + timedelta(days=30):
+            return "Vence em até 30 dias"
+        return "Em dia"
+
+    @admin.display(description="Dias para vencer", ordering="data_vencimento")
+    def dias_para_vencer(self, obj):
+        if not obj.data_vencimento:
+            return "-"
+
+        return (obj.data_vencimento - timezone.localdate()).days
 
 
 admin.site.site_header = "Academia Técnica Sem Parar"
