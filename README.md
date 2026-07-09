@@ -38,6 +38,17 @@ No painel `/admin/`:
 URLs de vídeo devem ser próprias para incorporação, como
 `https://www.youtube.com/embed/ID_DO_VIDEO`.
 
+## Redefinir acesso administrativo
+
+Se perder o acesso ao painel `/admin/`, redefina ou recrie o administrador:
+
+```powershell
+.\venv\Scripts\python.exe manage.py redefinir_admin --username admin --email seu.email@empresa.com
+```
+
+O comando solicita a nova senha no terminal sem exibi-la na tela. Em automações
+seguras, também é possível informar `--password` junto com `--noinput`.
+
 ## Lembretes por e-mail
 
 O comando abaixo avisa sobre certificações vencidas ou que vencem em até 30 dias:

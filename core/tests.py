@@ -221,3 +221,49 @@ class CargaDemonstracaoTest(TestCase):
         self.assertEqual(Tecnico.objects.count(), 0)
         self.assertEqual(CursoLiberado.objects.count(), 0)
         self.assertIn("Nenhum técnico foi criado", saida.getvalue())
+
+
+class RedefinirAdminTest(TestCase):
+    def test_cria_administrador(self):
+        saida = StringIO()
+
+        call_command(
+            "redefinir_admin",
+            username="admin",
+            email="admin@exemplo.com",
+            password="SenhaAdmin123!",
+            noinput=True,
+            stdout=saida,
+        )
+
+        usuario = User.objects.get(username="admin")
+        self.assertEqual(usuario.email, "admin@exemplo.com")
+        self.assertTrue(usuario.is_staff)
+        self.assertTrue(usuario.is_superuser)
+        self.assertTrue(usuario.is_active)
+        self.assertTrue(usuario.check_password("SenhaAdmin123!"))
+        self.assertIn("Administrador 'admin' criado", saida.getvalue())
+
+    def test_redefine_administrador_existente(self):
+        saida = StringIO()
+
+        User.objects.create_user(
+            username="admin",
+            email="antigo@exemplo.com",
+            password="SenhaAntiga123!",
+        )
+
+        call_command(
+            "redefinir_admin",
+            username="admin",
+            email="novo@exemplo.com",
+            password="NovaSenhaAdmin123!",
+            noinput=True,
+            stdout=saida,
+        )
+
+        usuario = User.objects.get(username="admin")
+        self.assertEqual(usuario.email, "novo@exemplo.com")
+        self.assertTrue(usuario.is_staff)
+        self.assertTrue(usuario.is_superuser)
+        self.assertTrue(usuario.check_password("NovaSenhaAdmin123!"))
