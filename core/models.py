@@ -1,3 +1,5 @@
+import secrets
+
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -334,11 +336,20 @@ class ConclusaoTreinamento(models.Model):
     curso = models.ForeignKey(
         Curso, on_delete=models.PROTECT, related_name="conclusoes"
     )
+    codigo_certificado = models.CharField(
+        max_length=20,
+        unique=True,
+        blank=True,
+        editable=False,
+    )
     data_conclusao = models.DateField(default=timezone.now)
     data_vencimento = models.DateField(blank=True, null=True)
     observacao = models.TextField(blank=True, null=True)
 
     def save(self, *args, **kwargs):
+        if not self.codigo_certificado:
+            self.codigo_certificado = self._gerar_codigo_certificado()
+
         if self.data_conclusao and not self.data_vencimento:
             self.data_vencimento = self.data_conclusao + relativedelta(
                 months=self.curso.validade_meses
@@ -348,3 +359,10 @@ class ConclusaoTreinamento(models.Model):
 
     def __str__(self):
         return f"{self.tecnico} - {self.curso}"
+
+    @classmethod
+    def _gerar_codigo_certificado(cls):
+        while True:
+            codigo = f"CERT-{secrets.token_hex(4).upper()}"
+            if not cls.objects.filter(codigo_certificado=codigo).exists():
+                return codigo

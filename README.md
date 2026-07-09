@@ -16,6 +16,7 @@ Plataforma Django para treinamento, avaliação e reciclagem periódica de técn
 - Nota mínima configurável por curso.
 - Reinício obrigatório do curso após reprovação.
 - Certificação com data de vencimento.
+- Código único de certificado para cada conclusão.
 - Nova tentativa automática quando a certificação vence.
 - Lembretes de reciclagem por e-mail.
 - Filtros operacionais para certificações vencidas ou próximas do vencimento.

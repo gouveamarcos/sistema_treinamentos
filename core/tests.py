@@ -129,6 +129,7 @@ class FluxoCursoTest(TestCase):
         )
         self.assertEqual(progresso.status, ProgressoCurso.Status.APROVADO)
         self.assertIsNotNone(conclusao.data_vencimento)
+        self.assertRegex(conclusao.codigo_certificado, r"^CERT-[0-9A-F]{8}$")
         self.assertTrue(
             TentativaAvaliacao.objects.filter(
                 progresso=progresso, aprovado=True, nota=100
@@ -163,6 +164,19 @@ class FluxoCursoTest(TestCase):
         self.assertEqual(progresso.tentativa_atual, 2)
         self.assertEqual(progresso.status, ProgressoCurso.Status.EM_ANDAMENTO)
         self.assertContains(resposta, self.aula.titulo)
+
+    def test_lista_curso_exibe_codigo_do_certificado(self):
+        conclusao = ConclusaoTreinamento.objects.create(
+            tecnico=self.tecnico,
+            curso=self.curso,
+            data_conclusao=timezone.localdate(),
+        )
+
+        resposta = self.client.get(
+            reverse("cursos_por_produto", args=(self.produto.id,))
+        )
+
+        self.assertContains(resposta, conclusao.codigo_certificado)
 
 
 @override_settings(
@@ -398,6 +412,25 @@ class OperacaoAdminTest(TestCase):
             "Vence em até 30 dias",
         )
         self.assertEqual(admin_conclusao.dias_para_vencer(conclusao), 10)
+
+    def test_conclusao_gera_codigo_certificado_unico(self):
+        primeira = ConclusaoTreinamento.objects.create(
+            tecnico=self.tecnico,
+            curso=self.curso,
+            data_conclusao=timezone.localdate(),
+        )
+        segunda = ConclusaoTreinamento.objects.create(
+            tecnico=self.tecnico,
+            curso=self.curso,
+            data_conclusao=timezone.localdate(),
+        )
+
+        self.assertRegex(primeira.codigo_certificado, r"^CERT-[0-9A-F]{8}$")
+        self.assertRegex(segunda.codigo_certificado, r"^CERT-[0-9A-F]{8}$")
+        self.assertNotEqual(
+            primeira.codigo_certificado,
+            segunda.codigo_certificado,
+        )
 
     def test_filtro_de_vencimento_no_admin(self):
         ConclusaoTreinamento.objects.create(

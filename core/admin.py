@@ -211,6 +211,7 @@ class TentativaAvaliacaoAdmin(admin.ModelAdmin):
 @admin.register(ConclusaoTreinamento)
 class ConclusaoTreinamentoAdmin(admin.ModelAdmin):
     list_display = (
+        "codigo_certificado",
         "tecnico",
         "curso",
         "data_conclusao",
@@ -218,7 +219,12 @@ class ConclusaoTreinamentoAdmin(admin.ModelAdmin):
         "situacao_vencimento",
         "dias_para_vencer",
     )
-    search_fields = ("tecnico__nome", "tecnico__empresa__nome", "curso__nome")
+    search_fields = (
+        "codigo_certificado",
+        "tecnico__nome",
+        "tecnico__empresa__nome",
+        "curso__nome",
+    )
     list_filter = (
         "tecnico__empresa",
         SituacaoVencimentoFilter,
@@ -226,6 +232,7 @@ class ConclusaoTreinamentoAdmin(admin.ModelAdmin):
         "data_conclusao",
         "data_vencimento",
     )
+    readonly_fields = ("codigo_certificado",)
 
     @admin.display(description="Situação")
     def situacao_vencimento(self, obj):
