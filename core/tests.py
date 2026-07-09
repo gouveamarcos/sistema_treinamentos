@@ -513,6 +513,10 @@ class ValidacaoCertificadoTest(TestCase):
         self.assertContains(resposta, self.tecnico.nome)
         self.assertContains(resposta, self.empresa.nome)
         self.assertContains(resposta, "Válido")
+        self.assertContains(
+            resposta,
+            reverse("certificado_imprimir", args=(self.conclusao.codigo_certificado,)),
+        )
 
     def test_valida_certificado_por_url_direta(self):
         resposta = self.client.get(
@@ -558,3 +562,26 @@ class ValidacaoCertificadoTest(TestCase):
         )
 
         self.assertContains(resposta, "Vencido")
+
+    def test_pagina_imprimivel_do_certificado(self):
+        resposta = self.client.get(
+            reverse(
+                "certificado_imprimir",
+                args=(self.conclusao.codigo_certificado,),
+            )
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Certificado de conclusão")
+        self.assertContains(resposta, self.conclusao.codigo_certificado)
+        self.assertContains(resposta, self.tecnico.nome)
+        self.assertContains(resposta, self.curso.nome)
+        self.assertContains(resposta, "Imprimir ou salvar PDF")
+
+    def test_pagina_imprimivel_inexistente_retorna_404(self):
+        resposta = self.client.get(
+            reverse("certificado_imprimir", args=("CERT-INEXISTE",))
+        )
+
+        self.assertEqual(resposta.status_code, 404)
+        self.assertContains(resposta, "Certificado não encontrado", status_code=404)

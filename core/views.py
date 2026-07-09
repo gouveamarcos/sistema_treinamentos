@@ -30,6 +30,23 @@ def _situacao_certificado(conclusao):
     return "Válido", "status-em-dia"
 
 
+def _buscar_conclusao_por_codigo(codigo):
+    form = ValidarCertificadoForm({"codigo": codigo})
+    if not form.is_valid():
+        return None, ""
+
+    codigo_normalizado = form.cleaned_data["codigo"]
+    conclusao = (
+        ConclusaoTreinamento.objects.select_related(
+            "tecnico__empresa",
+            "curso__produto",
+        )
+        .filter(codigo_certificado=codigo_normalizado)
+        .first()
+    )
+    return conclusao, codigo_normalizado
+
+
 def _tecnico_logado(request):
     try:
         return request.user.tecnico
@@ -140,14 +157,7 @@ def validar_certificado(request, codigo=None):
 
     if form.is_bound and form.is_valid():
         codigo_consultado = form.cleaned_data["codigo"]
-        conclusao = (
-            ConclusaoTreinamento.objects.select_related(
-                "tecnico__empresa",
-                "curso__produto",
-            )
-            .filter(codigo_certificado=codigo_consultado)
-            .first()
-        )
+        conclusao, _ = _buscar_conclusao_por_codigo(codigo_consultado)
 
     contexto = {
         "form": form,
@@ -159,6 +169,28 @@ def validar_certificado(request, codigo=None):
         contexto.update({"situacao": situacao, "status_classe": status_classe})
 
     return render(request, "core/validar_certificado.html", contexto)
+
+
+def certificado_imprimir(request, codigo):
+    conclusao, codigo_consultado = _buscar_conclusao_por_codigo(codigo)
+    if not conclusao:
+        return render(
+            request,
+            "core/certificado_imprimir.html",
+            {"conclusao": None, "codigo_consultado": codigo_consultado or codigo},
+            status=404,
+        )
+
+    situacao, status_classe = _situacao_certificado(conclusao)
+    return render(
+        request,
+        "core/certificado_imprimir.html",
+        {
+            "conclusao": conclusao,
+            "situacao": situacao,
+            "status_classe": status_classe,
+        },
+    )
 
 
 @login_required

@@ -54,6 +54,8 @@ próximos do vencimento ou em dia.
 
 Certificados podem ser validados publicamente em `/certificados/validar/` pelo
 código no formato `CERT-XXXXXXXX`.
+Também podem ser visualizados para impressão ou PDF em
+`/certificados/CERT-XXXXXXXX/imprimir/`.
 
 URLs de vídeo devem ser próprias para incorporação, como
 `https://www.youtube.com/embed/ID_DO_VIDEO`.

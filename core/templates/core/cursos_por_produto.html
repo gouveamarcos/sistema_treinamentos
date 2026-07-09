@@ -33,7 +33,12 @@
                     {% if item.ultima_conclusao %}
                         <div class="validade">
                             <span>Última conclusão: {{ item.ultima_conclusao.data_conclusao|date:"d/m/Y" }}</span>
-                            <span>Certificado: {{ item.ultima_conclusao.codigo_certificado }}</span>
+                            <span>
+                                Certificado:
+                                <a href="{% url 'certificado_imprimir' item.ultima_conclusao.codigo_certificado %}">
+                                    {{ item.ultima_conclusao.codigo_certificado }}
+                                </a>
+                            </span>
                             <span>Validade: {{ item.ultima_conclusao.data_vencimento|date:"d/m/Y" }}</span>
                         </div>
                     {% endif %}

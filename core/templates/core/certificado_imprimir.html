@@ -1,0 +1,55 @@
+{% extends "core/base.html" %}
+{% block title %}Certificado{% if conclusao %} {{ conclusao.codigo_certificado }}{% endif %} · Academia Técnica{% endblock %}
+{% block content %}
+<main class="container certificado-container">
+    {% if conclusao %}
+        <section class="certificado-folha">
+            <div class="certificado-topo">
+                <div>
+                    <span class="eyebrow">Certificado de conclusão</span>
+                    <h1>Academia Técnica Sem Parar</h1>
+                </div>
+                <span class="status {{ status_classe }}">{{ situacao }}</span>
+            </div>
+
+            <div class="certificado-corpo">
+                <p>Certificamos que</p>
+                <h2>{{ conclusao.tecnico.nome }}</h2>
+                <p>vinculado à empresa <strong>{{ conclusao.tecnico.empresa.nome }}</strong>, concluiu o treinamento</p>
+                <h3>{{ conclusao.curso.nome }}</h3>
+                <p>do produto <strong>{{ conclusao.curso.produto.nome }}</strong>.</p>
+            </div>
+
+            <dl class="certificado-dados">
+                <div>
+                    <dt>Código</dt>
+                    <dd>{{ conclusao.codigo_certificado }}</dd>
+                </div>
+                <div>
+                    <dt>Conclusão</dt>
+                    <dd>{{ conclusao.data_conclusao|date:"d/m/Y" }}</dd>
+                </div>
+                <div>
+                    <dt>Validade</dt>
+                    <dd>{{ conclusao.data_vencimento|date:"d/m/Y"|default:"Sem vencimento" }}</dd>
+                </div>
+            </dl>
+
+            <p class="certificado-validacao">
+                Valide este certificado em {% url 'validar_certificado_codigo' conclusao.codigo_certificado as validar_url %}{{ request.scheme }}://{{ request.get_host }}{{ validar_url }}
+            </p>
+        </section>
+
+        <div class="certificado-acoes">
+            <a class="botao-principal botao-auto" href="{% url 'validar_certificado_codigo' conclusao.codigo_certificado %}">Validar código</a>
+            <button class="botao-principal botao-auto botao-secundario" type="button" onclick="window.print()">Imprimir ou salvar PDF</button>
+        </div>
+    {% else %}
+        <section class="estado-vazio">
+            <h1>Certificado não encontrado</h1>
+            <p>Não encontramos conclusão emitida para o código {{ codigo_consultado }}.</p>
+            <a class="botao-principal botao-auto" href="{% url 'validar_certificado' %}">Validar outro certificado</a>
+        </section>
+    {% endif %}
+</main>
+{% endblock %}

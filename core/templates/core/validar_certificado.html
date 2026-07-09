@@ -54,6 +54,11 @@
                         <dd>{{ conclusao.data_vencimento|date:"d/m/Y"|default:"Sem vencimento" }}</dd>
                     </div>
                 </dl>
+                <div class="resultado-acoes">
+                    <a class="botao-principal botao-auto" href="{% url 'certificado_imprimir' conclusao.codigo_certificado %}">
+                        Ver certificado
+                    </a>
+                </div>
             {% elif codigo_consultado %}
                 <div class="estado-vazio">
                     <h3>Certificado não encontrado</h3>
