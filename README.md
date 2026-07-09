@@ -5,6 +5,7 @@ Plataforma Django para treinamento, avaliação e reciclagem periódica de técn
 ## Recursos disponíveis
 
 - Cadastro de técnicos e ativação no primeiro acesso.
+- Cadastro de empresas/clientes e vínculo dos técnicos à empresa.
 - Recuperação de senha por link temporário enviado por e-mail.
 - Cursos separados por produto.
 - Liberação individual de cursos.

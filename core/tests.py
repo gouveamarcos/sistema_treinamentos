@@ -15,6 +15,7 @@ from .models import (
     ConclusaoTreinamento,
     Curso,
     CursoLiberado,
+    Empresa,
     EtapaCurso,
     Produto,
     ProgressoCurso,
@@ -31,6 +32,7 @@ class FluxoCursoTest(TestCase):
             username="tecnico@exemplo.com", password="SenhaForte123!"
         )
         self.tecnico = Tecnico.objects.create(
+            empresa=Empresa.objects.create(nome="Empresa Exemplo"),
             usuario=self.usuario,
             nome="Técnico Exemplo",
             email="tecnico@exemplo.com",
@@ -218,9 +220,19 @@ class CargaDemonstracaoTest(TestCase):
         self.assertEqual(Curso.objects.count(), 4)
         self.assertEqual(EtapaCurso.objects.count(), 24)
         self.assertEqual(Questao.objects.count(), 32)
+        self.assertEqual(Empresa.objects.count(), 0)
         self.assertEqual(Tecnico.objects.count(), 0)
         self.assertEqual(CursoLiberado.objects.count(), 0)
         self.assertIn("Nenhum técnico foi criado", saida.getvalue())
+
+    def test_cria_tecnico_demo_com_empresa(self):
+        saida = StringIO()
+
+        call_command("criar_cursos_demonstracao", stdout=saida)
+
+        tecnico = Tecnico.objects.get(email="tecnico.demo@semparar.com.br")
+        self.assertEqual(tecnico.empresa.nome, "Sem Parar")
+        self.assertEqual(Empresa.objects.count(), 1)
 
 
 class RedefinirAdminTest(TestCase):

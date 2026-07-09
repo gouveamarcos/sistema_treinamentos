@@ -7,6 +7,7 @@ from core.models import (
     ConclusaoTreinamento,
     Curso,
     CursoLiberado,
+    Empresa,
     EtapaCurso,
     Produto,
     ProgressoCurso,
@@ -142,10 +143,15 @@ class Command(BaseCommand):
         Curso.objects.all().delete()
         Produto.objects.all().delete()
         Tecnico.objects.all().delete()
+        Empresa.objects.all().delete()
         User.objects.filter(is_superuser=False).delete()
 
     def _criar_tecnico(self):
         User = get_user_model()
+        empresa, _ = Empresa.objects.get_or_create(
+            nome="Sem Parar",
+            defaults={"responsavel": "Administrador", "ativa": True},
+        )
         usuario = User.objects.create_user(
             username="tecnico.demo@semparar.com.br",
             email="tecnico.demo@semparar.com.br",
@@ -154,6 +160,7 @@ class Command(BaseCommand):
             last_name="Demonstração",
         )
         return Tecnico.objects.create(
+            empresa=empresa,
             usuario=usuario,
             nome="Técnico Demonstração",
             email=usuario.email,

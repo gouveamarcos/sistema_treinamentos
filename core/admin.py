@@ -5,6 +5,7 @@ from .models import (
     ConclusaoTreinamento,
     Curso,
     CursoLiberado,
+    Empresa,
     EtapaCurso,
     Produto,
     ProgressoCurso,
@@ -27,6 +28,13 @@ class AlternativaInline(admin.TabularInline):
     extra = 4
 
 
+@admin.register(Empresa)
+class EmpresaAdmin(admin.ModelAdmin):
+    list_display = ("nome", "documento", "responsavel", "email", "ativa")
+    search_fields = ("nome", "documento", "responsavel", "email")
+    list_filter = ("ativa",)
+
+
 @admin.register(Produto)
 class ProdutoAdmin(admin.ModelAdmin):
     list_display = ("nome", "ativo")
@@ -36,9 +44,17 @@ class ProdutoAdmin(admin.ModelAdmin):
 
 @admin.register(Tecnico)
 class TecnicoAdmin(admin.ModelAdmin):
-    list_display = ("nome", "email", "matricula", "equipe", "regiao", "ativo")
-    search_fields = ("nome", "email", "matricula")
-    list_filter = ("equipe", "regiao", "ativo")
+    list_display = (
+        "nome",
+        "empresa",
+        "email",
+        "matricula",
+        "equipe",
+        "regiao",
+        "ativo",
+    )
+    search_fields = ("nome", "email", "matricula", "empresa__nome")
+    list_filter = ("empresa", "equipe", "regiao", "ativo")
     autocomplete_fields = ("usuario",)
 
 
@@ -72,16 +88,26 @@ class QuestaoAdmin(admin.ModelAdmin):
 @admin.register(CursoLiberado)
 class CursoLiberadoAdmin(admin.ModelAdmin):
     list_display = ("tecnico", "curso", "data_liberacao", "obrigatorio", "ativo")
-    search_fields = ("tecnico__nome", "tecnico__email", "curso__nome")
-    list_filter = ("curso__produto", "obrigatorio", "ativo")
+    search_fields = (
+        "tecnico__nome",
+        "tecnico__email",
+        "tecnico__empresa__nome",
+        "curso__nome",
+    )
+    list_filter = ("tecnico__empresa", "curso__produto", "obrigatorio", "ativo")
     autocomplete_fields = ("tecnico", "curso")
 
 
 @admin.register(ProgressoCurso)
 class ProgressoCursoAdmin(admin.ModelAdmin):
     list_display = ("tecnico", "curso", "status", "tentativa_atual", "atualizado_em")
-    list_filter = ("status", "curso__produto", "curso")
-    search_fields = ("tecnico__nome", "tecnico__matricula", "curso__nome")
+    list_filter = ("tecnico__empresa", "status", "curso__produto", "curso")
+    search_fields = (
+        "tecnico__nome",
+        "tecnico__matricula",
+        "tecnico__empresa__nome",
+        "curso__nome",
+    )
     readonly_fields = ("atualizado_em",)
 
 
@@ -116,8 +142,8 @@ class TentativaAvaliacaoAdmin(admin.ModelAdmin):
 @admin.register(ConclusaoTreinamento)
 class ConclusaoTreinamentoAdmin(admin.ModelAdmin):
     list_display = ("tecnico", "curso", "data_conclusao", "data_vencimento")
-    search_fields = ("tecnico__nome", "curso__nome")
-    list_filter = ("curso", "data_conclusao", "data_vencimento")
+    search_fields = ("tecnico__nome", "tecnico__empresa__nome", "curso__nome")
+    list_filter = ("tecnico__empresa", "curso", "data_conclusao", "data_vencimento")
 
 
 admin.site.site_header = "Academia Técnica Sem Parar"

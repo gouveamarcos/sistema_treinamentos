@@ -5,6 +5,22 @@ from django.utils import timezone
 from dateutil.relativedelta import relativedelta
 
 
+class Empresa(models.Model):
+    nome = models.CharField(max_length=150, unique=True)
+    documento = models.CharField(max_length=30, blank=True)
+    responsavel = models.CharField(max_length=150, blank=True)
+    email = models.EmailField(blank=True)
+    telefone = models.CharField(max_length=20, blank=True)
+    ativa = models.BooleanField(default=True)
+    data_criacao = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ("nome",)
+
+    def __str__(self):
+        return self.nome
+
+
 class Produto(models.Model):
     nome = models.CharField(max_length=100)
     descricao = models.TextField(blank=True, null=True)
@@ -15,6 +31,11 @@ class Produto(models.Model):
 
 
 class Tecnico(models.Model):
+    empresa = models.ForeignKey(
+        Empresa,
+        on_delete=models.PROTECT,
+        related_name="tecnicos",
+    )
     usuario = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
