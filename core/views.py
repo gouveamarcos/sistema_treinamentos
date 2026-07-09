@@ -7,7 +7,7 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from .forms import PrimeiroAcessoForm
+from .forms import PrimeiroAcessoForm, ValidarCertificadoForm
 from .models import (
     Alternativa,
     ConclusaoTreinamento,
@@ -20,6 +20,14 @@ from .models import (
     Tecnico,
     TentativaAvaliacao,
 )
+
+
+def _situacao_certificado(conclusao):
+    if not conclusao.data_vencimento:
+        return "Sem vencimento", "status-pendente"
+    if conclusao.data_vencimento < timezone.localdate():
+        return "Vencido", "status-vencido"
+    return "Válido", "status-em-dia"
 
 
 def _tecnico_logado(request):
@@ -116,6 +124,41 @@ def primeiro_acesso(request):
         form = PrimeiroAcessoForm()
 
     return render(request, "core/primeiro_acesso.html", {"form": form})
+
+
+def validar_certificado(request, codigo=None):
+    codigo_inicial = codigo or request.GET.get("codigo", "")
+    form = ValidarCertificadoForm(
+        request.GET or None,
+        initial={"codigo": codigo_inicial},
+    )
+    conclusao = None
+    codigo_consultado = ""
+
+    if codigo:
+        form = ValidarCertificadoForm({"codigo": codigo})
+
+    if form.is_bound and form.is_valid():
+        codigo_consultado = form.cleaned_data["codigo"]
+        conclusao = (
+            ConclusaoTreinamento.objects.select_related(
+                "tecnico__empresa",
+                "curso__produto",
+            )
+            .filter(codigo_certificado=codigo_consultado)
+            .first()
+        )
+
+    contexto = {
+        "form": form,
+        "conclusao": conclusao,
+        "codigo_consultado": codigo_consultado,
+    }
+    if conclusao:
+        situacao, status_classe = _situacao_certificado(conclusao)
+        contexto.update({"situacao": situacao, "status_classe": status_classe})
+
+    return render(request, "core/validar_certificado.html", contexto)
 
 
 @login_required

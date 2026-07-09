@@ -90,6 +90,12 @@ a { color: inherit; }
 .card-confirmacao { text-align: center; }
 .confirmacao-icone { display: grid; place-items: center; width: 54px; height: 54px; margin: 0 auto 18px; border-radius: 50%; color: var(--branco); background: var(--verde); font-size: 24px; font-weight: 800; }
 .auth-simples { display: flex; justify-content: center; }.auth-simples .card-formulario { width: min(520px, 100%); }
+.validacao-grid { display: grid; grid-template-columns: 390px 1fr; gap: 24px; margin-top: 28px; align-items: start; }
+.resultado-certificado { min-height: 290px; padding: 34px; border: 1px solid var(--borda); border-radius: 20px; background: var(--branco); box-shadow: 0 10px 35px rgba(31,40,43,.05); }
+.resultado-certificado h2 { margin: 18px 0 20px; font-size: 28px; letter-spacing: -.8px; }
+.resultado-certificado dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 26px; margin: 0; }
+.resultado-certificado dt { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; }
+.resultado-certificado dd { margin: 5px 0 0; font-size: 16px; font-weight: 700; }
 .curso-layout { min-height: calc(100vh - 80px); display: grid; grid-template-columns: 350px 1fr; }
 .trilha { padding: 35px 28px 70px max(28px, calc((100vw - 1300px)/2)); border-right: 1px solid var(--borda); background: #fff; }
 .trilha h1 { margin: 8px 0 22px; font-size: 24px; line-height: 1.25; }
@@ -123,7 +129,7 @@ a { color: inherit; }
 @media (max-width: 850px) {
     .usuario { display: none; }.hero { padding: 34px; }.hero-badge { display: none; }.produtos { grid-template-columns: 1fr; }
     .curso-card { align-items: stretch; flex-direction: column; }.botao-auto { width: 100%; }
-    .auth-layout { grid-template-columns: 1fr; }.auth-apresentacao { display: none; }
+    .auth-layout, .validacao-grid { grid-template-columns: 1fr; }.auth-apresentacao { display: none; }
     .curso-layout { grid-template-columns: 1fr; }.trilha { padding: 28px 22px; border-right: 0; border-bottom: 1px solid var(--borda); }.etapas-menu { max-height: 310px; overflow: auto; }.aula { padding: 30px 20px; }.aula-card { padding: 26px; }
 }
 @media (max-width: 560px) {

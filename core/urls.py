@@ -44,6 +44,16 @@ urlpatterns = [
     ),
     path("primeiro-acesso/", views.primeiro_acesso, name="primeiro_acesso"),
     path(
+        "certificados/validar/",
+        views.validar_certificado,
+        name="validar_certificado",
+    ),
+    path(
+        "certificados/<str:codigo>/",
+        views.validar_certificado,
+        name="validar_certificado_codigo",
+    ),
+    path(
         "produtos/<int:produto_id>/cursos/",
         views.cursos_por_produto,
         name="cursos_por_produto",

@@ -2,6 +2,25 @@ from django import forms
 from django.contrib.auth.password_validation import validate_password
 
 
+class ValidarCertificadoForm(forms.Form):
+    codigo = forms.CharField(
+        label="Código do certificado",
+        max_length=20,
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": "CERT-XXXXXXXX",
+                "autocomplete": "off",
+            }
+        ),
+    )
+
+    def clean_codigo(self):
+        codigo = self.cleaned_data["codigo"].strip().upper().replace(" ", "")
+        if codigo and not codigo.startswith("CERT-"):
+            codigo = f"CERT-{codigo}"
+        return codigo
+
+
 class PrimeiroAcessoForm(forms.Form):
     email = forms.EmailField(
         label="E-mail",

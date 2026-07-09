@@ -1,0 +1,71 @@
+{% extends "core/base.html" %}
+{% block title %}Validar certificado · Academia Técnica{% endblock %}
+{% block content %}
+<main class="container">
+    <section class="cabecalho-pagina">
+        <div>
+            <span class="eyebrow">Validação pública</span>
+            <h1>Validar certificado</h1>
+            <p>Consulte a autenticidade de uma conclusão usando o código do certificado.</p>
+        </div>
+    </section>
+
+    <section class="validacao-grid">
+        <form class="card-formulario" method="get" action="{% url 'validar_certificado' %}">
+            <h2>Consultar código</h2>
+            <p>Digite o código no formato <strong>CERT-XXXXXXXX</strong>.</p>
+            <div class="campo-form">
+                {{ form.codigo.label_tag }}
+                {{ form.codigo }}
+                {% for erro in form.codigo.errors %}
+                    <small class="erro-campo">{{ erro }}</small>
+                {% endfor %}
+            </div>
+            <button class="botao-principal" type="submit">Validar certificado</button>
+        </form>
+
+        <div class="resultado-certificado">
+            {% if conclusao %}
+                <span class="status {{ status_classe }}">{{ situacao }}</span>
+                <h2>{{ conclusao.curso.nome }}</h2>
+                <dl>
+                    <div>
+                        <dt>Código</dt>
+                        <dd>{{ conclusao.codigo_certificado }}</dd>
+                    </div>
+                    <div>
+                        <dt>Técnico</dt>
+                        <dd>{{ conclusao.tecnico.nome }}</dd>
+                    </div>
+                    <div>
+                        <dt>Empresa</dt>
+                        <dd>{{ conclusao.tecnico.empresa.nome }}</dd>
+                    </div>
+                    <div>
+                        <dt>Produto</dt>
+                        <dd>{{ conclusao.curso.produto.nome }}</dd>
+                    </div>
+                    <div>
+                        <dt>Conclusão</dt>
+                        <dd>{{ conclusao.data_conclusao|date:"d/m/Y" }}</dd>
+                    </div>
+                    <div>
+                        <dt>Validade</dt>
+                        <dd>{{ conclusao.data_vencimento|date:"d/m/Y"|default:"Sem vencimento" }}</dd>
+                    </div>
+                </dl>
+            {% elif codigo_consultado %}
+                <div class="estado-vazio">
+                    <h3>Certificado não encontrado</h3>
+                    <p>Não encontramos conclusão emitida para o código {{ codigo_consultado }}.</p>
+                </div>
+            {% else %}
+                <div class="estado-vazio">
+                    <h3>Aguardando consulta</h3>
+                    <p>Informe um código de certificado para verificar a autenticidade.</p>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+</main>
+{% endblock %}

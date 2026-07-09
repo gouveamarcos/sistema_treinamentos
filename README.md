@@ -17,6 +17,7 @@ Plataforma Django para treinamento, avaliação e reciclagem periódica de técn
 - Reinício obrigatório do curso após reprovação.
 - Certificação com data de vencimento.
 - Código único de certificado para cada conclusão.
+- Validação pública de certificado pelo código.
 - Nova tentativa automática quando a certificação vence.
 - Lembretes de reciclagem por e-mail.
 - Filtros operacionais para certificações vencidas ou próximas do vencimento.
@@ -50,6 +51,9 @@ Em **Cursos liberados**, use as ações em lote do admin para ativar/inativar
 liberações ou marcar cursos como obrigatórios/opcionais. Em **Conclusões de
 treinamento**, use o filtro de situação para encontrar certificados vencidos,
 próximos do vencimento ou em dia.
+
+Certificados podem ser validados publicamente em `/certificados/validar/` pelo
+código no formato `CERT-XXXXXXXX`.
 
 URLs de vídeo devem ser próprias para incorporação, como
 `https://www.youtube.com/embed/ID_DO_VIDEO`.

@@ -474,3 +474,87 @@ class OperacaoAdminTest(TestCase):
             filtradas.first().data_vencimento,
             timezone.localdate() + timedelta(days=10),
         )
+
+
+class ValidacaoCertificadoTest(TestCase):
+    def setUp(self):
+        self.empresa = Empresa.objects.create(nome="Empresa Certificadora")
+        self.tecnico = Tecnico.objects.create(
+            empresa=self.empresa,
+            nome="Técnico Certificado",
+            email="certificado@exemplo.com",
+            matricula="CERT001",
+        )
+        self.produto = Produto.objects.create(nome="Produto Certificado")
+        self.curso = Curso.objects.create(
+            nome="Curso Certificado",
+            produto=self.produto,
+        )
+        self.conclusao = ConclusaoTreinamento.objects.create(
+            tecnico=self.tecnico,
+            curso=self.curso,
+            data_conclusao=timezone.localdate(),
+            data_vencimento=timezone.localdate() + timedelta(days=60),
+        )
+
+    def test_pagina_publica_abre_sem_login(self):
+        resposta = self.client.get(reverse("validar_certificado"))
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Validar certificado")
+
+    def test_valida_certificado_existente_por_querystring(self):
+        resposta = self.client.get(
+            reverse("validar_certificado"),
+            {"codigo": self.conclusao.codigo_certificado},
+        )
+
+        self.assertContains(resposta, self.conclusao.codigo_certificado)
+        self.assertContains(resposta, self.tecnico.nome)
+        self.assertContains(resposta, self.empresa.nome)
+        self.assertContains(resposta, "Válido")
+
+    def test_valida_certificado_por_url_direta(self):
+        resposta = self.client.get(
+            reverse(
+                "validar_certificado_codigo",
+                args=(self.conclusao.codigo_certificado,),
+            )
+        )
+
+        self.assertContains(resposta, self.curso.nome)
+        self.assertContains(resposta, self.conclusao.codigo_certificado)
+
+    def test_normaliza_codigo_sem_prefixo(self):
+        codigo_sem_prefixo = self.conclusao.codigo_certificado.replace("CERT-", "")
+
+        resposta = self.client.get(
+            reverse("validar_certificado"),
+            {"codigo": codigo_sem_prefixo.lower()},
+        )
+
+        self.assertContains(resposta, self.conclusao.codigo_certificado)
+
+    def test_certificado_inexistente_mostra_estado_nao_encontrado(self):
+        resposta = self.client.get(
+            reverse("validar_certificado"),
+            {"codigo": "CERT-INEXISTE"},
+        )
+
+        self.assertContains(resposta, "Certificado não encontrado")
+        self.assertContains(resposta, "CERT-INEXISTE")
+
+    def test_certificado_vencido_mostra_situacao_vencida(self):
+        conclusao_vencida = ConclusaoTreinamento.objects.create(
+            tecnico=self.tecnico,
+            curso=self.curso,
+            data_conclusao=timezone.localdate() - timedelta(days=90),
+            data_vencimento=timezone.localdate() - timedelta(days=1),
+        )
+
+        resposta = self.client.get(
+            reverse("validar_certificado"),
+            {"codigo": conclusao_vencida.codigo_certificado},
+        )
+
+        self.assertContains(resposta, "Vencido")
