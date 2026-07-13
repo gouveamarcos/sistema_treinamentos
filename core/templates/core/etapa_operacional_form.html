@@ -1,0 +1,30 @@
+{% extends "core/base.html" %}
+{% block title %}Editar etapa - Academia Tecnica{% endblock %}
+{% block content %}
+<main class="container">
+    <a class="voltar" href="{% url 'conteudo_curso_operacional' etapa.curso.id %}">Voltar para conteudo</a>
+    <section class="cabecalho-pagina">
+        <div>
+            <span class="eyebrow">Construtor de curso</span>
+            <h1>Editar etapa</h1>
+            <p>{{ etapa.curso.nome }}</p>
+        </div>
+    </section>
+
+    <form class="card-formulario formulario-operacional" method="post">
+        {% csrf_token %}
+        <div class="grade-formulario">
+            <div class="campo-form">{{ form.titulo.label_tag }}{{ form.titulo }}{% for erro in form.titulo.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}</div>
+            <div class="campo-form">{{ form.tipo.label_tag }}{{ form.tipo }}{% for erro in form.tipo.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}</div>
+        </div>
+        <div class="grade-formulario">
+            <div class="campo-form">{{ form.ordem.label_tag }}{{ form.ordem }}{% for erro in form.ordem.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}</div>
+            <div class="campo-form">{{ form.video_url.label_tag }}{{ form.video_url }}{% for erro in form.video_url.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}</div>
+        </div>
+        <div class="campo-form">{{ form.descricao.label_tag }}{{ form.descricao }}{% for erro in form.descricao.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}</div>
+        <div class="campo-form">{{ form.conteudo.label_tag }}{{ form.conteudo }}{% for erro in form.conteudo.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}</div>
+        <label class="check-operacional">{{ form.ativo }} {{ form.ativo.label }}</label>
+        <button class="botao-principal botao-auto" type="submit">Atualizar etapa</button>
+    </form>
+</main>
+{% endblock %}

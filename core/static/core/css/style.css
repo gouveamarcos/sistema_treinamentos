@@ -134,6 +134,19 @@ a { color: inherit; }
 .acoes-tabela { display: flex; align-items: center; gap: 12px; }
 .acoes-tabela a { color: var(--verde-escuro); font-weight: 700; text-decoration: none; }
 .acoes-tabela .link-button { color: var(--rosa); font-weight: 700; }
+.lista-operacional { display: grid; gap: 18px; margin-top: 28px; }
+.item-operacional { box-shadow: 0 8px 28px rgba(31,40,43,.05); }
+.item-operacional h2 { margin: 8px 0; }
+.item-operacional p { color: var(--muted); line-height: 1.6; }
+.item-operacional-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.formulario-inline { display: grid; grid-template-columns: 1fr 120px auto auto; align-items: end; gap: 12px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--borda); }
+.formulario-inline .campo-form { margin: 0; }
+.campo-curto input { min-width: 90px; }
+.lista-questoes { display: grid; gap: 14px; margin-top: 20px; }
+.questao-card { padding: 18px; border: 1px solid var(--borda); border-radius: 14px; background: #f8fafa; }
+.questao-card p { margin: 8px 0 0; color: var(--texto); }
+.alternativas-operacionais { display: grid; gap: 8px; margin: 16px 0 0; padding: 0; list-style: none; }
+.alternativas-operacionais li { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px; border: 1px solid var(--borda); border-radius: 10px; background: var(--branco); }
 .curso-layout { min-height: calc(100vh - 80px); display: grid; grid-template-columns: 350px 1fr; }
 .trilha { padding: 35px 28px 70px max(28px, calc((100vw - 1300px)/2)); border-right: 1px solid var(--borda); background: #fff; }
 .trilha h1 { margin: 8px 0 22px; font-size: 24px; line-height: 1.25; }
@@ -168,7 +181,7 @@ a { color: inherit; }
     .usuario { display: none; }.hero { padding: 34px; }.hero-badge { display: none; }.produtos { grid-template-columns: 1fr; }
     .curso-card { align-items: stretch; flex-direction: column; }.botao-auto { width: 100%; }
     .auth-layout, .validacao-grid, .certificado-dados, .cards-resumo, .grade-formulario { grid-template-columns: 1fr; }.auth-apresentacao { display: none; }
-    .filtros-relatorio { align-items: stretch; flex-direction: column; }.filtros-relatorio label { min-width: 0; }
+    .filtros-relatorio, .formulario-inline { align-items: stretch; grid-template-columns: 1fr; flex-direction: column; }.filtros-relatorio label { min-width: 0; }
     .curso-layout { grid-template-columns: 1fr; }.trilha { padding: 28px 22px; border-right: 0; border-bottom: 1px solid var(--borda); }.etapas-menu { max-height: 310px; overflow: auto; }.aula { padding: 30px 20px; }.aula-card { padding: 26px; }
 }
 @media print {

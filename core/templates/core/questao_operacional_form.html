@@ -1,0 +1,21 @@
+{% extends "core/base.html" %}
+{% block title %}Editar questao - Academia Tecnica{% endblock %}
+{% block content %}
+<main class="container">
+    <a class="voltar" href="{% url 'conteudo_curso_operacional' questao.etapa.curso.id %}">Voltar para conteudo</a>
+    <section class="cabecalho-pagina">
+        <div>
+            <span class="eyebrow">Construtor de curso</span>
+            <h1>Editar questao</h1>
+            <p>{{ questao.etapa.titulo }}</p>
+        </div>
+    </section>
+
+    <form class="card-formulario formulario-operacional" method="post">
+        {% csrf_token %}
+        <div class="campo-form">{{ form.enunciado.label_tag }}{{ form.enunciado }}{% for erro in form.enunciado.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}</div>
+        <div class="campo-form">{{ form.ordem.label_tag }}{{ form.ordem }}{% for erro in form.ordem.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}</div>
+        <button class="botao-principal botao-auto" type="submit">Atualizar questao</button>
+    </form>
+</main>
+{% endblock %}

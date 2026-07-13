@@ -4,7 +4,16 @@ from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 
-from .models import Curso, Empresa, Produto, ResponsavelEmpresa, Tecnico
+from .models import (
+    Alternativa,
+    Curso,
+    Empresa,
+    EtapaCurso,
+    Produto,
+    Questao,
+    ResponsavelEmpresa,
+    Tecnico,
+)
 from .scopes import empresas_do_usuario
 
 
@@ -299,6 +308,50 @@ class CursoForm(forms.ModelForm):
         self.fields["produto"].queryset = Produto.objects.filter(ativo=True).order_by(
             "nome"
         )
+
+
+class EtapaCursoForm(forms.ModelForm):
+    class Meta:
+        model = EtapaCurso
+        fields = (
+            "titulo",
+            "descricao",
+            "tipo",
+            "ordem",
+            "conteudo",
+            "video_url",
+            "ativo",
+        )
+        widgets = {
+            "titulo": forms.TextInput(attrs={"placeholder": "Titulo da etapa"}),
+            "descricao": forms.Textarea(
+                attrs={"placeholder": "Resumo da etapa", "rows": 3}
+            ),
+            "conteudo": forms.Textarea(
+                attrs={"placeholder": "Conteudo em texto", "rows": 6}
+            ),
+            "video_url": forms.URLInput(attrs={"placeholder": "https://..."}),
+        }
+
+
+class QuestaoForm(forms.ModelForm):
+    class Meta:
+        model = Questao
+        fields = ("enunciado", "ordem")
+        widgets = {
+            "enunciado": forms.Textarea(
+                attrs={"placeholder": "Enunciado da questao", "rows": 4}
+            ),
+        }
+
+
+class AlternativaForm(forms.ModelForm):
+    class Meta:
+        model = Alternativa
+        fields = ("texto", "correta", "ordem")
+        widgets = {
+            "texto": forms.TextInput(attrs={"placeholder": "Texto da alternativa"}),
+        }
 
 
 class ValidarCertificadoForm(forms.Form):

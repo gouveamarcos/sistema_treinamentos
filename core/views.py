@@ -12,11 +12,14 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .forms import (
+    AlternativaForm,
     CursoForm,
     EmpresaForm,
+    EtapaCursoForm,
     LiberarCursoLoteForm,
     PrimeiroAcessoForm,
     ProdutoForm,
+    QuestaoForm,
     ResponsavelEmpresaForm,
     TecnicoForm,
     ValidarCertificadoForm,
@@ -31,6 +34,7 @@ from .models import (
     Produto,
     ProgressoCurso,
     ProgressoEtapa,
+    Questao,
     ResponsavelEmpresa,
     Tecnico,
     TentativaAvaliacao,
@@ -655,6 +659,198 @@ def alternar_curso_operacional(request, curso_id):
     status = "ativado" if curso.ativo else "desativado"
     messages.success(request, f"Curso {status} com sucesso.")
     return redirect("cursos_operacionais")
+
+
+@staff_member_required
+def conteudo_curso_operacional(request, curso_id):
+    _exigir_editor_catalogo(request)
+    curso = get_object_or_404(Curso.objects.select_related("produto"), pk=curso_id)
+    etapas = curso.etapas.prefetch_related("questoes__alternativas").order_by(
+        "ordem",
+        "id",
+    )
+    form_etapa = EtapaCursoForm()
+
+    return render(
+        request,
+        "core/conteudo_curso_operacional.html",
+        {"curso": curso, "etapas": etapas, "form_etapa": form_etapa},
+    )
+
+
+@staff_member_required
+def criar_etapa_operacional(request, curso_id):
+    _exigir_editor_catalogo(request)
+    curso = get_object_or_404(Curso, pk=curso_id)
+    if request.method != "POST":
+        return redirect("conteudo_curso_operacional", curso_id=curso.id)
+
+    form = EtapaCursoForm(request.POST)
+    if form.is_valid():
+        etapa = form.save(commit=False)
+        etapa.curso = curso
+        etapa.save()
+        messages.success(request, f"Etapa {etapa.titulo} criada com sucesso.")
+    else:
+        messages.error(request, "Nao foi possivel criar a etapa. Confira os dados.")
+    return redirect("conteudo_curso_operacional", curso_id=curso.id)
+
+
+@staff_member_required
+def editar_etapa_operacional(request, etapa_id):
+    _exigir_editor_catalogo(request)
+    etapa = get_object_or_404(EtapaCurso.objects.select_related("curso"), pk=etapa_id)
+    if request.method == "POST":
+        form = EtapaCursoForm(request.POST, instance=etapa)
+        if form.is_valid():
+            etapa = form.save()
+            messages.success(request, f"Etapa {etapa.titulo} atualizada com sucesso.")
+            return redirect("conteudo_curso_operacional", curso_id=etapa.curso_id)
+    else:
+        form = EtapaCursoForm(instance=etapa)
+
+    return render(
+        request,
+        "core/etapa_operacional_form.html",
+        {"form": form, "etapa": etapa},
+    )
+
+
+@staff_member_required
+@require_POST
+def alternar_etapa_operacional(request, etapa_id):
+    _exigir_editor_catalogo(request)
+    etapa = get_object_or_404(EtapaCurso.objects.select_related("curso"), pk=etapa_id)
+    etapa.ativo = not etapa.ativo
+    etapa.save(update_fields=["ativo"])
+    status = "ativada" if etapa.ativo else "desativada"
+    messages.success(request, f"Etapa {status} com sucesso.")
+    return redirect("conteudo_curso_operacional", curso_id=etapa.curso_id)
+
+
+@staff_member_required
+def criar_questao_operacional(request, etapa_id):
+    _exigir_editor_catalogo(request)
+    etapa = get_object_or_404(EtapaCurso.objects.select_related("curso"), pk=etapa_id)
+    if not etapa.avaliativa:
+        messages.error(request, "Questoes so podem ser criadas em etapas avaliativas.")
+        return redirect("conteudo_curso_operacional", curso_id=etapa.curso_id)
+    if request.method != "POST":
+        return redirect("conteudo_curso_operacional", curso_id=etapa.curso_id)
+
+    form = QuestaoForm(request.POST)
+    if form.is_valid():
+        questao = form.save(commit=False)
+        questao.etapa = etapa
+        questao.save()
+        messages.success(request, "Questao criada com sucesso.")
+    else:
+        messages.error(request, "Nao foi possivel criar a questao. Confira os dados.")
+    return redirect("conteudo_curso_operacional", curso_id=etapa.curso_id)
+
+
+@staff_member_required
+def editar_questao_operacional(request, questao_id):
+    _exigir_editor_catalogo(request)
+    questao = get_object_or_404(
+        Questao.objects.select_related("etapa__curso"),
+        pk=questao_id,
+    )
+    if request.method == "POST":
+        form = QuestaoForm(request.POST, instance=questao)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Questao atualizada com sucesso.")
+            return redirect(
+                "conteudo_curso_operacional",
+                curso_id=questao.etapa.curso_id,
+            )
+    else:
+        form = QuestaoForm(instance=questao)
+
+    return render(
+        request,
+        "core/questao_operacional_form.html",
+        {"form": form, "questao": questao},
+    )
+
+
+@staff_member_required
+@require_POST
+def excluir_questao_operacional(request, questao_id):
+    _exigir_editor_catalogo(request)
+    questao = get_object_or_404(
+        Questao.objects.select_related("etapa__curso"),
+        pk=questao_id,
+    )
+    curso_id = questao.etapa.curso_id
+    questao.delete()
+    messages.success(request, "Questao removida com sucesso.")
+    return redirect("conteudo_curso_operacional", curso_id=curso_id)
+
+
+@staff_member_required
+def criar_alternativa_operacional(request, questao_id):
+    _exigir_editor_catalogo(request)
+    questao = get_object_or_404(
+        Questao.objects.select_related("etapa__curso"),
+        pk=questao_id,
+    )
+    if request.method != "POST":
+        return redirect("conteudo_curso_operacional", curso_id=questao.etapa.curso_id)
+
+    form = AlternativaForm(request.POST)
+    if form.is_valid():
+        alternativa = form.save(commit=False)
+        alternativa.questao = questao
+        alternativa.save()
+        messages.success(request, "Alternativa criada com sucesso.")
+    else:
+        messages.error(
+            request,
+            "Nao foi possivel criar a alternativa. Confira os dados.",
+        )
+    return redirect("conteudo_curso_operacional", curso_id=questao.etapa.curso_id)
+
+
+@staff_member_required
+def editar_alternativa_operacional(request, alternativa_id):
+    _exigir_editor_catalogo(request)
+    alternativa = get_object_or_404(
+        Alternativa.objects.select_related("questao__etapa__curso"),
+        pk=alternativa_id,
+    )
+    if request.method == "POST":
+        form = AlternativaForm(request.POST, instance=alternativa)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Alternativa atualizada com sucesso.")
+            return redirect(
+                "conteudo_curso_operacional",
+                curso_id=alternativa.questao.etapa.curso_id,
+            )
+    else:
+        form = AlternativaForm(instance=alternativa)
+
+    return render(
+        request,
+        "core/alternativa_operacional_form.html",
+        {"form": form, "alternativa": alternativa},
+    )
+
+
+@staff_member_required
+@require_POST
+def excluir_alternativa_operacional(request, alternativa_id):
+    _exigir_editor_catalogo(request)
+    alternativa = get_object_or_404(
+        Alternativa.objects.select_related("questao__etapa__curso"),
+        pk=alternativa_id,
+    )
+    curso_id = alternativa.questao.etapa.curso_id
+    alternativa.delete()
+    messages.success(request, "Alternativa removida com sucesso.")
+    return redirect("conteudo_curso_operacional", curso_id=curso_id)
 
 
 def certificado_imprimir(request, codigo):

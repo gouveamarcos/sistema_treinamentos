@@ -1,0 +1,163 @@
+{% extends "core/base.html" %}
+{% block title %}Conteudo do curso - Academia Tecnica{% endblock %}
+{% block content %}
+<main class="container">
+    <a class="voltar" href="{% url 'cursos_operacionais' %}">Voltar para cursos</a>
+    <section class="cabecalho-pagina">
+        <div>
+            <span class="eyebrow">Construtor de curso</span>
+            <h1>{{ curso.nome }}</h1>
+            <p>{{ curso.produto.nome }} - organize etapas, questoes e alternativas.</p>
+        </div>
+    </section>
+
+    <form class="card-formulario formulario-operacional" method="post" action="{% url 'criar_etapa_operacional' curso.id %}">
+        {% csrf_token %}
+        <h2>Nova etapa</h2>
+        <div class="grade-formulario">
+            <div class="campo-form">
+                {{ form_etapa.titulo.label_tag }}
+                {{ form_etapa.titulo }}
+                {% for erro in form_etapa.titulo.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+            <div class="campo-form">
+                {{ form_etapa.tipo.label_tag }}
+                {{ form_etapa.tipo }}
+                {% for erro in form_etapa.tipo.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+        </div>
+        <div class="grade-formulario">
+            <div class="campo-form">
+                {{ form_etapa.ordem.label_tag }}
+                {{ form_etapa.ordem }}
+                {% for erro in form_etapa.ordem.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+            <div class="campo-form">
+                {{ form_etapa.video_url.label_tag }}
+                {{ form_etapa.video_url }}
+                {% for erro in form_etapa.video_url.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+        </div>
+        <div class="campo-form">
+            {{ form_etapa.descricao.label_tag }}
+            {{ form_etapa.descricao }}
+            {% for erro in form_etapa.descricao.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+        </div>
+        <div class="campo-form">
+            {{ form_etapa.conteudo.label_tag }}
+            {{ form_etapa.conteudo }}
+            {% for erro in form_etapa.conteudo.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+        </div>
+        <label class="check-operacional">{{ form_etapa.ativo }} {{ form_etapa.ativo.label }}</label>
+        <button class="botao-principal botao-auto" type="submit">Criar etapa</button>
+    </form>
+
+    <section class="lista-operacional">
+        {% for etapa in etapas %}
+            <article class="card-formulario item-operacional">
+                <div class="item-operacional-topo">
+                    <div>
+                        <span class="eyebrow">Etapa {{ etapa.ordem }} - {{ etapa.get_tipo_display }}</span>
+                        <h2>{{ etapa.titulo }}</h2>
+                        <p>{{ etapa.descricao|default:"Sem descricao." }}</p>
+                    </div>
+                    <div class="acoes-tabela">
+                        {% if etapa.ativo %}
+                            <span class="status status-em-dia">Ativa</span>
+                        {% else %}
+                            <span class="status status-vencido">Inativa</span>
+                        {% endif %}
+                        <a href="{% url 'editar_etapa_operacional' etapa.id %}">Editar</a>
+                        <form method="post" action="{% url 'alternar_etapa_operacional' etapa.id %}">
+                            {% csrf_token %}
+                            <button class="link-button" type="submit">
+                                {% if etapa.ativo %}Desativar{% else %}Ativar{% endif %}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                {% if etapa.avaliativa %}
+                    <form class="formulario-inline" method="post" action="{% url 'criar_questao_operacional' etapa.id %}">
+                        {% csrf_token %}
+                        <div class="campo-form">
+                            <label for="questao-{{ etapa.id }}">Nova questao</label>
+                            <textarea id="questao-{{ etapa.id }}" name="enunciado" rows="3" placeholder="Enunciado da questao" required></textarea>
+                        </div>
+                        <div class="campo-form campo-curto">
+                            <label for="questao-ordem-{{ etapa.id }}">Ordem</label>
+                            <input id="questao-ordem-{{ etapa.id }}" name="ordem" type="number" min="1" value="1" required>
+                        </div>
+                        <button class="botao-principal botao-auto" type="submit">Adicionar questao</button>
+                    </form>
+
+                    <div class="lista-questoes">
+                        {% for questao in etapa.questoes.all %}
+                            <section class="questao-card">
+                                <div class="item-operacional-topo">
+                                    <div>
+                                        <strong>Questao {{ questao.ordem }}</strong>
+                                        <p>{{ questao.enunciado }}</p>
+                                    </div>
+                                    <div class="acoes-tabela">
+                                        <a href="{% url 'editar_questao_operacional' questao.id %}">Editar</a>
+                                        <form method="post" action="{% url 'excluir_questao_operacional' questao.id %}">
+                                            {% csrf_token %}
+                                            <button class="link-button" type="submit">Excluir</button>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <form class="formulario-inline" method="post" action="{% url 'criar_alternativa_operacional' questao.id %}">
+                                    {% csrf_token %}
+                                    <div class="campo-form">
+                                        <label for="alternativa-{{ questao.id }}">Nova alternativa</label>
+                                        <input id="alternativa-{{ questao.id }}" name="texto" type="text" placeholder="Texto da alternativa" required>
+                                    </div>
+                                    <div class="campo-form campo-curto">
+                                        <label for="alternativa-ordem-{{ questao.id }}">Ordem</label>
+                                        <input id="alternativa-ordem-{{ questao.id }}" name="ordem" type="number" min="1" value="1" required>
+                                    </div>
+                                    <label class="check-operacional"><input type="checkbox" name="correta"> Correta</label>
+                                    <button class="botao-principal botao-auto" type="submit">Adicionar alternativa</button>
+                                </form>
+
+                                <ul class="alternativas-operacionais">
+                                    {% for alternativa in questao.alternativas.all %}
+                                        <li>
+                                            <span>
+                                                {{ alternativa.ordem }}. {{ alternativa.texto }}
+                                                {% if alternativa.correta %}
+                                                    <strong class="status status-em-dia">Correta</strong>
+                                                {% endif %}
+                                            </span>
+                                            <span class="acoes-tabela">
+                                                <a href="{% url 'editar_alternativa_operacional' alternativa.id %}">Editar</a>
+                                                <form method="post" action="{% url 'excluir_alternativa_operacional' alternativa.id %}">
+                                                    {% csrf_token %}
+                                                    <button class="link-button" type="submit">Excluir</button>
+                                                </form>
+                                            </span>
+                                        </li>
+                                    {% empty %}
+                                        <li>Nenhuma alternativa cadastrada.</li>
+                                    {% endfor %}
+                                </ul>
+                            </section>
+                        {% empty %}
+                            <p class="texto-ajuda">Nenhuma questao cadastrada nesta etapa.</p>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="texto-ajuda">Esta etapa nao e avaliativa; questoes ficam disponiveis apenas em testes e provas.</p>
+                {% endif %}
+            </article>
+        {% empty %}
+            <div class="estado-vazio">
+                <h3>Nenhuma etapa cadastrada</h3>
+                <p>Crie a primeira etapa para montar a trilha do curso.</p>
+            </div>
+        {% endfor %}
+    </section>
+</main>
+{% endblock %}

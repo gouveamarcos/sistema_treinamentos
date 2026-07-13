@@ -837,6 +837,210 @@ class CatalogoOperacionalTest(TestCase):
         self.assertFalse(self.curso.ativo)
 
 
+class ConteudoCursoOperacionalTest(TestCase):
+    def setUp(self):
+        self.empresa = Empresa.objects.create(nome="Cliente Conteudo")
+        self.editor = User.objects.create_user(
+            username="editor-conteudo",
+            password="SenhaForte123!",
+            is_staff=True,
+        )
+        ResponsavelEmpresa.objects.create(
+            empresa=self.empresa,
+            usuario=self.editor,
+            papel=ResponsavelEmpresa.Papel.EDITOR_CURSOS,
+        )
+        self.operacional = User.objects.create_user(
+            username="operacional-conteudo",
+            password="SenhaForte123!",
+            is_staff=True,
+        )
+        ResponsavelEmpresa.objects.create(
+            empresa=self.empresa,
+            usuario=self.operacional,
+            papel=ResponsavelEmpresa.Papel.OPERACIONAL,
+        )
+        self.produto = Produto.objects.create(nome="Produto Conteudo")
+        self.curso = Curso.objects.create(nome="Curso Conteudo", produto=self.produto)
+        self.etapa_texto = EtapaCurso.objects.create(
+            curso=self.curso,
+            titulo="Etapa Texto",
+            tipo=EtapaCurso.Tipo.TEXTO,
+            ordem=1,
+        )
+        self.etapa_prova = EtapaCurso.objects.create(
+            curso=self.curso,
+            titulo="Prova",
+            tipo=EtapaCurso.Tipo.PROVA,
+            ordem=2,
+        )
+
+    def test_operacional_nao_acessa_construtor_de_conteudo(self):
+        self.client.force_login(self.operacional)
+
+        resposta = self.client.get(
+            reverse("conteudo_curso_operacional", args=(self.curso.id,))
+        )
+
+        self.assertEqual(resposta.status_code, 403)
+
+    def test_editor_cria_etapa(self):
+        self.client.force_login(self.editor)
+
+        resposta = self.client.post(
+            reverse("criar_etapa_operacional", args=(self.curso.id,)),
+            {
+                "titulo": "Video explicativo",
+                "descricao": "Descricao",
+                "tipo": EtapaCurso.Tipo.VIDEO,
+                "ordem": 3,
+                "conteudo": "",
+                "video_url": "https://example.com/video",
+                "ativo": "on",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTrue(
+            EtapaCurso.objects.filter(
+                curso=self.curso,
+                titulo="Video explicativo",
+            ).exists()
+        )
+        self.assertContains(resposta, "Video explicativo")
+
+    def test_editor_edita_e_alterna_etapa(self):
+        self.client.force_login(self.editor)
+
+        resposta = self.client.post(
+            reverse("editar_etapa_operacional", args=(self.etapa_texto.id,)),
+            {
+                "titulo": "Texto atualizado",
+                "descricao": "Nova descricao",
+                "tipo": EtapaCurso.Tipo.TEXTO,
+                "ordem": 1,
+                "conteudo": "Conteudo atualizado",
+                "video_url": "",
+                "ativo": "on",
+            },
+            follow=True,
+        )
+        self.etapa_texto.refresh_from_db()
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(self.etapa_texto.titulo, "Texto atualizado")
+
+        self.client.post(
+            reverse("alternar_etapa_operacional", args=(self.etapa_texto.id,)),
+            follow=True,
+        )
+        self.etapa_texto.refresh_from_db()
+
+        self.assertFalse(self.etapa_texto.ativo)
+
+    def test_nao_cria_questao_em_etapa_nao_avaliativa(self):
+        self.client.force_login(self.editor)
+
+        resposta = self.client.post(
+            reverse("criar_questao_operacional", args=(self.etapa_texto.id,)),
+            {
+                "enunciado": "Pergunta indevida?",
+                "ordem": 1,
+            },
+            follow=True,
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(
+            Questao.objects.filter(
+                etapa=self.etapa_texto,
+                enunciado="Pergunta indevida?",
+            ).exists()
+        )
+
+    def test_editor_cria_edita_e_exclui_questao(self):
+        self.client.force_login(self.editor)
+
+        resposta_criacao = self.client.post(
+            reverse("criar_questao_operacional", args=(self.etapa_prova.id,)),
+            {
+                "enunciado": "Qual e a resposta?",
+                "ordem": 1,
+            },
+            follow=True,
+        )
+        questao = Questao.objects.get(etapa=self.etapa_prova)
+
+        self.assertEqual(resposta_criacao.status_code, 200)
+        self.assertContains(resposta_criacao, "Qual e a resposta?")
+
+        resposta_edicao = self.client.post(
+            reverse("editar_questao_operacional", args=(questao.id,)),
+            {
+                "enunciado": "Qual e a resposta atualizada?",
+                "ordem": 2,
+            },
+            follow=True,
+        )
+        questao.refresh_from_db()
+
+        self.assertEqual(resposta_edicao.status_code, 200)
+        self.assertEqual(questao.ordem, 2)
+        self.assertEqual(questao.enunciado, "Qual e a resposta atualizada?")
+
+        self.client.post(
+            reverse("excluir_questao_operacional", args=(questao.id,)),
+            follow=True,
+        )
+
+        self.assertFalse(Questao.objects.filter(pk=questao.id).exists())
+
+    def test_editor_cria_edita_e_exclui_alternativa(self):
+        questao = Questao.objects.create(
+            etapa=self.etapa_prova,
+            enunciado="Escolha a correta",
+        )
+        self.client.force_login(self.editor)
+
+        resposta_criacao = self.client.post(
+            reverse("criar_alternativa_operacional", args=(questao.id,)),
+            {
+                "texto": "Alternativa correta",
+                "ordem": 1,
+                "correta": "on",
+            },
+            follow=True,
+        )
+        alternativa = Alternativa.objects.get(questao=questao)
+
+        self.assertEqual(resposta_criacao.status_code, 200)
+        self.assertTrue(alternativa.correta)
+        self.assertContains(resposta_criacao, "Alternativa correta")
+
+        resposta_edicao = self.client.post(
+            reverse("editar_alternativa_operacional", args=(alternativa.id,)),
+            {
+                "texto": "Alternativa atualizada",
+                "ordem": 2,
+            },
+            follow=True,
+        )
+        alternativa.refresh_from_db()
+
+        self.assertEqual(resposta_edicao.status_code, 200)
+        self.assertEqual(alternativa.texto, "Alternativa atualizada")
+        self.assertEqual(alternativa.ordem, 2)
+        self.assertFalse(alternativa.correta)
+
+        self.client.post(
+            reverse("excluir_alternativa_operacional", args=(alternativa.id,)),
+            follow=True,
+        )
+
+        self.assertFalse(Alternativa.objects.filter(pk=alternativa.id).exists())
+
+
 class OperacaoAdminTest(TestCase):
     def setUp(self):
         self.empresa = Empresa.objects.create(nome="Empresa Operacional")

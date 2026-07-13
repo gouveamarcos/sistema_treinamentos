@@ -129,6 +129,56 @@ urlpatterns = [
         name="alternar_curso_operacional",
     ),
     path(
+        "catalogo/cursos/<int:curso_id>/conteudo/",
+        views.conteudo_curso_operacional,
+        name="conteudo_curso_operacional",
+    ),
+    path(
+        "catalogo/cursos/<int:curso_id>/etapas/criar/",
+        views.criar_etapa_operacional,
+        name="criar_etapa_operacional",
+    ),
+    path(
+        "catalogo/etapas/<int:etapa_id>/editar/",
+        views.editar_etapa_operacional,
+        name="editar_etapa_operacional",
+    ),
+    path(
+        "catalogo/etapas/<int:etapa_id>/alternar/",
+        views.alternar_etapa_operacional,
+        name="alternar_etapa_operacional",
+    ),
+    path(
+        "catalogo/etapas/<int:etapa_id>/questoes/criar/",
+        views.criar_questao_operacional,
+        name="criar_questao_operacional",
+    ),
+    path(
+        "catalogo/questoes/<int:questao_id>/editar/",
+        views.editar_questao_operacional,
+        name="editar_questao_operacional",
+    ),
+    path(
+        "catalogo/questoes/<int:questao_id>/excluir/",
+        views.excluir_questao_operacional,
+        name="excluir_questao_operacional",
+    ),
+    path(
+        "catalogo/questoes/<int:questao_id>/alternativas/criar/",
+        views.criar_alternativa_operacional,
+        name="criar_alternativa_operacional",
+    ),
+    path(
+        "catalogo/alternativas/<int:alternativa_id>/editar/",
+        views.editar_alternativa_operacional,
+        name="editar_alternativa_operacional",
+    ),
+    path(
+        "catalogo/alternativas/<int:alternativa_id>/excluir/",
+        views.excluir_alternativa_operacional,
+        name="excluir_alternativa_operacional",
+    ),
+    path(
         "responsaveis/",
         views.responsaveis_empresas,
         name="responsaveis_empresas",
