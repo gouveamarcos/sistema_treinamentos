@@ -12,9 +12,11 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .forms import (
+    CursoForm,
     EmpresaForm,
     LiberarCursoLoteForm,
     PrimeiroAcessoForm,
+    ProdutoForm,
     ResponsavelEmpresaForm,
     TecnicoForm,
     ValidarCertificadoForm,
@@ -134,6 +136,21 @@ def _tecnicos_visiveis(request):
     return Tecnico.objects.filter(
         empresa__in=_empresas_visiveis(request)
     ).select_related("empresa", "usuario")
+
+
+def _pode_gerenciar_catalogo(user):
+    if user.is_superuser:
+        return True
+    return ResponsavelEmpresa.objects.filter(
+        usuario=user,
+        papel=ResponsavelEmpresa.Papel.EDITOR_CURSOS,
+        ativo=True,
+    ).exists()
+
+
+def _exigir_editor_catalogo(request):
+    if not _pode_gerenciar_catalogo(request.user):
+        raise PermissionDenied
 
 
 def _contexto_etapas(curso, progresso):
@@ -534,6 +551,110 @@ def alternar_tecnico_operacional(request, tecnico_id):
     status = "ativado" if tecnico.ativo else "desativado"
     messages.success(request, f"Tecnico {status} com sucesso.")
     return redirect("tecnicos_operacionais")
+
+
+@staff_member_required
+def produtos_operacionais(request):
+    _exigir_editor_catalogo(request)
+    if request.method == "POST":
+        form = ProdutoForm(request.POST)
+        if form.is_valid():
+            produto = form.save()
+            messages.success(request, f"Produto {produto.nome} salvo com sucesso.")
+            return redirect("produtos_operacionais")
+    else:
+        form = ProdutoForm()
+
+    produtos = Produto.objects.order_by("nome")
+    return render(
+        request,
+        "core/produtos_operacionais.html",
+        {"form": form, "produtos": produtos},
+    )
+
+
+@staff_member_required
+def editar_produto_operacional(request, produto_id):
+    _exigir_editor_catalogo(request)
+    produto = get_object_or_404(Produto, pk=produto_id)
+    if request.method == "POST":
+        form = ProdutoForm(request.POST, instance=produto)
+        if form.is_valid():
+            produto = form.save()
+            messages.success(request, f"Produto {produto.nome} atualizado com sucesso.")
+            return redirect("produtos_operacionais")
+    else:
+        form = ProdutoForm(instance=produto)
+
+    return render(
+        request,
+        "core/produto_operacional_form.html",
+        {"form": form, "produto": produto},
+    )
+
+
+@staff_member_required
+@require_POST
+def alternar_produto_operacional(request, produto_id):
+    _exigir_editor_catalogo(request)
+    produto = get_object_or_404(Produto, pk=produto_id)
+    produto.ativo = not produto.ativo
+    produto.save(update_fields=["ativo"])
+    status = "ativado" if produto.ativo else "desativado"
+    messages.success(request, f"Produto {status} com sucesso.")
+    return redirect("produtos_operacionais")
+
+
+@staff_member_required
+def cursos_operacionais(request):
+    _exigir_editor_catalogo(request)
+    if request.method == "POST":
+        form = CursoForm(request.POST)
+        if form.is_valid():
+            curso = form.save()
+            messages.success(request, f"Curso {curso.nome} salvo com sucesso.")
+            return redirect("cursos_operacionais")
+    else:
+        form = CursoForm()
+
+    cursos = Curso.objects.select_related("produto").order_by("produto__nome", "nome")
+    return render(
+        request,
+        "core/cursos_operacionais.html",
+        {"form": form, "cursos": cursos},
+    )
+
+
+@staff_member_required
+def editar_curso_operacional(request, curso_id):
+    _exigir_editor_catalogo(request)
+    curso = get_object_or_404(Curso.objects.select_related("produto"), pk=curso_id)
+    if request.method == "POST":
+        form = CursoForm(request.POST, instance=curso)
+        if form.is_valid():
+            curso = form.save()
+            messages.success(request, f"Curso {curso.nome} atualizado com sucesso.")
+            return redirect("cursos_operacionais")
+    else:
+        form = CursoForm(instance=curso)
+
+    return render(
+        request,
+        "core/curso_operacional_form.html",
+        {"form": form, "curso": curso},
+    )
+
+
+@staff_member_required
+@require_POST
+def alternar_curso_operacional(request, curso_id):
+    _exigir_editor_catalogo(request)
+    curso = get_object_or_404(Curso, pk=curso_id)
+    curso.ativo = not curso.ativo
+    curso.save(update_fields=["ativo"])
+    status = "ativado" if curso.ativo else "desativado"
+    messages.success(request, f"Curso {status} com sucesso.")
+    return redirect("cursos_operacionais")
 
 
 def certificado_imprimir(request, codigo):

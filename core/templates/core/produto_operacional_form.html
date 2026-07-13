@@ -1,0 +1,30 @@
+{% extends "core/base.html" %}
+{% block title %}Editar produto - Academia Tecnica{% endblock %}
+{% block content %}
+<main class="container">
+    <a class="voltar" href="{% url 'produtos_operacionais' %}">Voltar para produtos</a>
+    <section class="cabecalho-pagina">
+        <div>
+            <span class="eyebrow">Catalogo</span>
+            <h1>Editar produto</h1>
+            <p>Atualize as informacoes do produto.</p>
+        </div>
+    </section>
+
+    <form class="card-formulario formulario-operacional" method="post">
+        {% csrf_token %}
+        <div class="campo-form">
+            {{ form.nome.label_tag }}
+            {{ form.nome }}
+            {% for erro in form.nome.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+        </div>
+        <div class="campo-form">
+            {{ form.descricao.label_tag }}
+            {{ form.descricao }}
+            {% for erro in form.descricao.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+        </div>
+        <label class="check-operacional">{{ form.ativo }} {{ form.ativo.label }}</label>
+        <button class="botao-principal botao-auto" type="submit">Atualizar produto</button>
+    </form>
+</main>
+{% endblock %}

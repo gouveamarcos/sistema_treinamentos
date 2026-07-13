@@ -4,7 +4,7 @@ from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 
-from .models import Curso, Empresa, ResponsavelEmpresa, Tecnico
+from .models import Curso, Empresa, Produto, ResponsavelEmpresa, Tecnico
 from .scopes import empresas_do_usuario
 
 
@@ -258,6 +258,47 @@ class TecnicoForm(forms.ModelForm):
             else empresas_do_usuario(usuario)
         )
         self.fields["empresa"].queryset = empresas.order_by("nome")
+
+
+class ProdutoForm(forms.ModelForm):
+    class Meta:
+        model = Produto
+        fields = ("nome", "descricao", "ativo")
+        widgets = {
+            "nome": forms.TextInput(attrs={"placeholder": "Nome do produto"}),
+            "descricao": forms.Textarea(
+                attrs={"placeholder": "Descricao breve", "rows": 4}
+            ),
+        }
+
+
+class CursoForm(forms.ModelForm):
+    class Meta:
+        model = Curso
+        fields = (
+            "produto",
+            "nome",
+            "descricao",
+            "validade_meses",
+            "nota_minima",
+            "link_notebooklm",
+            "ativo",
+        )
+        widgets = {
+            "nome": forms.TextInput(attrs={"placeholder": "Nome do curso"}),
+            "descricao": forms.Textarea(
+                attrs={"placeholder": "Objetivo e resumo do curso", "rows": 4}
+            ),
+            "link_notebooklm": forms.URLInput(
+                attrs={"placeholder": "https://notebooklm.google.com/..."}
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["produto"].queryset = Produto.objects.filter(ativo=True).order_by(
+            "nome"
+        )
 
 
 class ValidarCertificadoForm(forms.Form):

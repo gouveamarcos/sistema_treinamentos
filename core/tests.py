@@ -685,6 +685,158 @@ class CadastroOperacionalTest(TestCase):
         self.assertFalse(self.tecnico_a.ativo)
 
 
+class CatalogoOperacionalTest(TestCase):
+    def setUp(self):
+        self.empresa = Empresa.objects.create(nome="Cliente Catalogo")
+        self.superadmin = User.objects.create_user(
+            username="superadmin-catalogo",
+            password="SenhaForte123!",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.editor = User.objects.create_user(
+            username="editor-catalogo",
+            password="SenhaForte123!",
+            is_staff=True,
+        )
+        ResponsavelEmpresa.objects.create(
+            empresa=self.empresa,
+            usuario=self.editor,
+            papel=ResponsavelEmpresa.Papel.EDITOR_CURSOS,
+        )
+        self.operacional = User.objects.create_user(
+            username="operacional-catalogo",
+            password="SenhaForte123!",
+            is_staff=True,
+        )
+        ResponsavelEmpresa.objects.create(
+            empresa=self.empresa,
+            usuario=self.operacional,
+            papel=ResponsavelEmpresa.Papel.OPERACIONAL,
+        )
+        self.produto = Produto.objects.create(
+            nome="Produto Catalogo",
+            descricao="Descricao inicial",
+        )
+        self.curso = Curso.objects.create(
+            produto=self.produto,
+            nome="Curso Catalogo",
+            descricao="Curso inicial",
+            validade_meses=12,
+            nota_minima=80,
+        )
+
+    def test_editor_cria_produto(self):
+        self.client.force_login(self.editor)
+
+        resposta = self.client.post(
+            reverse("produtos_operacionais"),
+            {
+                "nome": "Produto Novo",
+                "descricao": "Linha nova",
+                "ativo": "on",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTrue(Produto.objects.filter(nome="Produto Novo").exists())
+        self.assertContains(resposta, "Produto Novo")
+
+    def test_operacional_nao_acessa_catalogo_de_produtos(self):
+        self.client.force_login(self.operacional)
+
+        resposta = self.client.get(reverse("produtos_operacionais"))
+
+        self.assertEqual(resposta.status_code, 403)
+
+    def test_editor_edita_e_alterna_produto(self):
+        self.client.force_login(self.editor)
+
+        resposta_edicao = self.client.post(
+            reverse("editar_produto_operacional", args=(self.produto.id,)),
+            {
+                "nome": "Produto Atualizado",
+                "descricao": "Descricao atualizada",
+                "ativo": "on",
+            },
+            follow=True,
+        )
+        self.produto.refresh_from_db()
+
+        self.assertEqual(resposta_edicao.status_code, 200)
+        self.assertEqual(self.produto.nome, "Produto Atualizado")
+
+        self.client.post(
+            reverse("alternar_produto_operacional", args=(self.produto.id,)),
+            follow=True,
+        )
+        self.produto.refresh_from_db()
+
+        self.assertFalse(self.produto.ativo)
+
+    def test_editor_cria_curso(self):
+        self.client.force_login(self.editor)
+
+        resposta = self.client.post(
+            reverse("cursos_operacionais"),
+            {
+                "produto": self.produto.id,
+                "nome": "Curso Novo",
+                "descricao": "Conteudo do curso",
+                "validade_meses": 18,
+                "nota_minima": 75,
+                "link_notebooklm": "",
+                "ativo": "on",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTrue(
+            Curso.objects.filter(produto=self.produto, nome="Curso Novo").exists()
+        )
+        self.assertContains(resposta, "Curso Novo")
+
+    def test_operacional_nao_acessa_catalogo_de_cursos(self):
+        self.client.force_login(self.operacional)
+
+        resposta = self.client.get(reverse("cursos_operacionais"))
+
+        self.assertEqual(resposta.status_code, 403)
+
+    def test_superadmin_edita_e_alterna_curso(self):
+        self.client.force_login(self.superadmin)
+
+        resposta_edicao = self.client.post(
+            reverse("editar_curso_operacional", args=(self.curso.id,)),
+            {
+                "produto": self.produto.id,
+                "nome": "Curso Atualizado",
+                "descricao": "Descricao atualizada",
+                "validade_meses": 24,
+                "nota_minima": 90,
+                "link_notebooklm": "https://example.com/material",
+                "ativo": "on",
+            },
+            follow=True,
+        )
+        self.curso.refresh_from_db()
+
+        self.assertEqual(resposta_edicao.status_code, 200)
+        self.assertEqual(self.curso.nome, "Curso Atualizado")
+        self.assertEqual(self.curso.validade_meses, 24)
+        self.assertEqual(self.curso.nota_minima, 90)
+
+        self.client.post(
+            reverse("alternar_curso_operacional", args=(self.curso.id,)),
+            follow=True,
+        )
+        self.curso.refresh_from_db()
+
+        self.assertFalse(self.curso.ativo)
+
+
 class OperacaoAdminTest(TestCase):
     def setUp(self):
         self.empresa = Empresa.objects.create(nome="Empresa Operacional")

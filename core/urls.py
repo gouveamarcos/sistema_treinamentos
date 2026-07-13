@@ -99,6 +99,36 @@ urlpatterns = [
         name="alternar_tecnico_operacional",
     ),
     path(
+        "catalogo/produtos/",
+        views.produtos_operacionais,
+        name="produtos_operacionais",
+    ),
+    path(
+        "catalogo/produtos/<int:produto_id>/editar/",
+        views.editar_produto_operacional,
+        name="editar_produto_operacional",
+    ),
+    path(
+        "catalogo/produtos/<int:produto_id>/alternar/",
+        views.alternar_produto_operacional,
+        name="alternar_produto_operacional",
+    ),
+    path(
+        "catalogo/cursos/",
+        views.cursos_operacionais,
+        name="cursos_operacionais",
+    ),
+    path(
+        "catalogo/cursos/<int:curso_id>/editar/",
+        views.editar_curso_operacional,
+        name="editar_curso_operacional",
+    ),
+    path(
+        "catalogo/cursos/<int:curso_id>/alternar/",
+        views.alternar_curso_operacional,
+        name="alternar_curso_operacional",
+    ),
+    path(
         "responsaveis/",
         views.responsaveis_empresas,
         name="responsaveis_empresas",

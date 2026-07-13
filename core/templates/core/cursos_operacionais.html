@@ -1,0 +1,98 @@
+{% extends "core/base.html" %}
+{% block title %}Cursos - Academia Tecnica{% endblock %}
+{% block content %}
+<main class="container">
+    <section class="cabecalho-pagina">
+        <div>
+            <span class="eyebrow">Catalogo</span>
+            <h1>Cursos</h1>
+            <p>Cadastre cursos, validade, nota minima e material de apoio.</p>
+        </div>
+    </section>
+
+    <form class="card-formulario formulario-operacional" method="post">
+        {% csrf_token %}
+        <div class="grade-formulario">
+            <div class="campo-form">
+                {{ form.produto.label_tag }}
+                {{ form.produto }}
+                {% for erro in form.produto.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+            <div class="campo-form">
+                {{ form.nome.label_tag }}
+                {{ form.nome }}
+                {% for erro in form.nome.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+        </div>
+        <div class="campo-form">
+            {{ form.descricao.label_tag }}
+            {{ form.descricao }}
+            {% for erro in form.descricao.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+        </div>
+        <div class="grade-formulario">
+            <div class="campo-form">
+                {{ form.validade_meses.label_tag }}
+                {{ form.validade_meses }}
+                {% for erro in form.validade_meses.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+            <div class="campo-form">
+                {{ form.nota_minima.label_tag }}
+                {{ form.nota_minima }}
+                {% for erro in form.nota_minima.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+        </div>
+        <div class="campo-form">
+            {{ form.link_notebooklm.label_tag }}
+            {{ form.link_notebooklm }}
+            {% for erro in form.link_notebooklm.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+        </div>
+        <label class="check-operacional">{{ form.ativo }} {{ form.ativo.label }}</label>
+        <button class="botao-principal botao-auto" type="submit">Salvar curso</button>
+    </form>
+
+    <section class="tabela-relatorio tabela-operacional">
+        <table>
+            <thead>
+                <tr>
+                    <th>Produto</th>
+                    <th>Curso</th>
+                    <th>Validade</th>
+                    <th>Nota minima</th>
+                    <th>Status</th>
+                    <th>Acoes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for curso in cursos %}
+                    <tr>
+                        <td>{{ curso.produto.nome }}</td>
+                        <td>{{ curso.nome }}</td>
+                        <td>{{ curso.validade_meses }} meses</td>
+                        <td>{{ curso.nota_minima }}%</td>
+                        <td>
+                            {% if curso.ativo %}
+                                <span class="status status-em-dia">Ativo</span>
+                            {% else %}
+                                <span class="status status-vencido">Inativo</span>
+                            {% endif %}
+                        </td>
+                        <td class="acoes-tabela">
+                            <a href="{% url 'editar_curso_operacional' curso.id %}">Editar</a>
+                            <form method="post" action="{% url 'alternar_curso_operacional' curso.id %}">
+                                {% csrf_token %}
+                                <button class="link-button" type="submit">
+                                    {% if curso.ativo %}Desativar{% else %}Ativar{% endif %}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6">Nenhum curso cadastrado.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</main>
+{% endblock %}
