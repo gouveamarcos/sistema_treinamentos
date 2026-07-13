@@ -8,8 +8,14 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
-from .forms import LiberarCursoLoteForm, PrimeiroAcessoForm, ValidarCertificadoForm
+from .forms import (
+    LiberarCursoLoteForm,
+    PrimeiroAcessoForm,
+    ResponsavelEmpresaForm,
+    ValidarCertificadoForm,
+)
 from .models import (
     Alternativa,
     ConclusaoTreinamento,
@@ -19,6 +25,7 @@ from .models import (
     Produto,
     ProgressoCurso,
     ProgressoEtapa,
+    ResponsavelEmpresa,
     Tecnico,
     TentativaAvaliacao,
 )
@@ -107,6 +114,12 @@ def _curso_liberado(tecnico, curso):
     return CursoLiberado.objects.filter(
         tecnico=tecnico, curso=curso, curso__ativo=True, ativo=True
     ).exists()
+
+
+def _responsaveis_visiveis(request):
+    return ResponsavelEmpresa.objects.filter(
+        empresa__in=empresas_do_usuario(request.user)
+    ).select_related("empresa", "usuario")
 
 
 def _contexto_etapas(curso, progresso):
@@ -338,6 +351,72 @@ def liberar_curso_lote(request):
         "core/liberar_curso_lote.html",
         {"form": form, "resultado": resultado},
     )
+
+
+@staff_member_required
+def responsaveis_empresas(request):
+    if request.method == "POST":
+        form = ResponsavelEmpresaForm(request.POST, usuario=request.user)
+        if form.is_valid():
+            responsabilidade = form.save()
+            messages.success(
+                request,
+                f"ResponsÃ¡vel {responsabilidade.usuario.email} salvo com sucesso.",
+            )
+            return redirect("responsaveis_empresas")
+    else:
+        form = ResponsavelEmpresaForm(usuario=request.user)
+
+    responsaveis = _responsaveis_visiveis(request).order_by(
+        "empresa__nome",
+        "usuario__first_name",
+        "usuario__email",
+    )
+    return render(
+        request,
+        "core/responsaveis_empresas.html",
+        {"form": form, "responsaveis": responsaveis},
+    )
+
+
+@staff_member_required
+def editar_responsavel_empresa(request, responsavel_id):
+    responsabilidade = get_object_or_404(
+        _responsaveis_visiveis(request),
+        pk=responsavel_id,
+    )
+    if request.method == "POST":
+        form = ResponsavelEmpresaForm(
+            request.POST,
+            usuario=request.user,
+            instance=responsabilidade,
+        )
+        if form.is_valid():
+            form.save()
+            messages.success(request, "ResponsÃ¡vel atualizado com sucesso.")
+            return redirect("responsaveis_empresas")
+    else:
+        form = ResponsavelEmpresaForm(usuario=request.user, instance=responsabilidade)
+
+    return render(
+        request,
+        "core/responsavel_empresa_form.html",
+        {"form": form, "responsabilidade": responsabilidade},
+    )
+
+
+@staff_member_required
+@require_POST
+def alternar_responsavel_empresa(request, responsavel_id):
+    responsabilidade = get_object_or_404(
+        _responsaveis_visiveis(request),
+        pk=responsavel_id,
+    )
+    responsabilidade.ativo = not responsabilidade.ativo
+    responsabilidade.save()
+    status = "ativado" if responsabilidade.ativo else "desativado"
+    messages.success(request, f"ResponsÃ¡vel {status} com sucesso.")
+    return redirect("responsaveis_empresas")
 
 
 def certificado_imprimir(request, codigo):

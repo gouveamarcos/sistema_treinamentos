@@ -130,6 +130,10 @@ a { color: inherit; }
 .tabela-relatorio th, .tabela-relatorio td { padding: 14px 16px; border-bottom: 1px solid var(--borda); font-size: 13px; text-align: left; vertical-align: middle; }
 .tabela-relatorio th { color: var(--muted); background: #f8fafa; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; }
 .tabela-relatorio tr:last-child td { border-bottom: 0; }
+.tabela-operacional { margin-top: 28px; }
+.acoes-tabela { display: flex; align-items: center; gap: 12px; }
+.acoes-tabela a { color: var(--verde-escuro); font-weight: 700; text-decoration: none; }
+.acoes-tabela .link-button { color: var(--rosa); font-weight: 700; }
 .curso-layout { min-height: calc(100vh - 80px); display: grid; grid-template-columns: 350px 1fr; }
 .trilha { padding: 35px 28px 70px max(28px, calc((100vw - 1300px)/2)); border-right: 1px solid var(--borda); background: #fff; }
 .trilha h1 { margin: 8px 0 22px; font-size: 24px; line-height: 1.25; }

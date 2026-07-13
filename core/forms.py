@@ -1,7 +1,10 @@
+import secrets
+
 from django import forms
+from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 
-from .models import Curso, Empresa, Tecnico
+from .models import Curso, Empresa, ResponsavelEmpresa, Tecnico
 from .scopes import empresas_do_usuario
 
 
@@ -82,6 +85,127 @@ class LiberarCursoLoteForm(forms.Form):
             )
 
         return dados
+
+
+class ResponsavelEmpresaForm(forms.Form):
+    empresa = forms.ModelChoiceField(
+        label="Empresa",
+        queryset=Empresa.objects.none(),
+        empty_label="Selecione a empresa",
+    )
+    nome = forms.CharField(
+        label="Nome",
+        max_length=150,
+        widget=forms.TextInput(attrs={"placeholder": "Nome do responsÃ¡vel"}),
+    )
+    email = forms.EmailField(
+        label="E-mail",
+        widget=forms.EmailInput(attrs={"placeholder": "responsavel@empresa.com.br"}),
+    )
+    papel = forms.ChoiceField(
+        label="Papel",
+        choices=ResponsavelEmpresa.Papel.choices,
+    )
+    ativo = forms.BooleanField(
+        label="ResponsÃ¡vel ativo",
+        required=False,
+        initial=True,
+    )
+
+    def __init__(self, *args, usuario=None, instance=None, **kwargs):
+        self.instance = instance
+        super().__init__(*args, **kwargs)
+        empresas = (
+            Empresa.objects.filter(ativa=True)
+            if usuario is None
+            else empresas_do_usuario(usuario)
+        )
+        self.fields["empresa"].queryset = empresas.order_by("nome")
+
+        if instance and not self.is_bound:
+            self.initial.update(
+                {
+                    "empresa": instance.empresa,
+                    "nome": instance.usuario.get_full_name()
+                    or instance.usuario.first_name
+                    or instance.usuario.username,
+                    "email": instance.usuario.email or instance.usuario.username,
+                    "papel": instance.papel,
+                    "ativo": instance.ativo,
+                }
+            )
+
+    def clean_email(self):
+        return self.cleaned_data["email"].strip().lower()
+
+    def clean(self):
+        dados = super().clean()
+        empresa = dados.get("empresa")
+        email = dados.get("email")
+        papel = dados.get("papel")
+
+        if not empresa or not email or not papel:
+            return dados
+
+        usuario = User.objects.filter(email__iexact=email).first()
+        email_atual = self.instance.usuario.email if self.instance else ""
+        if not usuario and email_atual and email_atual.lower() == email:
+            usuario = self.instance.usuario
+
+        if usuario:
+            existente = ResponsavelEmpresa.objects.filter(
+                empresa=empresa,
+                usuario=usuario,
+                papel=papel,
+            )
+            if self.instance:
+                existente = existente.exclude(pk=self.instance.pk)
+            if existente.exists():
+                raise forms.ValidationError(
+                    "Este usuÃ¡rio jÃ¡ possui esse papel para a empresa escolhida."
+                )
+
+        return dados
+
+    def save(self):
+        nome = self.cleaned_data["nome"].strip()
+        email = self.cleaned_data["email"]
+        empresa = self.cleaned_data["empresa"]
+        papel = self.cleaned_data["papel"]
+        ativo = self.cleaned_data["ativo"]
+
+        usuario = User.objects.filter(email__iexact=email).first()
+        if not usuario:
+            username_base = email
+            username = username_base
+            contador = 2
+            while User.objects.filter(username=username).exists():
+                username = f"{username_base}-{contador}"
+                contador += 1
+            usuario = User(username=username, email=email)
+            usuario.set_password(secrets.token_urlsafe(24))
+
+        usuario.email = email
+        usuario.first_name = nome[:150]
+        usuario.is_active = True
+        usuario.is_staff = True
+        usuario.save()
+
+        if self.instance:
+            responsabilidade = self.instance
+            responsabilidade.empresa = empresa
+            responsabilidade.usuario = usuario
+            responsabilidade.papel = papel
+            responsabilidade.ativo = ativo
+            responsabilidade.save()
+            return responsabilidade
+
+        return ResponsavelEmpresa.objects.create(
+            empresa=empresa,
+            usuario=usuario,
+            papel=papel,
+            ativo=ativo,
+        )
 
 
 class ValidarCertificadoForm(forms.Form):

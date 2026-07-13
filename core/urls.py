@@ -69,6 +69,21 @@ urlpatterns = [
         name="liberar_curso_lote",
     ),
     path(
+        "responsaveis/",
+        views.responsaveis_empresas,
+        name="responsaveis_empresas",
+    ),
+    path(
+        "responsaveis/<int:responsavel_id>/editar/",
+        views.editar_responsavel_empresa,
+        name="editar_responsavel_empresa",
+    ),
+    path(
+        "responsaveis/<int:responsavel_id>/alternar/",
+        views.alternar_responsavel_empresa,
+        name="alternar_responsavel_empresa",
+    ),
+    path(
         "produtos/<int:produto_id>/cursos/",
         views.cursos_por_produto,
         name="cursos_por_produto",

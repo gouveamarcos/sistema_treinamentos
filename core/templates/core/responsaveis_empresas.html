@@ -1,0 +1,97 @@
+{% extends "core/base.html" %}
+{% block title %}Responsaveis por empresa - Academia Tecnica{% endblock %}
+{% block content %}
+<main class="container">
+    <section class="cabecalho-pagina">
+        <div>
+            <span class="eyebrow">Operacao</span>
+            <h1>Responsaveis por empresa</h1>
+            <p>Cadastre quem pode operar liberacoes, relatorios e cadastros dentro do escopo de cada empresa.</p>
+        </div>
+    </section>
+
+    <form class="card-formulario formulario-operacional" method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+            <div class="mensagem error">
+                {% for erro in form.non_field_errors %}{{ erro }}{% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="grade-formulario">
+            <div class="campo-form">
+                {{ form.empresa.label_tag }}
+                {{ form.empresa }}
+                {% for erro in form.empresa.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+            <div class="campo-form">
+                {{ form.papel.label_tag }}
+                {{ form.papel }}
+                {% for erro in form.papel.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+        </div>
+
+        <div class="grade-formulario">
+            <div class="campo-form">
+                {{ form.nome.label_tag }}
+                {{ form.nome }}
+                {% for erro in form.nome.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+            <div class="campo-form">
+                {{ form.email.label_tag }}
+                {{ form.email }}
+                <small class="texto-ajuda">O usuario usara este e-mail para recuperar ou definir a senha.</small>
+                {% for erro in form.email.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+        </div>
+
+        <label class="check-operacional">{{ form.ativo }} {{ form.ativo.label }}</label>
+        <button class="botao-principal botao-auto" type="submit">Salvar responsavel</button>
+    </form>
+
+    <section class="tabela-relatorio tabela-operacional">
+        <table>
+            <thead>
+                <tr>
+                    <th>Empresa</th>
+                    <th>Responsavel</th>
+                    <th>E-mail</th>
+                    <th>Papel</th>
+                    <th>Status</th>
+                    <th>Acoes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in responsaveis %}
+                    <tr>
+                        <td>{{ item.empresa.nome }}</td>
+                        <td>{{ item.usuario.get_full_name|default:item.usuario.username }}</td>
+                        <td>{{ item.usuario.email }}</td>
+                        <td>{{ item.get_papel_display }}</td>
+                        <td>
+                            {% if item.ativo %}
+                                <span class="status status-em-dia">Ativo</span>
+                            {% else %}
+                                <span class="status status-vencido">Inativo</span>
+                            {% endif %}
+                        </td>
+                        <td class="acoes-tabela">
+                            <a href="{% url 'editar_responsavel_empresa' item.id %}">Editar</a>
+                            <form method="post" action="{% url 'alternar_responsavel_empresa' item.id %}">
+                                {% csrf_token %}
+                                <button class="link-button" type="submit">
+                                    {% if item.ativo %}Desativar{% else %}Ativar{% endif %}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6">Nenhum responsavel cadastrado para as empresas visiveis.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</main>
+{% endblock %}

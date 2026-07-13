@@ -360,6 +360,149 @@ class ResponsavelEmpresaTest(TestCase):
         self.assertFalse(self.usuario.groups.filter(name="Editor de cursos").exists())
 
 
+class GestaoResponsaveisEmpresaTest(TestCase):
+    def setUp(self):
+        self.empresa_a = Empresa.objects.create(nome="Cliente A")
+        self.empresa_b = Empresa.objects.create(nome="Cliente B")
+        self.superadmin = User.objects.create_user(
+            username="superadmin-responsaveis",
+            password="SenhaForte123!",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.responsavel_a = User.objects.create_user(
+            username="gestor-a",
+            email="gestor.a@exemplo.com",
+            password="SenhaForte123!",
+            is_staff=True,
+        )
+        self.vinculo_a = ResponsavelEmpresa.objects.create(
+            empresa=self.empresa_a,
+            usuario=self.responsavel_a,
+            papel=ResponsavelEmpresa.Papel.OPERACIONAL,
+        )
+        self.responsavel_b = User.objects.create_user(
+            username="gestor-b",
+            email="gestor.b@exemplo.com",
+            password="SenhaForte123!",
+            is_staff=True,
+        )
+        self.vinculo_b = ResponsavelEmpresa.objects.create(
+            empresa=self.empresa_b,
+            usuario=self.responsavel_b,
+            papel=ResponsavelEmpresa.Papel.OPERACIONAL,
+        )
+
+    def test_superadmin_cadastra_responsavel_e_cria_usuario_staff(self):
+        self.client.force_login(self.superadmin)
+
+        resposta = self.client.post(
+            reverse("responsaveis_empresas"),
+            {
+                "empresa": self.empresa_a.id,
+                "nome": "Novo Responsavel",
+                "email": "novo.responsavel@exemplo.com",
+                "papel": ResponsavelEmpresa.Papel.EDITOR_CURSOS,
+                "ativo": "on",
+            },
+            follow=True,
+        )
+
+        usuario = User.objects.get(email="novo.responsavel@exemplo.com")
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTrue(usuario.is_staff)
+        self.assertTrue(usuario.has_usable_password())
+        self.assertTrue(
+            ResponsavelEmpresa.objects.filter(
+                empresa=self.empresa_a,
+                usuario=usuario,
+                papel=ResponsavelEmpresa.Papel.EDITOR_CURSOS,
+                ativo=True,
+            ).exists()
+        )
+        self.assertTrue(usuario.groups.filter(name__icontains="Editor").exists())
+        self.assertContains(resposta, "novo.responsavel@exemplo.com")
+
+    def test_responsavel_enxerga_apenas_vinculos_da_propria_empresa(self):
+        self.client.force_login(self.responsavel_a)
+
+        resposta = self.client.get(reverse("responsaveis_empresas"))
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "gestor.a@exemplo.com")
+        self.assertNotContains(resposta, "gestor.b@exemplo.com")
+        self.assertQuerySetEqual(
+            resposta.context["form"].fields["empresa"].queryset,
+            [self.empresa_a],
+            transform=lambda empresa: empresa,
+        )
+
+    def test_responsavel_nao_edita_vinculo_de_outra_empresa(self):
+        self.client.force_login(self.responsavel_a)
+
+        resposta = self.client.get(
+            reverse("editar_responsavel_empresa", args=(self.vinculo_b.id,))
+        )
+
+        self.assertEqual(resposta.status_code, 404)
+
+    def test_edicao_atualiza_papel_e_status(self):
+        self.client.force_login(self.superadmin)
+
+        resposta = self.client.post(
+            reverse("editar_responsavel_empresa", args=(self.vinculo_a.id,)),
+            {
+                "empresa": self.empresa_a.id,
+                "nome": "Gestor Atualizado",
+                "email": self.responsavel_a.email,
+                "papel": ResponsavelEmpresa.Papel.EDITOR_CURSOS,
+                "ativo": "on",
+            },
+            follow=True,
+        )
+
+        self.vinculo_a.refresh_from_db()
+        self.responsavel_a.refresh_from_db()
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(self.vinculo_a.papel, ResponsavelEmpresa.Papel.EDITOR_CURSOS)
+        self.assertTrue(self.vinculo_a.ativo)
+        self.assertEqual(self.responsavel_a.first_name, "Gestor Atualizado")
+        self.assertTrue(
+            self.responsavel_a.groups.filter(name__icontains="Editor").exists()
+        )
+        self.assertFalse(
+            self.responsavel_a.groups.filter(name__icontains="operacional").exists()
+        )
+
+    def test_alternar_responsavel_desativa_e_reativa(self):
+        self.client.force_login(self.superadmin)
+
+        resposta_desativar = self.client.post(
+            reverse("alternar_responsavel_empresa", args=(self.vinculo_a.id,)),
+            follow=True,
+        )
+        self.vinculo_a.refresh_from_db()
+        self.responsavel_a.refresh_from_db()
+
+        self.assertEqual(resposta_desativar.status_code, 200)
+        self.assertFalse(self.vinculo_a.ativo)
+        self.assertFalse(
+            self.responsavel_a.groups.filter(name__icontains="operacional").exists()
+        )
+
+        self.client.post(
+            reverse("alternar_responsavel_empresa", args=(self.vinculo_a.id,)),
+            follow=True,
+        )
+        self.vinculo_a.refresh_from_db()
+        self.responsavel_a.refresh_from_db()
+
+        self.assertTrue(self.vinculo_a.ativo)
+        self.assertTrue(
+            self.responsavel_a.groups.filter(name__icontains="operacional").exists()
+        )
+
+
 class OperacaoAdminTest(TestCase):
     def setUp(self):
         self.empresa = Empresa.objects.create(nome="Empresa Operacional")

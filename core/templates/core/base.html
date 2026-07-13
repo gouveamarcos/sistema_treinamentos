@@ -29,6 +29,7 @@
                 {% if user.is_staff %}
                     <a href="{% url 'relatorio_treinamentos' %}">Relatórios</a>
                     <a href="{% url 'liberar_curso_lote' %}">Liberar cursos</a>
+                    <a href="{% url 'responsaveis_empresas' %}">ResponsÃ¡veis</a>
                 {% endif %}
                 <form method="post" action="{% url 'logout' %}">
                     {% csrf_token %}

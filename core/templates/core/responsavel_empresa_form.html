@@ -1,0 +1,52 @@
+{% extends "core/base.html" %}
+{% block title %}Editar responsavel - Academia Tecnica{% endblock %}
+{% block content %}
+<main class="container">
+    <a class="voltar" href="{% url 'responsaveis_empresas' %}">Voltar para responsaveis</a>
+    <section class="cabecalho-pagina">
+        <div>
+            <span class="eyebrow">Operacao</span>
+            <h1>Editar responsavel</h1>
+            <p>Atualize os dados, o papel e o status do responsavel selecionado.</p>
+        </div>
+    </section>
+
+    <form class="card-formulario formulario-operacional" method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+            <div class="mensagem error">
+                {% for erro in form.non_field_errors %}{{ erro }}{% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="grade-formulario">
+            <div class="campo-form">
+                {{ form.empresa.label_tag }}
+                {{ form.empresa }}
+                {% for erro in form.empresa.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+            <div class="campo-form">
+                {{ form.papel.label_tag }}
+                {{ form.papel }}
+                {% for erro in form.papel.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+        </div>
+
+        <div class="grade-formulario">
+            <div class="campo-form">
+                {{ form.nome.label_tag }}
+                {{ form.nome }}
+                {% for erro in form.nome.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+            <div class="campo-form">
+                {{ form.email.label_tag }}
+                {{ form.email }}
+                {% for erro in form.email.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+        </div>
+
+        <label class="check-operacional">{{ form.ativo }} {{ form.ativo.label }}</label>
+        <button class="botao-principal botao-auto" type="submit">Atualizar responsavel</button>
+    </form>
+</main>
+{% endblock %}
