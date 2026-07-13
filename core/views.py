@@ -15,7 +15,6 @@ from .models import (
     ConclusaoTreinamento,
     Curso,
     CursoLiberado,
-    Empresa,
     EtapaCurso,
     Produto,
     ProgressoCurso,
@@ -23,6 +22,7 @@ from .models import (
     Tecnico,
     TentativaAvaliacao,
 )
+from .scopes import empresas_do_usuario
 
 JANELA_VENCIMENTO_DIAS = 30
 
@@ -225,11 +225,13 @@ def relatorio_treinamentos(request):
     empresa_id = request.GET.get("empresa") or ""
     situacao_filtro = request.GET.get("situacao") or ""
     hoje = timezone.localdate()
+    empresas = empresas_do_usuario(request.user).order_by("nome")
 
     liberacoes = CursoLiberado.objects.filter(
         ativo=True,
         tecnico__ativo=True,
         curso__ativo=True,
+        tecnico__empresa__in=empresas,
     ).select_related("tecnico__empresa", "curso__produto")
 
     if empresa_id:
@@ -276,7 +278,7 @@ def relatorio_treinamentos(request):
         request,
         "core/relatorio_treinamentos.html",
         {
-            "empresas": Empresa.objects.filter(ativa=True).order_by("nome"),
+            "empresas": empresas,
             "empresa_id": empresa_id,
             "situacao_filtro": situacao_filtro,
             "itens": itens,
@@ -290,7 +292,7 @@ def relatorio_treinamentos(request):
 def liberar_curso_lote(request):
     resultado = None
     if request.method == "POST":
-        form = LiberarCursoLoteForm(request.POST)
+        form = LiberarCursoLoteForm(request.POST, usuario=request.user)
         if form.is_valid():
             curso = form.cleaned_data["curso"]
             tecnicos = form.cleaned_data["tecnicos"]
@@ -325,10 +327,11 @@ def liberar_curso_lote(request):
                 ),
             )
             form = LiberarCursoLoteForm(
-                initial={"empresa": form.cleaned_data["empresa"]}
+                initial={"empresa": form.cleaned_data["empresa"]},
+                usuario=request.user,
             )
     else:
-        form = LiberarCursoLoteForm()
+        form = LiberarCursoLoteForm(usuario=request.user)
 
     return render(
         request,

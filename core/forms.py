@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth.password_validation import validate_password
 
 from .models import Curso, Empresa, Tecnico
+from .scopes import empresas_do_usuario
 
 
 class LiberarCursoLoteForm(forms.Form):
@@ -34,18 +35,24 @@ class LiberarCursoLoteForm(forms.Form):
         initial=True,
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, usuario=None, **kwargs):
         super().__init__(*args, **kwargs)
+        empresas = (
+            Empresa.objects.filter(ativa=True)
+            if usuario is None
+            else empresas_do_usuario(usuario)
+        )
+        self.fields["empresa"].queryset = empresas.order_by("nome")
+
         empresa_id = self.data.get("empresa") or self.initial.get("empresa")
+        tecnicos = Tecnico.objects.filter(ativo=True, empresa__in=empresas)
         if empresa_id:
-            self.fields["tecnicos"].queryset = Tecnico.objects.filter(
-                empresa_id=empresa_id,
-                ativo=True,
-            ).order_by("nome")
+            tecnicos = tecnicos.filter(empresa_id=empresa_id)
+            self.fields["tecnicos"].queryset = tecnicos.order_by("nome")
         else:
-            self.fields["tecnicos"].queryset = Tecnico.objects.filter(
-                ativo=True,
-            ).select_related("empresa").order_by("empresa__nome", "nome")
+            self.fields["tecnicos"].queryset = tecnicos.select_related(
+                "empresa"
+            ).order_by("empresa__nome", "nome")
 
     def clean(self):
         dados = super().clean()

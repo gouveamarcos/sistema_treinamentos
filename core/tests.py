@@ -30,7 +30,9 @@ from .models import (
 from .admin import (
     ConclusaoTreinamentoAdmin,
     CursoLiberadoAdmin,
+    EmpresaAdmin,
     SituacaoVencimentoFilter,
+    TecnicoAdmin,
 )
 
 
@@ -593,6 +595,7 @@ class RelatorioTreinamentosTest(TestCase):
             username="admin-relatorio",
             password="SenhaForte123!",
             is_staff=True,
+            is_superuser=True,
         )
         self.usuario_comum = User.objects.create_user(
             username="usuario-comum",
@@ -714,6 +717,7 @@ class LiberarCursoLoteTest(TestCase):
             username="admin-liberacao",
             password="SenhaForte123!",
             is_staff=True,
+            is_superuser=True,
         )
         self.usuario_comum = User.objects.create_user(
             username="usuario-liberacao",
@@ -855,3 +859,160 @@ class LiberarCursoLoteTest(TestCase):
             resposta,
             "Selecione ao menos um técnico ou marque a liberação para todos.",
         )
+
+
+class EscopoEmpresaTest(TestCase):
+    def setUp(self):
+        self.empresa_a = Empresa.objects.create(nome="Empresa A")
+        self.empresa_b = Empresa.objects.create(nome="Empresa B")
+        self.responsavel = User.objects.create_user(
+            username="responsavel-a",
+            password="SenhaForte123!",
+            is_staff=True,
+        )
+        ResponsavelEmpresa.objects.create(
+            empresa=self.empresa_a,
+            usuario=self.responsavel,
+            papel=ResponsavelEmpresa.Papel.OPERACIONAL,
+        )
+        self.superadmin = User.objects.create_user(
+            username="superadmin",
+            password="SenhaForte123!",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.tecnico_a = Tecnico.objects.create(
+            empresa=self.empresa_a,
+            nome="TÃ©cnico Empresa A",
+            email="tecnico.a@exemplo.com",
+            matricula="ESCOPO-A",
+        )
+        self.tecnico_b = Tecnico.objects.create(
+            empresa=self.empresa_b,
+            nome="TÃ©cnico Empresa B",
+            email="tecnico.b@exemplo.com",
+            matricula="ESCOPO-B",
+        )
+        self.produto = Produto.objects.create(nome="Produto Escopo")
+        self.curso_a = Curso.objects.create(nome="Curso Empresa A", produto=self.produto)
+        self.curso_b = Curso.objects.create(nome="Curso Empresa B", produto=self.produto)
+        self.liberacao_a = CursoLiberado.objects.create(
+            tecnico=self.tecnico_a,
+            curso=self.curso_a,
+        )
+        self.liberacao_b = CursoLiberado.objects.create(
+            tecnico=self.tecnico_b,
+            curso=self.curso_b,
+        )
+        self.conclusao_a = ConclusaoTreinamento.objects.create(
+            tecnico=self.tecnico_a,
+            curso=self.curso_a,
+            data_conclusao=timezone.localdate(),
+        )
+        self.conclusao_b = ConclusaoTreinamento.objects.create(
+            tecnico=self.tecnico_b,
+            curso=self.curso_b,
+            data_conclusao=timezone.localdate(),
+        )
+        self.site = AdminSite()
+
+    def test_responsavel_ve_no_relatorio_apenas_sua_empresa(self):
+        self.client.force_login(self.responsavel)
+
+        resposta = self.client.get(reverse("relatorio_treinamentos"))
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Curso Empresa A")
+        self.assertNotContains(resposta, "Curso Empresa B")
+        self.assertEqual(resposta.context["totais"]["total"], 1)
+        self.assertQuerySetEqual(
+            resposta.context["empresas"],
+            [self.empresa_a],
+            transform=lambda empresa: empresa,
+        )
+
+    def test_responsavel_nao_forca_filtro_para_empresa_fora_do_escopo(self):
+        self.client.force_login(self.responsavel)
+
+        resposta = self.client.get(
+            reverse("relatorio_treinamentos"),
+            {"empresa": str(self.empresa_b.id)},
+        )
+
+        self.assertEqual(resposta.context["totais"]["total"], 0)
+        self.assertNotContains(resposta, "Curso Empresa B")
+
+    def test_superadmin_mantem_visao_global_no_relatorio(self):
+        self.client.force_login(self.superadmin)
+
+        resposta = self.client.get(reverse("relatorio_treinamentos"))
+
+        self.assertEqual(resposta.context["totais"]["total"], 2)
+        self.assertContains(resposta, "Curso Empresa A")
+        self.assertContains(resposta, "Curso Empresa B")
+
+    def test_liberacao_lote_limita_empresas_e_tecnicos_do_responsavel(self):
+        self.client.force_login(self.responsavel)
+
+        resposta = self.client.get(reverse("liberar_curso_lote"))
+        form = resposta.context["form"]
+
+        self.assertQuerySetEqual(
+            form.fields["empresa"].queryset,
+            [self.empresa_a],
+            transform=lambda empresa: empresa,
+        )
+        self.assertIn(self.tecnico_a, form.fields["tecnicos"].queryset)
+        self.assertNotIn(self.tecnico_b, form.fields["tecnicos"].queryset)
+
+    def test_liberacao_lote_rejeita_empresa_fora_do_escopo_do_responsavel(self):
+        curso_novo = Curso.objects.create(nome="Curso Novo", produto=self.produto)
+        self.client.force_login(self.responsavel)
+
+        resposta = self.client.post(
+            reverse("liberar_curso_lote"),
+            {
+                "empresa": self.empresa_b.id,
+                "curso": curso_novo.id,
+                "todos_tecnicos": "on",
+                "obrigatorio": "on",
+            },
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(
+            CursoLiberado.objects.filter(
+                tecnico=self.tecnico_b,
+                curso=curso_novo,
+            ).exists()
+        )
+
+    def test_admin_limita_dados_operacionais_por_empresa(self):
+        request = RequestFactory().get("/admin/core/tecnico/")
+        request.user = self.responsavel
+
+        admin_empresa = EmpresaAdmin(Empresa, self.site)
+        admin_tecnico = TecnicoAdmin(Tecnico, self.site)
+        admin_liberacao = CursoLiberadoAdmin(CursoLiberado, self.site)
+        admin_conclusao = ConclusaoTreinamentoAdmin(
+            ConclusaoTreinamento,
+            self.site,
+        )
+
+        self.assertIn(self.empresa_a, admin_empresa.get_queryset(request))
+        self.assertNotIn(self.empresa_b, admin_empresa.get_queryset(request))
+        self.assertIn(self.tecnico_a, admin_tecnico.get_queryset(request))
+        self.assertNotIn(self.tecnico_b, admin_tecnico.get_queryset(request))
+        self.assertIn(self.liberacao_a, admin_liberacao.get_queryset(request))
+        self.assertNotIn(self.liberacao_b, admin_liberacao.get_queryset(request))
+        self.assertIn(self.conclusao_a, admin_conclusao.get_queryset(request))
+        self.assertNotIn(self.conclusao_b, admin_conclusao.get_queryset(request))
+
+    def test_superadmin_mantem_visao_global_no_admin(self):
+        request = RequestFactory().get("/admin/core/tecnico/")
+        request.user = self.superadmin
+
+        admin_tecnico = TecnicoAdmin(Tecnico, self.site)
+
+        self.assertIn(self.tecnico_a, admin_tecnico.get_queryset(request))
+        self.assertIn(self.tecnico_b, admin_tecnico.get_queryset(request))

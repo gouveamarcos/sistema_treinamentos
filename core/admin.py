@@ -18,6 +18,17 @@ from .models import (
     Tecnico,
     TentativaAvaliacao,
 )
+from .scopes import empresas_do_usuario, usuario_tem_escopo_total
+
+
+def _empresas_visiveis(request):
+    return empresas_do_usuario(request.user)
+
+
+def _filtrar_por_empresa(request, queryset, lookup):
+    if usuario_tem_escopo_total(request.user):
+        return queryset
+    return queryset.filter(**{f"{lookup}__in": _empresas_visiveis(request)})
 
 
 class SituacaoVencimentoFilter(admin.SimpleListFilter):
@@ -68,6 +79,12 @@ class EmpresaAdmin(admin.ModelAdmin):
     search_fields = ("nome", "documento", "responsavel", "email")
     list_filter = ("ativa",)
 
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if usuario_tem_escopo_total(request.user):
+            return queryset
+        return queryset.filter(pk__in=_empresas_visiveis(request))
+
 
 @admin.register(ResponsavelEmpresa)
 class ResponsavelEmpresaAdmin(admin.ModelAdmin):
@@ -80,6 +97,15 @@ class ResponsavelEmpresaAdmin(admin.ModelAdmin):
     list_filter = ("empresa", "papel", "ativo")
     autocomplete_fields = ("usuario", "empresa")
     readonly_fields = ("data_criacao",)
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return _filtrar_por_empresa(request, queryset, "empresa")
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "empresa" and not usuario_tem_escopo_total(request.user):
+            kwargs["queryset"] = _empresas_visiveis(request)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 @admin.register(Produto)
@@ -103,6 +129,15 @@ class TecnicoAdmin(admin.ModelAdmin):
     search_fields = ("nome", "email", "matricula", "empresa__nome")
     list_filter = ("empresa", "equipe", "regiao", "ativo")
     autocomplete_fields = ("usuario",)
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return _filtrar_por_empresa(request, queryset, "empresa")
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "empresa" and not usuario_tem_escopo_total(request.user):
+            kwargs["queryset"] = _empresas_visiveis(request)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 @admin.register(Curso)
@@ -166,6 +201,18 @@ class CursoLiberadoAdmin(admin.ModelAdmin):
     def marcar_como_opcionais(self, request, queryset):
         queryset.update(obrigatorio=False)
 
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return _filtrar_por_empresa(request, queryset, "tecnico__empresa")
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "tecnico" and not usuario_tem_escopo_total(request.user):
+            kwargs["queryset"] = Tecnico.objects.filter(
+                ativo=True,
+                empresa__in=_empresas_visiveis(request),
+            ).order_by("empresa__nome", "nome")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 
 @admin.register(ProgressoCurso)
 class ProgressoCursoAdmin(admin.ModelAdmin):
@@ -179,12 +226,20 @@ class ProgressoCursoAdmin(admin.ModelAdmin):
     )
     readonly_fields = ("atualizado_em",)
 
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return _filtrar_por_empresa(request, queryset, "tecnico__empresa")
+
 
 @admin.register(ProgressoEtapa)
 class ProgressoEtapaAdmin(admin.ModelAdmin):
     list_display = ("progresso", "etapa", "tentativa", "nota", "concluida_em")
     list_filter = ("etapa__curso", "tentativa")
     readonly_fields = ("concluida_em",)
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return _filtrar_por_empresa(request, queryset, "progresso__tecnico__empresa")
 
 
 @admin.register(TentativaAvaliacao)
@@ -197,6 +252,10 @@ class TentativaAvaliacaoAdmin(admin.ModelAdmin):
         "aprovado",
         "realizada_em",
     )
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return _filtrar_por_empresa(request, queryset, "progresso__tecnico__empresa")
     list_filter = ("aprovado", "etapa__curso")
     readonly_fields = (
         "progresso",
@@ -233,6 +292,18 @@ class ConclusaoTreinamentoAdmin(admin.ModelAdmin):
         "data_vencimento",
     )
     readonly_fields = ("codigo_certificado",)
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return _filtrar_por_empresa(request, queryset, "tecnico__empresa")
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "tecnico" and not usuario_tem_escopo_total(request.user):
+            kwargs["queryset"] = Tecnico.objects.filter(
+                ativo=True,
+                empresa__in=_empresas_visiveis(request),
+            ).order_by("empresa__nome", "nome")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     @admin.display(description="Situação")
     def situacao_vencimento(self, obj):
