@@ -1,0 +1,61 @@
+{% extends "core/base.html" %}
+{% block title %}Editar tecnico - Academia Tecnica{% endblock %}
+{% block content %}
+<main class="container">
+    <a class="voltar" href="{% url 'tecnicos_operacionais' %}">Voltar para tecnicos</a>
+    <section class="cabecalho-pagina">
+        <div>
+            <span class="eyebrow">Cadastro</span>
+            <h1>Editar tecnico</h1>
+            <p>Atualize os dados cadastrais e o status do tecnico.</p>
+        </div>
+    </section>
+
+    <form class="card-formulario formulario-operacional" method="post">
+        {% csrf_token %}
+        <div class="grade-formulario">
+            <div class="campo-form">
+                {{ form.empresa.label_tag }}
+                {{ form.empresa }}
+                {% for erro in form.empresa.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+            <div class="campo-form">
+                {{ form.nome.label_tag }}
+                {{ form.nome }}
+                {% for erro in form.nome.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+        </div>
+        <div class="grade-formulario">
+            <div class="campo-form">
+                {{ form.email.label_tag }}
+                {{ form.email }}
+                {% for erro in form.email.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+            <div class="campo-form">
+                {{ form.matricula.label_tag }}
+                {{ form.matricula }}
+                {% for erro in form.matricula.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+        </div>
+        <div class="grade-formulario">
+            <div class="campo-form">
+                {{ form.telefone.label_tag }}
+                {{ form.telefone }}
+                {% for erro in form.telefone.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+            <div class="campo-form">
+                {{ form.equipe.label_tag }}
+                {{ form.equipe }}
+                {% for erro in form.equipe.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+        </div>
+        <div class="campo-form">
+            {{ form.regiao.label_tag }}
+            {{ form.regiao }}
+            {% for erro in form.regiao.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+        </div>
+        <label class="check-operacional">{{ form.ativo }} {{ form.ativo.label }}</label>
+        <button class="botao-principal botao-auto" type="submit">Atualizar tecnico</button>
+    </form>
+</main>
+{% endblock %}

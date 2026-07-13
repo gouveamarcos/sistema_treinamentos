@@ -503,6 +503,188 @@ class GestaoResponsaveisEmpresaTest(TestCase):
         )
 
 
+class CadastroOperacionalTest(TestCase):
+    def setUp(self):
+        self.empresa_a = Empresa.objects.create(
+            nome="Cliente Cadastro A",
+            responsavel="Contato A",
+        )
+        self.empresa_b = Empresa.objects.create(nome="Cliente Cadastro B")
+        self.superadmin = User.objects.create_user(
+            username="superadmin-cadastros",
+            password="SenhaForte123!",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.responsavel_a = User.objects.create_user(
+            username="responsavel-cadastro-a",
+            password="SenhaForte123!",
+            is_staff=True,
+        )
+        ResponsavelEmpresa.objects.create(
+            empresa=self.empresa_a,
+            usuario=self.responsavel_a,
+            papel=ResponsavelEmpresa.Papel.OPERACIONAL,
+        )
+        self.tecnico_a = Tecnico.objects.create(
+            empresa=self.empresa_a,
+            nome="Tecnico Cadastro A",
+            email="cadastro.a@exemplo.com",
+            matricula="CAD-A",
+        )
+        self.tecnico_b = Tecnico.objects.create(
+            empresa=self.empresa_b,
+            nome="Tecnico Cadastro B",
+            email="cadastro.b@exemplo.com",
+            matricula="CAD-B",
+        )
+
+    def test_superadmin_cria_empresa_pela_tela_operacional(self):
+        self.client.force_login(self.superadmin)
+
+        resposta = self.client.post(
+            reverse("empresas_operacionais"),
+            {
+                "nome": "Cliente Novo",
+                "documento": "123",
+                "responsavel": "Novo Contato",
+                "email": "cliente.novo@exemplo.com",
+                "telefone": "11999999999",
+                "ativa": "on",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTrue(Empresa.objects.filter(nome="Cliente Novo").exists())
+        self.assertContains(resposta, "Cliente Novo")
+
+    def test_responsavel_nao_cria_empresa(self):
+        self.client.force_login(self.responsavel_a)
+
+        resposta = self.client.post(
+            reverse("empresas_operacionais"),
+            {
+                "nome": "Empresa Indevida",
+                "ativa": "on",
+            },
+        )
+
+        self.assertEqual(resposta.status_code, 403)
+        self.assertFalse(Empresa.objects.filter(nome="Empresa Indevida").exists())
+
+    def test_responsavel_lista_apenas_empresas_do_escopo(self):
+        self.client.force_login(self.responsavel_a)
+
+        resposta = self.client.get(reverse("empresas_operacionais"))
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, self.empresa_a.nome)
+        self.assertNotContains(resposta, self.empresa_b.nome)
+        self.assertFalse(resposta.context["pode_criar"])
+
+    def test_responsavel_edita_empresa_do_proprio_escopo(self):
+        self.client.force_login(self.responsavel_a)
+
+        resposta = self.client.post(
+            reverse("editar_empresa_operacional", args=(self.empresa_a.id,)),
+            {
+                "nome": self.empresa_a.nome,
+                "documento": "456",
+                "responsavel": "Contato Atualizado",
+                "email": "contato.a@exemplo.com",
+                "telefone": "11888888888",
+                "ativa": "on",
+            },
+            follow=True,
+        )
+
+        self.empresa_a.refresh_from_db()
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(self.empresa_a.responsavel, "Contato Atualizado")
+
+    def test_responsavel_nao_edita_empresa_fora_do_escopo(self):
+        self.client.force_login(self.responsavel_a)
+
+        resposta = self.client.get(
+            reverse("editar_empresa_operacional", args=(self.empresa_b.id,))
+        )
+
+        self.assertEqual(resposta.status_code, 404)
+
+    def test_superadmin_cria_tecnico_pela_tela_operacional(self):
+        self.client.force_login(self.superadmin)
+
+        resposta = self.client.post(
+            reverse("tecnicos_operacionais"),
+            {
+                "empresa": self.empresa_b.id,
+                "nome": "Tecnico Novo",
+                "email": "tecnico.novo@exemplo.com",
+                "matricula": "CAD-NOVO",
+                "telefone": "11777777777",
+                "equipe": "Campo",
+                "regiao": "Sudeste",
+                "ativo": "on",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTrue(
+            Tecnico.objects.filter(
+                empresa=self.empresa_b,
+                email="tecnico.novo@exemplo.com",
+            ).exists()
+        )
+
+    def test_responsavel_cria_tecnico_apenas_no_proprio_escopo(self):
+        self.client.force_login(self.responsavel_a)
+
+        resposta_get = self.client.get(reverse("tecnicos_operacionais"))
+        form = resposta_get.context["form"]
+        self.assertQuerySetEqual(
+            form.fields["empresa"].queryset,
+            [self.empresa_a],
+            transform=lambda empresa: empresa,
+        )
+
+        resposta_post = self.client.post(
+            reverse("tecnicos_operacionais"),
+            {
+                "empresa": self.empresa_b.id,
+                "nome": "Tecnico Fora",
+                "email": "tecnico.fora@exemplo.com",
+                "matricula": "CAD-FORA",
+                "ativo": "on",
+            },
+        )
+
+        self.assertEqual(resposta_post.status_code, 200)
+        self.assertFalse(Tecnico.objects.filter(email="tecnico.fora@exemplo.com").exists())
+
+    def test_responsavel_nao_edita_tecnico_fora_do_escopo(self):
+        self.client.force_login(self.responsavel_a)
+
+        resposta = self.client.get(
+            reverse("editar_tecnico_operacional", args=(self.tecnico_b.id,))
+        )
+
+        self.assertEqual(resposta.status_code, 404)
+
+    def test_responsavel_alterna_tecnico_do_proprio_escopo(self):
+        self.client.force_login(self.responsavel_a)
+
+        resposta = self.client.post(
+            reverse("alternar_tecnico_operacional", args=(self.tecnico_a.id,)),
+            follow=True,
+        )
+
+        self.tecnico_a.refresh_from_db()
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(self.tecnico_a.ativo)
+
+
 class OperacaoAdminTest(TestCase):
     def setUp(self):
         self.empresa = Empresa.objects.create(nome="Empresa Operacional")

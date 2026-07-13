@@ -69,6 +69,36 @@ urlpatterns = [
         name="liberar_curso_lote",
     ),
     path(
+        "empresas/",
+        views.empresas_operacionais,
+        name="empresas_operacionais",
+    ),
+    path(
+        "empresas/<int:empresa_id>/editar/",
+        views.editar_empresa_operacional,
+        name="editar_empresa_operacional",
+    ),
+    path(
+        "empresas/<int:empresa_id>/alternar/",
+        views.alternar_empresa_operacional,
+        name="alternar_empresa_operacional",
+    ),
+    path(
+        "tecnicos/",
+        views.tecnicos_operacionais,
+        name="tecnicos_operacionais",
+    ),
+    path(
+        "tecnicos/<int:tecnico_id>/editar/",
+        views.editar_tecnico_operacional,
+        name="editar_tecnico_operacional",
+    ),
+    path(
+        "tecnicos/<int:tecnico_id>/alternar/",
+        views.alternar_tecnico_operacional,
+        name="alternar_tecnico_operacional",
+    ),
+    path(
         "responsaveis/",
         views.responsaveis_empresas,
         name="responsaveis_empresas",

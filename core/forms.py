@@ -208,6 +208,58 @@ class ResponsavelEmpresaForm(forms.Form):
         )
 
 
+class EmpresaForm(forms.ModelForm):
+    class Meta:
+        model = Empresa
+        fields = (
+            "nome",
+            "documento",
+            "responsavel",
+            "email",
+            "telefone",
+            "ativa",
+        )
+        widgets = {
+            "nome": forms.TextInput(attrs={"placeholder": "Nome da empresa"}),
+            "documento": forms.TextInput(attrs={"placeholder": "CNPJ ou documento"}),
+            "responsavel": forms.TextInput(attrs={"placeholder": "Contato principal"}),
+            "email": forms.EmailInput(attrs={"placeholder": "contato@empresa.com.br"}),
+            "telefone": forms.TextInput(attrs={"placeholder": "(00) 00000-0000"}),
+        }
+
+
+class TecnicoForm(forms.ModelForm):
+    class Meta:
+        model = Tecnico
+        fields = (
+            "empresa",
+            "nome",
+            "email",
+            "matricula",
+            "telefone",
+            "equipe",
+            "regiao",
+            "ativo",
+        )
+        widgets = {
+            "nome": forms.TextInput(attrs={"placeholder": "Nome do tecnico"}),
+            "email": forms.EmailInput(attrs={"placeholder": "tecnico@empresa.com.br"}),
+            "matricula": forms.TextInput(attrs={"placeholder": "Matricula"}),
+            "telefone": forms.TextInput(attrs={"placeholder": "(00) 00000-0000"}),
+            "equipe": forms.TextInput(attrs={"placeholder": "Equipe"}),
+            "regiao": forms.TextInput(attrs={"placeholder": "Regiao"}),
+        }
+
+    def __init__(self, *args, usuario=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        empresas = (
+            Empresa.objects.filter(ativa=True)
+            if usuario is None
+            else empresas_do_usuario(usuario)
+        )
+        self.fields["empresa"].queryset = empresas.order_by("nome")
+
+
 class ValidarCertificadoForm(forms.Form):
     codigo = forms.CharField(
         label="Código do certificado",

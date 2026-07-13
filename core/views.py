@@ -5,15 +5,18 @@ from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .forms import (
+    EmpresaForm,
     LiberarCursoLoteForm,
     PrimeiroAcessoForm,
     ResponsavelEmpresaForm,
+    TecnicoForm,
     ValidarCertificadoForm,
 )
 from .models import (
@@ -21,6 +24,7 @@ from .models import (
     ConclusaoTreinamento,
     Curso,
     CursoLiberado,
+    Empresa,
     EtapaCurso,
     Produto,
     ProgressoCurso,
@@ -119,6 +123,16 @@ def _curso_liberado(tecnico, curso):
 def _responsaveis_visiveis(request):
     return ResponsavelEmpresa.objects.filter(
         empresa__in=empresas_do_usuario(request.user)
+    ).select_related("empresa", "usuario")
+
+
+def _empresas_visiveis(request):
+    return empresas_do_usuario(request.user)
+
+
+def _tecnicos_visiveis(request):
+    return Tecnico.objects.filter(
+        empresa__in=_empresas_visiveis(request)
     ).select_related("empresa", "usuario")
 
 
@@ -417,6 +431,109 @@ def alternar_responsavel_empresa(request, responsavel_id):
     status = "ativado" if responsabilidade.ativo else "desativado"
     messages.success(request, f"ResponsÃ¡vel {status} com sucesso.")
     return redirect("responsaveis_empresas")
+
+
+@staff_member_required
+def empresas_operacionais(request):
+    pode_criar = request.user.is_superuser
+    if request.method == "POST":
+        if not pode_criar:
+            raise PermissionDenied
+        form = EmpresaForm(request.POST)
+        if form.is_valid():
+            empresa = form.save()
+            messages.success(request, f"Empresa {empresa.nome} criada com sucesso.")
+            return redirect("empresas_operacionais")
+    else:
+        form = EmpresaForm()
+
+    empresas = _empresas_visiveis(request).order_by("nome")
+    return render(
+        request,
+        "core/empresas_operacionais.html",
+        {"empresas": empresas, "form": form, "pode_criar": pode_criar},
+    )
+
+
+@staff_member_required
+def editar_empresa_operacional(request, empresa_id):
+    empresa = get_object_or_404(_empresas_visiveis(request), pk=empresa_id)
+    if request.method == "POST":
+        form = EmpresaForm(request.POST, instance=empresa)
+        if form.is_valid():
+            empresa = form.save()
+            messages.success(request, f"Empresa {empresa.nome} atualizada com sucesso.")
+            return redirect("empresas_operacionais")
+    else:
+        form = EmpresaForm(instance=empresa)
+
+    return render(
+        request,
+        "core/empresa_operacional_form.html",
+        {"form": form, "empresa": empresa},
+    )
+
+
+@staff_member_required
+@require_POST
+def alternar_empresa_operacional(request, empresa_id):
+    if not request.user.is_superuser:
+        raise PermissionDenied
+    empresa = get_object_or_404(Empresa, pk=empresa_id)
+    empresa.ativa = not empresa.ativa
+    empresa.save(update_fields=["ativa"])
+    status = "ativada" if empresa.ativa else "desativada"
+    messages.success(request, f"Empresa {status} com sucesso.")
+    return redirect("empresas_operacionais")
+
+
+@staff_member_required
+def tecnicos_operacionais(request):
+    if request.method == "POST":
+        form = TecnicoForm(request.POST, usuario=request.user)
+        if form.is_valid():
+            tecnico = form.save()
+            messages.success(request, f"Tecnico {tecnico.nome} salvo com sucesso.")
+            return redirect("tecnicos_operacionais")
+    else:
+        form = TecnicoForm(usuario=request.user)
+
+    tecnicos = _tecnicos_visiveis(request).order_by("empresa__nome", "nome")
+    return render(
+        request,
+        "core/tecnicos_operacionais.html",
+        {"form": form, "tecnicos": tecnicos},
+    )
+
+
+@staff_member_required
+def editar_tecnico_operacional(request, tecnico_id):
+    tecnico = get_object_or_404(_tecnicos_visiveis(request), pk=tecnico_id)
+    if request.method == "POST":
+        form = TecnicoForm(request.POST, usuario=request.user, instance=tecnico)
+        if form.is_valid():
+            tecnico = form.save()
+            messages.success(request, f"Tecnico {tecnico.nome} atualizado com sucesso.")
+            return redirect("tecnicos_operacionais")
+    else:
+        form = TecnicoForm(usuario=request.user, instance=tecnico)
+
+    return render(
+        request,
+        "core/tecnico_operacional_form.html",
+        {"form": form, "tecnico": tecnico},
+    )
+
+
+@staff_member_required
+@require_POST
+def alternar_tecnico_operacional(request, tecnico_id):
+    tecnico = get_object_or_404(_tecnicos_visiveis(request), pk=tecnico_id)
+    tecnico.ativo = not tecnico.ativo
+    tecnico.save(update_fields=["ativo"])
+    status = "ativado" if tecnico.ativo else "desativado"
+    messages.success(request, f"Tecnico {status} com sucesso.")
+    return redirect("tecnicos_operacionais")
 
 
 def certificado_imprimir(request, codigo):
