@@ -4,6 +4,7 @@ import re
 
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.models import Group, User
+from django.conf import settings
 from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
@@ -37,6 +38,17 @@ from .admin import (
     SituacaoVencimentoFilter,
     TecnicoAdmin,
 )
+
+
+class ConfiguracaoSegurancaTest(TestCase):
+    def test_defaults_de_seguranca_e_limite_de_importacao(self):
+        self.assertTrue(settings.SECURE_CONTENT_TYPE_NOSNIFF)
+        self.assertTrue(settings.SESSION_COOKIE_HTTPONLY)
+        self.assertTrue(settings.CSRF_COOKIE_HTTPONLY)
+        self.assertEqual(settings.SESSION_COOKIE_SAMESITE, "Lax")
+        self.assertEqual(settings.CSRF_COOKIE_SAMESITE, "Lax")
+        self.assertEqual(settings.X_FRAME_OPTIONS, "DENY")
+        self.assertEqual(settings.MAX_CSV_IMPORT_SIZE_BYTES, 2 * 1024 * 1024)
 
 
 class FluxoCursoTest(TestCase):
@@ -1012,6 +1024,29 @@ class CadastroOperacionalTest(TestCase):
                 matricula="IMP002",
                 ativo=False,
             ).exists()
+        )
+
+    @override_settings(MAX_CSV_IMPORT_SIZE_BYTES=10)
+    def test_importacao_tecnicos_rejeita_csv_acima_do_limite(self):
+        self.client.force_login(self.superadmin)
+        arquivo = SimpleUploadedFile(
+            "tecnicos.csv",
+            (
+                "nome,email,matricula\n"
+                "Tecnico Grande,grande.import@exemplo.com,IMP-GRANDE\n"
+            ).encode(),
+            content_type="text/csv",
+        )
+
+        resposta = self.client.post(
+            reverse("importar_tecnicos_operacionais"),
+            {"empresa": self.empresa_a.id, "arquivo": arquivo},
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Arquivo CSV muito grande")
+        self.assertFalse(
+            Tecnico.objects.filter(email="grande.import@exemplo.com").exists()
         )
 
     def test_importacao_atualiza_tecnico_existente_por_matricula(self):
@@ -2041,6 +2076,33 @@ class LiberarCursoLoteTest(TestCase):
                 curso=self.curso,
                 obrigatorio=False,
                 ativo=True,
+            ).exists()
+        )
+
+    @override_settings(MAX_CSV_IMPORT_SIZE_BYTES=10)
+    def test_importacao_liberacoes_rejeita_csv_acima_do_limite(self):
+        self.client.force_login(self.staff)
+        arquivo = SimpleUploadedFile(
+            "liberacoes.csv",
+            "matricula,email,obrigatorio\nLIB001,,sim\n".encode(),
+            content_type="text/csv",
+        )
+
+        resposta = self.client.post(
+            reverse("importar_liberacoes_operacionais"),
+            {
+                "empresa": self.empresa.id,
+                "curso": self.curso.id,
+                "arquivo": arquivo,
+            },
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Arquivo CSV muito grande")
+        self.assertFalse(
+            CursoLiberado.objects.filter(
+                tecnico=self.tecnico_1,
+                curso=self.curso,
             ).exists()
         )
 

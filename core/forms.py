@@ -1,4 +1,5 @@
 from django import forms
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 
@@ -13,6 +14,28 @@ from .models import (
     Tecnico,
 )
 from .scopes import empresas_do_usuario
+
+
+def _validar_upload_csv(arquivo):
+    if not arquivo.name.lower().endswith(".csv"):
+        raise forms.ValidationError("Envie um arquivo CSV.")
+
+    limite = _limite_upload_csv()
+    if arquivo.size > limite:
+        raise forms.ValidationError(
+            f"Arquivo CSV muito grande. Limite: {_texto_limite_upload_csv()}."
+        )
+
+    return arquivo
+
+
+def _limite_upload_csv():
+    return getattr(settings, "MAX_CSV_IMPORT_SIZE_BYTES", 2 * 1024 * 1024)
+
+
+def _texto_limite_upload_csv():
+    limite_mb = _limite_upload_csv() / 1024 / 1024
+    return f"{limite_mb:.1f} MB"
 
 
 class LiberarCursoLoteForm(forms.Form):
@@ -276,7 +299,8 @@ class ImportarTecnicosForm(forms.Form):
     arquivo = forms.FileField(
         label="Arquivo CSV",
         help_text=(
-            "Use as colunas: nome,email,matricula,telefone,equipe,regiao,ativo."
+            "Use as colunas: nome,email,matricula,telefone,equipe,regiao,ativo. "
+            f"Limite: {_texto_limite_upload_csv()}."
         ),
     )
 
@@ -290,11 +314,7 @@ class ImportarTecnicosForm(forms.Form):
         self.fields["empresa"].queryset = empresas.order_by("nome")
 
     def clean_arquivo(self):
-        arquivo = self.cleaned_data["arquivo"]
-        nome = arquivo.name.lower()
-        if not nome.endswith(".csv"):
-            raise forms.ValidationError("Envie um arquivo CSV.")
-        return arquivo
+        return _validar_upload_csv(self.cleaned_data["arquivo"])
 
 
 class ImportarLiberacoesForm(forms.Form):
@@ -310,7 +330,10 @@ class ImportarLiberacoesForm(forms.Form):
     )
     arquivo = forms.FileField(
         label="Arquivo CSV",
-        help_text="Use as colunas: matricula,email,obrigatorio.",
+        help_text=(
+            "Use as colunas: matricula,email,obrigatorio. "
+            f"Limite: {_texto_limite_upload_csv()}."
+        ),
     )
     obrigatorio = forms.BooleanField(
         label="Curso obrigatorio quando a coluna obrigatorio estiver vazia",
@@ -332,10 +355,7 @@ class ImportarLiberacoesForm(forms.Form):
         ).select_related("produto").order_by("produto__nome", "nome")
 
     def clean_arquivo(self):
-        arquivo = self.cleaned_data["arquivo"]
-        if not arquivo.name.lower().endswith(".csv"):
-            raise forms.ValidationError("Envie um arquivo CSV.")
-        return arquivo
+        return _validar_upload_csv(self.cleaned_data["arquivo"])
 
 
 class ProdutoForm(forms.ModelForm):
