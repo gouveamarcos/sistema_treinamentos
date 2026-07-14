@@ -51,5 +51,44 @@
             <article><span>Já existentes</span><strong>{{ resultado.existentes }}</strong></article>
         </section>
     {% endif %}
+    <form class="card-formulario formulario-operacional" method="post" enctype="multipart/form-data" action="{% url 'importar_liberacoes_operacionais' %}">
+        {% csrf_token %}
+        <h2>Importar liberacoes por CSV</h2>
+        <p>Use um arquivo CSV com as colunas: <strong>matricula,email,obrigatorio</strong>. Informe matricula ou email para localizar cada tecnico.</p>
+
+        <div class="grade-formulario">
+            <div class="campo-form">
+                {{ importacao_form.empresa.label_tag }}
+                {{ importacao_form.empresa }}
+                {% for erro in importacao_form.empresa.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+            <div class="campo-form">
+                {{ importacao_form.curso.label_tag }}
+                {{ importacao_form.curso }}
+                {% for erro in importacao_form.curso.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+        </div>
+        <div class="grade-formulario">
+            <div class="campo-form">
+                {{ importacao_form.arquivo.label_tag }}
+                {{ importacao_form.arquivo }}
+                <small class="texto-ajuda">{{ importacao_form.arquivo.help_text }}</small>
+                {% for erro in importacao_form.arquivo.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+            <label class="check-operacional">{{ importacao_form.obrigatorio }} {{ importacao_form.obrigatorio.label }}</label>
+        </div>
+        <button class="botao-principal botao-auto" type="submit">Importar liberacoes</button>
+
+        {% if resultado_importacao and resultado_importacao.erros %}
+            <div class="mensagem error bloco-erros-importacao">
+                <strong>Erros encontrados:</strong>
+                <ul>
+                    {% for erro in resultado_importacao.erros %}
+                        <li>{{ erro }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+    </form>
 </main>
 {% endblock %}

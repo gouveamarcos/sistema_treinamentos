@@ -19,6 +19,7 @@ from .forms import (
     CursoForm,
     EmpresaForm,
     ImportarTecnicosForm,
+    ImportarLiberacoesForm,
     EtapaCursoForm,
     LiberarCursoLoteForm,
     PrimeiroAcessoForm,
@@ -253,6 +254,107 @@ def _importar_tecnicos_csv(empresa, arquivo):
             else:
                 Tecnico.objects.create(empresa=empresa, **item)
                 resultado["criados"] += 1
+    return resultado
+
+
+def _linhas_csv_liberacoes(arquivo):
+    texto = TextIOWrapper(arquivo.file, encoding="utf-8-sig", newline="")
+    amostra = texto.read(2048)
+    texto.seek(0)
+    try:
+        dialecto = csv.Sniffer().sniff(amostra, delimiters=",;")
+    except csv.Error:
+        dialecto = csv.excel
+    leitor = csv.DictReader(texto, dialect=dialecto)
+    if not leitor.fieldnames:
+        return [], ["O arquivo CSV esta vazio."]
+
+    colunas = {coluna.strip().lower() for coluna in leitor.fieldnames if coluna}
+    if not {"matricula", "email"} & colunas:
+        return [], ["Informe ao menos uma coluna: matricula ou email."]
+
+    linhas = []
+    for numero, linha in enumerate(leitor, start=2):
+        normalizada = {
+            (chave or "").strip().lower(): (valor or "").strip()
+            for chave, valor in linha.items()
+        }
+        if not any(normalizada.values()):
+            continue
+        linhas.append((numero, normalizada))
+    return linhas, []
+
+
+def _importar_liberacoes_csv(empresa, curso, arquivo, obrigatorio_padrao):
+    linhas, erros = _linhas_csv_liberacoes(arquivo)
+    dados_validos = []
+    tecnicos_no_arquivo = set()
+
+    for numero, linha in linhas:
+        matricula = linha.get("matricula", "")
+        email = linha.get("email", "").lower()
+        if not matricula and not email:
+            erros.append(f"Linha {numero}: informe matricula ou email.")
+            continue
+
+        tecnico_por_matricula = (
+            Tecnico.objects.filter(matricula=matricula).first() if matricula else None
+        )
+        tecnico_por_email = (
+            Tecnico.objects.filter(email__iexact=email).first() if email else None
+        )
+        tecnico = tecnico_por_matricula or tecnico_por_email
+
+        if tecnico_por_matricula and tecnico_por_email and tecnico_por_matricula != tecnico_por_email:
+            erros.append(
+                f"Linha {numero}: email e matricula pertencem a tecnicos diferentes."
+            )
+            continue
+
+        if not tecnico:
+            erros.append(f"Linha {numero}: tecnico nao encontrado.")
+            continue
+
+        if tecnico.empresa_id != empresa.id:
+            erros.append(f"Linha {numero}: tecnico pertence a outra empresa.")
+            continue
+
+        if not tecnico.ativo:
+            erros.append(f"Linha {numero}: tecnico inativo.")
+            continue
+
+        if tecnico.id in tecnicos_no_arquivo:
+            erros.append(f"Linha {numero}: tecnico duplicado no arquivo.")
+            continue
+        tecnicos_no_arquivo.add(tecnico.id)
+
+        obrigatorio = (
+            _valor_booleano_csv(linha.get("obrigatorio"))
+            if linha.get("obrigatorio", "") != ""
+            else obrigatorio_padrao
+        )
+        dados_validos.append({"tecnico": tecnico, "obrigatorio": obrigatorio})
+
+    if erros:
+        return {"criados": 0, "reativados": 0, "existentes": 0, "erros": erros}
+
+    resultado = {"criados": 0, "reativados": 0, "existentes": 0, "erros": []}
+    with transaction.atomic():
+        for item in dados_validos:
+            liberacao, criada = CursoLiberado.objects.get_or_create(
+                tecnico=item["tecnico"],
+                curso=curso,
+                defaults={"obrigatorio": item["obrigatorio"], "ativo": True},
+            )
+            if criada:
+                resultado["criados"] += 1
+            elif not liberacao.ativo or liberacao.obrigatorio != item["obrigatorio"]:
+                liberacao.ativo = True
+                liberacao.obrigatorio = item["obrigatorio"]
+                liberacao.save(update_fields=["ativo", "obrigatorio"])
+                resultado["reativados"] += 1
+            else:
+                resultado["existentes"] += 1
     return resultado
 
 
@@ -521,6 +623,8 @@ def relatorio_treinamentos(request):
 def liberar_curso_lote(request):
     _exigir_operador_empresas(request)
     resultado = None
+    importacao_form = ImportarLiberacoesForm(usuario=request.user)
+    resultado_importacao = None
     if request.method == "POST":
         form = LiberarCursoLoteForm(request.POST, usuario=request.user)
         if form.is_valid():
@@ -566,7 +670,56 @@ def liberar_curso_lote(request):
     return render(
         request,
         "core/liberar_curso_lote.html",
-        {"form": form, "resultado": resultado},
+        {
+            "form": form,
+            "importacao_form": importacao_form,
+            "resultado": resultado,
+            "resultado_importacao": resultado_importacao,
+        },
+    )
+
+
+@staff_member_required
+def importar_liberacoes_operacionais(request):
+    _exigir_operador_empresas(request)
+    if request.method != "POST":
+        return redirect("liberar_curso_lote")
+
+    form = ImportarLiberacoesForm(request.POST, request.FILES, usuario=request.user)
+    resultado_importacao = None
+    if form.is_valid():
+        resultado_importacao = _importar_liberacoes_csv(
+            form.cleaned_data["empresa"],
+            form.cleaned_data["curso"],
+            form.cleaned_data["arquivo"],
+            form.cleaned_data["obrigatorio"],
+        )
+        if resultado_importacao["erros"]:
+            messages.error(
+                request,
+                "Importacao nao realizada. Corrija os erros do arquivo e tente novamente.",
+            )
+        else:
+            messages.success(
+                request,
+                (
+                    "Importacao concluida: "
+                    f"{resultado_importacao['criados']} criada(s), "
+                    f"{resultado_importacao['reativados']} reativada(s)/atualizada(s), "
+                    f"{resultado_importacao['existentes']} ja existente(s)."
+                ),
+            )
+            return redirect("liberar_curso_lote")
+
+    return render(
+        request,
+        "core/liberar_curso_lote.html",
+        {
+            "form": LiberarCursoLoteForm(usuario=request.user),
+            "importacao_form": form,
+            "resultado": None,
+            "resultado_importacao": resultado_importacao,
+        },
     )
 
 

@@ -1756,6 +1756,139 @@ class LiberarCursoLoteTest(TestCase):
             "Selecione ao menos um técnico ou marque a liberação para todos.",
         )
 
+    def test_importa_liberacoes_por_csv(self):
+        self.client.force_login(self.staff)
+        arquivo = SimpleUploadedFile(
+            "liberacoes.csv",
+            (
+                "matricula,email,obrigatorio\n"
+                "LIB001,,sim\n"
+                ",tecnico2@exemplo.com,nao\n"
+            ).encode(),
+            content_type="text/csv",
+        )
+
+        resposta = self.client.post(
+            reverse("importar_liberacoes_operacionais"),
+            {
+                "empresa": self.empresa.id,
+                "curso": self.curso.id,
+                "arquivo": arquivo,
+                "obrigatorio": "on",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTrue(
+            CursoLiberado.objects.filter(
+                tecnico=self.tecnico_1,
+                curso=self.curso,
+                obrigatorio=True,
+                ativo=True,
+            ).exists()
+        )
+        self.assertTrue(
+            CursoLiberado.objects.filter(
+                tecnico=self.tecnico_2,
+                curso=self.curso,
+                obrigatorio=False,
+                ativo=True,
+            ).exists()
+        )
+
+    def test_importacao_liberacoes_reativa_e_atualiza_existente(self):
+        CursoLiberado.objects.create(
+            tecnico=self.tecnico_1,
+            curso=self.curso,
+            obrigatorio=False,
+            ativo=False,
+        )
+        self.client.force_login(self.staff)
+        arquivo = SimpleUploadedFile(
+            "liberacoes.csv",
+            "matricula,email,obrigatorio\nLIB001,,sim\n".encode(),
+            content_type="text/csv",
+        )
+
+        resposta = self.client.post(
+            reverse("importar_liberacoes_operacionais"),
+            {
+                "empresa": self.empresa.id,
+                "curso": self.curso.id,
+                "arquivo": arquivo,
+            },
+            follow=True,
+        )
+
+        liberacao = CursoLiberado.objects.get(tecnico=self.tecnico_1, curso=self.curso)
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTrue(liberacao.ativo)
+        self.assertTrue(liberacao.obrigatorio)
+
+    def test_importacao_liberacoes_rejeita_empresa_fora_do_escopo(self):
+        responsavel = User.objects.create_user(
+            username="responsavel-liberacao",
+            password="SenhaForte123!",
+            is_staff=True,
+        )
+        ResponsavelEmpresa.objects.create(
+            empresa=self.empresa,
+            usuario=responsavel,
+            papel=ResponsavelEmpresa.Papel.OPERACIONAL,
+        )
+        self.client.force_login(responsavel)
+        arquivo = SimpleUploadedFile(
+            "liberacoes.csv",
+            "matricula,email\nLIB004,\n".encode(),
+            content_type="text/csv",
+        )
+
+        resposta = self.client.post(
+            reverse("importar_liberacoes_operacionais"),
+            {
+                "empresa": self.outra_empresa.id,
+                "curso": self.curso.id,
+                "arquivo": arquivo,
+            },
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(
+            CursoLiberado.objects.filter(
+                tecnico=self.tecnico_outra_empresa,
+                curso=self.curso,
+            ).exists()
+        )
+        self.assertContains(resposta, "Faça uma escolha válida", html=False)
+
+    def test_importacao_liberacoes_com_erro_nao_grava_linhas_validas(self):
+        self.client.force_login(self.staff)
+        arquivo = SimpleUploadedFile(
+            "liberacoes.csv",
+            (
+                "matricula,email\n"
+                "LIB001,\n"
+                "INEXISTENTE,\n"
+            ).encode(),
+            content_type="text/csv",
+        )
+
+        resposta = self.client.post(
+            reverse("importar_liberacoes_operacionais"),
+            {
+                "empresa": self.empresa.id,
+                "curso": self.curso.id,
+                "arquivo": arquivo,
+            },
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Linha 3: tecnico nao encontrado.")
+        self.assertFalse(
+            CursoLiberado.objects.filter(tecnico=self.tecnico_1, curso=self.curso).exists()
+        )
+
 
 class EscopoEmpresaTest(TestCase):
     def setUp(self):

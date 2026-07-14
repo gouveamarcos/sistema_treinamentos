@@ -69,6 +69,11 @@ urlpatterns = [
         name="liberar_curso_lote",
     ),
     path(
+        "liberacoes/importar/",
+        views.importar_liberacoes_operacionais,
+        name="importar_liberacoes_operacionais",
+    ),
+    path(
         "empresas/",
         views.empresas_operacionais,
         name="empresas_operacionais",

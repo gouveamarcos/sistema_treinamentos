@@ -297,6 +297,47 @@ class ImportarTecnicosForm(forms.Form):
         return arquivo
 
 
+class ImportarLiberacoesForm(forms.Form):
+    empresa = forms.ModelChoiceField(
+        label="Empresa",
+        queryset=Empresa.objects.none(),
+        empty_label="Selecione a empresa",
+    )
+    curso = forms.ModelChoiceField(
+        label="Curso",
+        queryset=Curso.objects.none(),
+        empty_label="Selecione o curso",
+    )
+    arquivo = forms.FileField(
+        label="Arquivo CSV",
+        help_text="Use as colunas: matricula,email,obrigatorio.",
+    )
+    obrigatorio = forms.BooleanField(
+        label="Curso obrigatorio quando a coluna obrigatorio estiver vazia",
+        required=False,
+        initial=True,
+    )
+
+    def __init__(self, *args, usuario=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        empresas = (
+            Empresa.objects.filter(ativa=True)
+            if usuario is None
+            else empresas_do_usuario(usuario)
+        )
+        self.fields["empresa"].queryset = empresas.order_by("nome")
+        self.fields["curso"].queryset = Curso.objects.filter(
+            ativo=True,
+            produto__ativo=True,
+        ).select_related("produto").order_by("produto__nome", "nome")
+
+    def clean_arquivo(self):
+        arquivo = self.cleaned_data["arquivo"]
+        if not arquivo.name.lower().endswith(".csv"):
+            raise forms.ValidationError("Envie um arquivo CSV.")
+        return arquivo
+
+
 class ProdutoForm(forms.ModelForm):
     class Meta:
         model = Produto
