@@ -39,7 +39,12 @@ from .models import (
     Tecnico,
     TentativaAvaliacao,
 )
-from .scopes import empresas_do_usuario
+from .scopes import (
+    empresas_do_usuario,
+    papeis_responsavel_usuario,
+    usuario_pode_gerenciar_catalogo,
+    usuario_pode_operar_empresas,
+)
 
 JANELA_VENCIMENTO_DIAS = 30
 
@@ -142,18 +147,13 @@ def _tecnicos_visiveis(request):
     ).select_related("empresa", "usuario")
 
 
-def _pode_gerenciar_catalogo(user):
-    if user.is_superuser:
-        return True
-    return ResponsavelEmpresa.objects.filter(
-        usuario=user,
-        papel=ResponsavelEmpresa.Papel.EDITOR_CURSOS,
-        ativo=True,
-    ).exists()
-
-
 def _exigir_editor_catalogo(request):
-    if not _pode_gerenciar_catalogo(request.user):
+    if not usuario_pode_gerenciar_catalogo(request.user):
+        raise PermissionDenied
+
+
+def _exigir_operador_empresas(request):
+    if not usuario_pode_operar_empresas(request.user):
         raise PermissionDenied
 
 
@@ -186,6 +186,77 @@ def _contexto_etapas(curso, progresso):
 
 @login_required
 def home(request):
+    pode_operar = usuario_pode_operar_empresas(request.user)
+    pode_catalogo = usuario_pode_gerenciar_catalogo(request.user)
+
+    if request.user.is_staff and (pode_operar or pode_catalogo):
+        empresas = empresas_do_usuario(request.user)
+        papeis = papeis_responsavel_usuario(request.user)
+        resumo_operacional = {
+            "empresas": empresas.count(),
+            "tecnicos": Tecnico.objects.filter(empresa__in=empresas).count(),
+            "liberacoes": CursoLiberado.objects.filter(
+                tecnico__empresa__in=empresas,
+                ativo=True,
+            ).count(),
+            "produtos": Produto.objects.filter(ativo=True).count()
+            if pode_catalogo
+            else None,
+            "cursos": Curso.objects.filter(ativo=True).count()
+            if pode_catalogo
+            else None,
+        }
+        atalhos = []
+        if pode_operar:
+            atalhos.extend(
+                [
+                    {
+                        "titulo": "Liberar cursos",
+                        "texto": "Crie liberacoes para tecnicos das suas empresas.",
+                        "url": "liberar_curso_lote",
+                    },
+                    {
+                        "titulo": "Relatorios",
+                        "texto": "Acompanhe pendencias, vencimentos e certificados.",
+                        "url": "relatorio_treinamentos",
+                    },
+                    {
+                        "titulo": "Tecnicos",
+                        "texto": "Cadastre e atualize profissionais por empresa.",
+                        "url": "tecnicos_operacionais",
+                    },
+                ]
+            )
+        if pode_catalogo:
+            atalhos.extend(
+                [
+                    {
+                        "titulo": "Cursos",
+                        "texto": "Gerencie cursos e construa etapas, questoes e alternativas.",
+                        "url": "cursos_operacionais",
+                    },
+                    {
+                        "titulo": "Produtos",
+                        "texto": "Organize as linhas de produto do catalogo.",
+                        "url": "produtos_operacionais",
+                    },
+                ]
+            )
+
+        return render(
+            request,
+            "core/home.html",
+            {
+                "painel_operacional": True,
+                "pode_operar": pode_operar,
+                "pode_catalogo": pode_catalogo,
+                "empresas": empresas,
+                "papeis": papeis,
+                "resumo_operacional": resumo_operacional,
+                "atalhos": atalhos,
+            },
+        )
+
     produtos = Produto.objects.filter(
         ativo=True,
         cursos__ativo=True,
@@ -270,6 +341,7 @@ def validar_certificado(request, codigo=None):
 
 @staff_member_required
 def relatorio_treinamentos(request):
+    _exigir_operador_empresas(request)
     empresa_id = request.GET.get("empresa") or ""
     situacao_filtro = request.GET.get("situacao") or ""
     hoje = timezone.localdate()
@@ -338,6 +410,7 @@ def relatorio_treinamentos(request):
 @staff_member_required
 @transaction.atomic
 def liberar_curso_lote(request):
+    _exigir_operador_empresas(request)
     resultado = None
     if request.method == "POST":
         form = LiberarCursoLoteForm(request.POST, usuario=request.user)
@@ -390,6 +463,7 @@ def liberar_curso_lote(request):
 
 @staff_member_required
 def responsaveis_empresas(request):
+    _exigir_operador_empresas(request)
     if request.method == "POST":
         form = ResponsavelEmpresaForm(request.POST, usuario=request.user)
         if form.is_valid():
@@ -416,6 +490,7 @@ def responsaveis_empresas(request):
 
 @staff_member_required
 def editar_responsavel_empresa(request, responsavel_id):
+    _exigir_operador_empresas(request)
     responsabilidade = get_object_or_404(
         _responsaveis_visiveis(request),
         pk=responsavel_id,
@@ -443,6 +518,7 @@ def editar_responsavel_empresa(request, responsavel_id):
 @staff_member_required
 @require_POST
 def alternar_responsavel_empresa(request, responsavel_id):
+    _exigir_operador_empresas(request)
     responsabilidade = get_object_or_404(
         _responsaveis_visiveis(request),
         pk=responsavel_id,
@@ -456,6 +532,7 @@ def alternar_responsavel_empresa(request, responsavel_id):
 
 @staff_member_required
 def empresas_operacionais(request):
+    _exigir_operador_empresas(request)
     pode_criar = request.user.is_superuser
     if request.method == "POST":
         if not pode_criar:
@@ -478,6 +555,7 @@ def empresas_operacionais(request):
 
 @staff_member_required
 def editar_empresa_operacional(request, empresa_id):
+    _exigir_operador_empresas(request)
     empresa = get_object_or_404(_empresas_visiveis(request), pk=empresa_id)
     if request.method == "POST":
         form = EmpresaForm(request.POST, instance=empresa)
@@ -498,6 +576,7 @@ def editar_empresa_operacional(request, empresa_id):
 @staff_member_required
 @require_POST
 def alternar_empresa_operacional(request, empresa_id):
+    _exigir_operador_empresas(request)
     if not request.user.is_superuser:
         raise PermissionDenied
     empresa = get_object_or_404(Empresa, pk=empresa_id)
@@ -510,6 +589,7 @@ def alternar_empresa_operacional(request, empresa_id):
 
 @staff_member_required
 def tecnicos_operacionais(request):
+    _exigir_operador_empresas(request)
     if request.method == "POST":
         form = TecnicoForm(request.POST, usuario=request.user)
         if form.is_valid():
@@ -529,6 +609,7 @@ def tecnicos_operacionais(request):
 
 @staff_member_required
 def editar_tecnico_operacional(request, tecnico_id):
+    _exigir_operador_empresas(request)
     tecnico = get_object_or_404(_tecnicos_visiveis(request), pk=tecnico_id)
     if request.method == "POST":
         form = TecnicoForm(request.POST, usuario=request.user, instance=tecnico)
@@ -549,6 +630,7 @@ def editar_tecnico_operacional(request, tecnico_id):
 @staff_member_required
 @require_POST
 def alternar_tecnico_operacional(request, tecnico_id):
+    _exigir_operador_empresas(request)
     tecnico = get_object_or_404(_tecnicos_visiveis(request), pk=tecnico_id)
     tecnico.ativo = not tecnico.ativo
     tecnico.save(update_fields=["ativo"])

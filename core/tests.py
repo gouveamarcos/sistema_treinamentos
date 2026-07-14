@@ -503,6 +503,100 @@ class GestaoResponsaveisEmpresaTest(TestCase):
         )
 
 
+class ExperienciaResponsavelTest(TestCase):
+    def setUp(self):
+        self.empresa = Empresa.objects.create(
+            nome="Cliente Experiencia",
+            responsavel="Contato Experiencia",
+        )
+        self.operacional = User.objects.create_user(
+            username="operacional-experiencia",
+            password="SenhaForte123!",
+            is_staff=True,
+        )
+        ResponsavelEmpresa.objects.create(
+            empresa=self.empresa,
+            usuario=self.operacional,
+            papel=ResponsavelEmpresa.Papel.OPERACIONAL,
+        )
+        self.editor = User.objects.create_user(
+            username="editor-experiencia",
+            password="SenhaForte123!",
+            is_staff=True,
+        )
+        ResponsavelEmpresa.objects.create(
+            empresa=self.empresa,
+            usuario=self.editor,
+            papel=ResponsavelEmpresa.Papel.EDITOR_CURSOS,
+        )
+        self.superadmin = User.objects.create_user(
+            username="superadmin-experiencia",
+            password="SenhaForte123!",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.produto = Produto.objects.create(nome="Produto Experiencia")
+        self.curso = Curso.objects.create(nome="Curso Experiencia", produto=self.produto)
+        self.tecnico = Tecnico.objects.create(
+            empresa=self.empresa,
+            nome="Tecnico Experiencia",
+            email="experiencia@exemplo.com",
+            matricula="EXP001",
+        )
+        CursoLiberado.objects.create(tecnico=self.tecnico, curso=self.curso)
+
+    def test_home_do_operacional_mostra_painel_e_apenas_atalhos_operacionais(self):
+        self.client.force_login(self.operacional)
+
+        resposta = self.client.get(reverse("home"))
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Painel operacional")
+        self.assertContains(resposta, "Liberar cursos")
+        self.assertContains(resposta, "Relatorios")
+        self.assertContains(resposta, "Tecnicos")
+        self.assertNotContains(resposta, "Produtos")
+        self.assertNotContains(resposta, "Editor de cursos")
+
+    def test_home_do_editor_mostra_catalogo_e_oculta_operacao(self):
+        self.client.force_login(self.editor)
+
+        resposta = self.client.get(reverse("home"))
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Painel operacional")
+        self.assertContains(resposta, "Editor de cursos")
+        self.assertContains(resposta, "Cursos")
+        self.assertContains(resposta, "Produtos")
+        self.assertNotContains(resposta, "Liberar cursos")
+        self.assertNotContains(resposta, "Relatorios")
+
+    def test_superadmin_ve_operacao_e_catalogo(self):
+        self.client.force_login(self.superadmin)
+
+        resposta = self.client.get(reverse("home"))
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Superadmin")
+        self.assertContains(resposta, "Liberar cursos")
+        self.assertContains(resposta, "Cursos")
+        self.assertContains(resposta, "Produtos")
+
+    def test_editor_nao_acessa_tela_operacional_por_url_direta(self):
+        self.client.force_login(self.editor)
+
+        resposta = self.client.get(reverse("relatorio_treinamentos"))
+
+        self.assertEqual(resposta.status_code, 403)
+
+    def test_operacional_nao_acessa_catalogo_por_url_direta(self):
+        self.client.force_login(self.operacional)
+
+        resposta = self.client.get(reverse("produtos_operacionais"))
+
+        self.assertEqual(resposta.status_code, 403)
+
+
 class CadastroOperacionalTest(TestCase):
     def setUp(self):
         self.empresa_a = Empresa.objects.create(

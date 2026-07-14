@@ -1,44 +1,132 @@
 {% extends "core/base.html" %}
-{% block title %}Minha jornada · Academia Técnica{% endblock %}
+{% block title %}Inicio - Academia Tecnica{% endblock %}
 {% block content %}
 <main class="container">
-    <section class="hero">
-        <div>
-            <span class="eyebrow">Sua jornada de capacitação</span>
-            <h1>Conhecimento técnico para manter tudo em movimento.</h1>
-            <p>Acesse seus treinamentos obrigatórios, acompanhe certificações e mantenha sua qualificação em dia.</p>
-        </div>
-        <div class="hero-badge">
-            <strong>{{ produtos|length }}</strong>
-            <span>produto{{ produtos|length|pluralize }} na sua trilha</span>
-        </div>
-    </section>
-
-    <section class="secao">
-        <div class="secao-titulo">
+    {% if painel_operacional %}
+        <section class="hero">
             <div>
-                <span class="eyebrow">Treinamentos</span>
-                <h2>Escolha um produto</h2>
+                <span class="eyebrow">Painel operacional</span>
+                <h1>Bem-vindo ao seu espaco de gestao.</h1>
+                <p>Use os atalhos abaixo para operar empresas, tecnicos, liberacoes e catalogo conforme seu papel na plataforma.</p>
             </div>
-            <p>Você verá apenas os cursos liberados para o seu perfil.</p>
-        </div>
-        <div class="produtos">
-            {% for produto in produtos %}
-                <a href="{% url 'cursos_por_produto' produto.id %}" class="produto-card">
-                    <span class="produto-icone produto-cor-{{ forloop.counter }}">0{{ forloop.counter }}</span>
-                    <div>
-                        <h3>{{ produto.nome }}</h3>
-                        <p>{{ produto.descricao|default:"Treinamentos técnicos, procedimentos e certificações." }}</p>
-                    </div>
-                    <span class="seta">→</span>
-                </a>
-            {% empty %}
-                <div class="estado-vazio">
-                    <h3>Nenhum treinamento liberado</h3>
-                    <p>Peça ao responsável pela plataforma para liberar seus cursos.</p>
+            <div class="hero-badge">
+                <strong>{{ resumo_operacional.empresas }}</strong>
+                <span>empresa{{ resumo_operacional.empresas|pluralize }} no seu escopo</span>
+            </div>
+        </section>
+
+        <section class="cards-resumo cards-operacionais">
+            <article><span>Empresas</span><strong>{{ resumo_operacional.empresas }}</strong></article>
+            <article><span>Tecnicos</span><strong>{{ resumo_operacional.tecnicos }}</strong></article>
+            <article><span>Liberacoes ativas</span><strong>{{ resumo_operacional.liberacoes }}</strong></article>
+            {% if pode_catalogo %}
+                <article><span>Produtos ativos</span><strong>{{ resumo_operacional.produtos }}</strong></article>
+                <article><span>Cursos ativos</span><strong>{{ resumo_operacional.cursos }}</strong></article>
+            {% endif %}
+        </section>
+
+        <section class="secao">
+            <div class="secao-titulo">
+                <div>
+                    <span class="eyebrow">Seu papel</span>
+                    <h2>O que voce pode fazer</h2>
                 </div>
-            {% endfor %}
-        </div>
-    </section>
+                <p>
+                    {% if user.is_superuser %}
+                        Superadmin: visao completa da plataforma.
+                    {% elif pode_operar and pode_catalogo %}
+                        Operacao e catalogo: voce atua nas empresas do seu escopo e tambem edita cursos.
+                    {% elif pode_catalogo %}
+                        Editor de cursos: voce gerencia produtos, cursos e conteudo.
+                    {% else %}
+                        Responsavel operacional: voce opera empresas, tecnicos, liberacoes e relatorios.
+                    {% endif %}
+                </p>
+            </div>
+            <div class="produtos atalhos-operacionais">
+                {% for atalho in atalhos %}
+                    <a href="{% url atalho.url %}" class="produto-card">
+                        <span class="produto-icone produto-cor-{{ forloop.counter }}">0{{ forloop.counter }}</span>
+                        <div>
+                            <h3>{{ atalho.titulo }}</h3>
+                            <p>{{ atalho.texto }}</p>
+                        </div>
+                        <span class="seta">></span>
+                    </a>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="secao">
+            <div class="secao-titulo">
+                <div>
+                    <span class="eyebrow">Escopo</span>
+                    <h2>Empresas visiveis</h2>
+                </div>
+                <p>As telas operacionais usam esse mesmo limite.</p>
+            </div>
+            <div class="lista-operacional">
+                {% for empresa in empresas %}
+                    <article class="card-formulario item-operacional">
+                        <div class="item-operacional-topo">
+                            <div>
+                                <h2>{{ empresa.nome }}</h2>
+                                <p>{{ empresa.responsavel|default:"Sem contato principal cadastrado." }}</p>
+                            </div>
+                            {% if empresa.ativa %}
+                                <span class="status status-em-dia">Ativa</span>
+                            {% else %}
+                                <span class="status status-vencido">Inativa</span>
+                            {% endif %}
+                        </div>
+                    </article>
+                {% empty %}
+                    <div class="estado-vazio">
+                        <h3>Nenhuma empresa vinculada</h3>
+                        <p>Peca ao superadmin para vincular seu usuario como responsavel.</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    {% else %}
+        <section class="hero">
+            <div>
+                <span class="eyebrow">Sua jornada de capacitacao</span>
+                <h1>Conhecimento tecnico para manter tudo em movimento.</h1>
+                <p>Acesse seus treinamentos obrigatorios, acompanhe certificacoes e mantenha sua qualificacao em dia.</p>
+            </div>
+            <div class="hero-badge">
+                <strong>{{ produtos|length }}</strong>
+                <span>produto{{ produtos|length|pluralize }} na sua trilha</span>
+            </div>
+        </section>
+
+        <section class="secao">
+            <div class="secao-titulo">
+                <div>
+                    <span class="eyebrow">Treinamentos</span>
+                    <h2>Escolha um produto</h2>
+                </div>
+                <p>Voce vera apenas os cursos liberados para o seu perfil.</p>
+            </div>
+            <div class="produtos">
+                {% for produto in produtos %}
+                    <a href="{% url 'cursos_por_produto' produto.id %}" class="produto-card">
+                        <span class="produto-icone produto-cor-{{ forloop.counter }}">0{{ forloop.counter }}</span>
+                        <div>
+                            <h3>{{ produto.nome }}</h3>
+                            <p>{{ produto.descricao|default:"Treinamentos tecnicos, procedimentos e certificacoes." }}</p>
+                        </div>
+                        <span class="seta">></span>
+                    </a>
+                {% empty %}
+                    <div class="estado-vazio">
+                        <h3>Nenhum treinamento liberado</h3>
+                        <p>Peca ao responsavel pela plataforma para liberar seus cursos.</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
 </main>
 {% endblock %}
