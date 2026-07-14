@@ -1,5 +1,3 @@
-import secrets
-
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
@@ -192,7 +190,7 @@ class ResponsavelEmpresaForm(forms.Form):
                 username = f"{username_base}-{contador}"
                 contador += 1
             usuario = User(username=username, email=email)
-            usuario.set_password(secrets.token_urlsafe(24))
+            usuario.set_unusable_password()
 
         usuario.email = email
         usuario.first_name = nome[:150]

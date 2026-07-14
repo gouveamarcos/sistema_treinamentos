@@ -1,0 +1,14 @@
+Ola, {{ usuario.first_name|default:usuario.username }}.
+
+Voce foi cadastrado como responsavel da empresa {{ empresa.nome }} na Academia Tecnica.
+
+Papel: {{ responsabilidade.get_papel_display }}
+
+Para definir sua senha e acessar a plataforma, use o link abaixo:
+{{ link_acesso }}
+
+Seu usuario de acesso e o e-mail cadastrado: {{ usuario.email }}
+
+Se voce nao esperava este convite, ignore esta mensagem.
+
+Academia Tecnica Sem Parar

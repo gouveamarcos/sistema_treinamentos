@@ -57,6 +57,7 @@
                     <th>Responsavel</th>
                     <th>E-mail</th>
                     <th>Papel</th>
+                    <th>Acesso</th>
                     <th>Status</th>
                     <th>Acoes</th>
                 </tr>
@@ -69,6 +70,13 @@
                         <td>{{ item.usuario.email }}</td>
                         <td>{{ item.get_papel_display }}</td>
                         <td>
+                            {% if item.usuario.has_usable_password %}
+                                <span class="status status-em-dia">Senha definida</span>
+                            {% else %}
+                                <span class="status status-pendente">Convite pendente</span>
+                            {% endif %}
+                        </td>
+                        <td>
                             {% if item.ativo %}
                                 <span class="status status-em-dia">Ativo</span>
                             {% else %}
@@ -77,6 +85,10 @@
                         </td>
                         <td class="acoes-tabela">
                             <a href="{% url 'editar_responsavel_empresa' item.id %}">Editar</a>
+                            <form method="post" action="{% url 'reenviar_convite_responsavel' item.id %}">
+                                {% csrf_token %}
+                                <button class="link-button" type="submit">Reenviar convite</button>
+                            </form>
                             <form method="post" action="{% url 'alternar_responsavel_empresa' item.id %}">
                                 {% csrf_token %}
                                 <button class="link-button" type="submit">
@@ -87,7 +99,7 @@
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="6">Nenhum responsavel cadastrado para as empresas visiveis.</td>
+                        <td colspan="7">Nenhum responsavel cadastrado para as empresas visiveis.</td>
                     </tr>
                 {% endfor %}
             </tbody>

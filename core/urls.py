@@ -194,6 +194,11 @@ urlpatterns = [
         name="alternar_responsavel_empresa",
     ),
     path(
+        "responsaveis/<int:responsavel_id>/convite/",
+        views.reenviar_convite_responsavel,
+        name="reenviar_convite_responsavel",
+    ),
+    path(
         "produtos/<int:produto_id>/cursos/",
         views.cursos_por_produto,
         name="cursos_por_produto",

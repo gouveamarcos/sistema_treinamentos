@@ -11,6 +11,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from .emails import enviar_convite_responsavel
 from .forms import (
     AlternativaForm,
     CursoForm,
@@ -468,9 +469,17 @@ def responsaveis_empresas(request):
         form = ResponsavelEmpresaForm(request.POST, usuario=request.user)
         if form.is_valid():
             responsabilidade = form.save()
+            enviar_convite_responsavel(
+                request,
+                responsabilidade.usuario,
+                responsabilidade,
+            )
             messages.success(
                 request,
-                f"ResponsÃ¡vel {responsabilidade.usuario.email} salvo com sucesso.",
+                (
+                    f"Responsavel {responsabilidade.usuario.email} salvo com "
+                    "sucesso. O convite de acesso foi enviado por e-mail."
+                ),
             )
             return redirect("responsaveis_empresas")
     else:
@@ -527,6 +536,22 @@ def alternar_responsavel_empresa(request, responsavel_id):
     responsabilidade.save()
     status = "ativado" if responsabilidade.ativo else "desativado"
     messages.success(request, f"ResponsÃ¡vel {status} com sucesso.")
+    return redirect("responsaveis_empresas")
+
+
+@staff_member_required
+@require_POST
+def reenviar_convite_responsavel(request, responsavel_id):
+    _exigir_operador_empresas(request)
+    responsabilidade = get_object_or_404(
+        _responsaveis_visiveis(request),
+        pk=responsavel_id,
+    )
+    enviar_convite_responsavel(request, responsabilidade.usuario, responsabilidade)
+    messages.success(
+        request,
+        f"Convite reenviado para {responsabilidade.usuario.email}.",
+    )
     return redirect("responsaveis_empresas")
 
 

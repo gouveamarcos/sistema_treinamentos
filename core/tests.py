@@ -360,6 +360,10 @@ class ResponsavelEmpresaTest(TestCase):
         self.assertFalse(self.usuario.groups.filter(name="Editor de cursos").exists())
 
 
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    DEFAULT_FROM_EMAIL="Academia Tecnica <teste@exemplo.com>",
+)
 class GestaoResponsaveisEmpresaTest(TestCase):
     def setUp(self):
         self.empresa_a = Empresa.objects.create(nome="Cliente A")
@@ -411,7 +415,7 @@ class GestaoResponsaveisEmpresaTest(TestCase):
         usuario = User.objects.get(email="novo.responsavel@exemplo.com")
         self.assertEqual(resposta.status_code, 200)
         self.assertTrue(usuario.is_staff)
-        self.assertTrue(usuario.has_usable_password())
+        self.assertFalse(usuario.has_usable_password())
         self.assertTrue(
             ResponsavelEmpresa.objects.filter(
                 empresa=self.empresa_a,
@@ -422,6 +426,10 @@ class GestaoResponsaveisEmpresaTest(TestCase):
         )
         self.assertTrue(usuario.groups.filter(name__icontains="Editor").exists())
         self.assertContains(resposta, "novo.responsavel@exemplo.com")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("novo.responsavel@exemplo.com", mail.outbox[0].to)
+        self.assertIn("definir sua senha", mail.outbox[0].body)
+        self.assertIn("/senha/redefinir/", mail.outbox[0].body)
 
     def test_responsavel_enxerga_apenas_vinculos_da_propria_empresa(self):
         self.client.force_login(self.responsavel_a)
@@ -501,6 +509,19 @@ class GestaoResponsaveisEmpresaTest(TestCase):
         self.assertTrue(
             self.responsavel_a.groups.filter(name__icontains="operacional").exists()
         )
+
+    def test_reenvia_convite_para_responsavel(self):
+        self.client.force_login(self.superadmin)
+
+        resposta = self.client.post(
+            reverse("reenviar_convite_responsavel", args=(self.vinculo_a.id,)),
+            follow=True,
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(self.responsavel_a.email, mail.outbox[0].to)
+        self.assertIn("/senha/redefinir/", mail.outbox[0].body)
 
 
 class ExperienciaResponsavelTest(TestCase):
