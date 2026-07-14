@@ -10,6 +10,7 @@ from .models import (
     CursoLiberado,
     Empresa,
     EtapaCurso,
+    EventoAuditoria,
     Produto,
     ProgressoCurso,
     ProgressoEtapa,
@@ -71,6 +72,49 @@ class EtapaCursoInline(admin.TabularInline):
 class AlternativaInline(admin.TabularInline):
     model = Alternativa
     extra = 4
+
+
+@admin.register(EventoAuditoria)
+class EventoAuditoriaAdmin(admin.ModelAdmin):
+    list_display = (
+        "criado_em",
+        "usuario",
+        "empresa",
+        "acao",
+        "alvo_tipo",
+        "alvo_repr",
+    )
+    list_filter = ("acao", "empresa", "alvo_tipo", "criado_em")
+    search_fields = (
+        "usuario__username",
+        "usuario__email",
+        "empresa__nome",
+        "alvo_repr",
+        "detalhes",
+    )
+    readonly_fields = (
+        "usuario",
+        "empresa",
+        "acao",
+        "alvo_tipo",
+        "alvo_id",
+        "alvo_repr",
+        "detalhes",
+        "criado_em",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return _filtrar_por_empresa(request, queryset, "empresa")
 
 
 @admin.register(Empresa)

@@ -13,6 +13,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from .audit import registrar_evento
 from .emails import enviar_convite_responsavel
 from .forms import (
     AlternativaForm,
@@ -36,6 +37,7 @@ from .models import (
     CursoLiberado,
     Empresa,
     EtapaCurso,
+    EventoAuditoria,
     Produto,
     ProgressoCurso,
     ProgressoEtapa,
@@ -660,9 +662,21 @@ def liberar_curso_lote(request):
                     f"{resultado['existentes']} já existente(s)."
                 ),
             )
+            empresa = form.cleaned_data["empresa"]
             form = LiberarCursoLoteForm(
-                initial={"empresa": form.cleaned_data["empresa"]},
+                initial={"empresa": empresa},
                 usuario=request.user,
+            )
+            registrar_evento(
+                request.user,
+                EventoAuditoria.Acao.LIBERACAO,
+                curso,
+                empresa=empresa,
+                detalhes=(
+                    f"Liberacao manual: {resultado['criados']} criada(s), "
+                    f"{resultado['reativados']} reativada(s)/atualizada(s), "
+                    f"{resultado['existentes']} existente(s)."
+                ),
             )
     else:
         form = LiberarCursoLoteForm(usuario=request.user)
@@ -709,6 +723,18 @@ def importar_liberacoes_operacionais(request):
                     f"{resultado_importacao['existentes']} ja existente(s)."
                 ),
             )
+            registrar_evento(
+                request.user,
+                EventoAuditoria.Acao.IMPORTACAO,
+                form.cleaned_data["curso"],
+                empresa=form.cleaned_data["empresa"],
+                detalhes=(
+                    "Importacao CSV de liberacoes: "
+                    f"{resultado_importacao['criados']} criada(s), "
+                    f"{resultado_importacao['reativados']} reativada(s)/atualizada(s), "
+                    f"{resultado_importacao['existentes']} existente(s)."
+                ),
+            )
             return redirect("liberar_curso_lote")
 
     return render(
@@ -734,6 +760,16 @@ def responsaveis_empresas(request):
                 request,
                 responsabilidade.usuario,
                 responsabilidade,
+            )
+            registrar_evento(
+                request.user,
+                EventoAuditoria.Acao.CADASTRO,
+                responsabilidade,
+                empresa=responsabilidade.empresa,
+                detalhes=(
+                    "Responsavel salvo e convite enviado para "
+                    f"{responsabilidade.usuario.email}."
+                ),
             )
             messages.success(
                 request,
@@ -773,6 +809,13 @@ def editar_responsavel_empresa(request, responsavel_id):
         )
         if form.is_valid():
             form.save()
+            registrar_evento(
+                request.user,
+                EventoAuditoria.Acao.EDICAO,
+                responsabilidade,
+                empresa=responsabilidade.empresa,
+                detalhes=f"Responsavel atualizado: {responsabilidade.usuario.email}.",
+            )
             messages.success(request, "ResponsÃ¡vel atualizado com sucesso.")
             return redirect("responsaveis_empresas")
     else:
@@ -795,6 +838,13 @@ def alternar_responsavel_empresa(request, responsavel_id):
     )
     responsabilidade.ativo = not responsabilidade.ativo
     responsabilidade.save()
+    registrar_evento(
+        request.user,
+        EventoAuditoria.Acao.STATUS,
+        responsabilidade,
+        empresa=responsabilidade.empresa,
+        detalhes=f"Status alterado para {'ativo' if responsabilidade.ativo else 'inativo'}.",
+    )
     status = "ativado" if responsabilidade.ativo else "desativado"
     messages.success(request, f"ResponsÃ¡vel {status} com sucesso.")
     return redirect("responsaveis_empresas")
@@ -809,6 +859,13 @@ def reenviar_convite_responsavel(request, responsavel_id):
         pk=responsavel_id,
     )
     enviar_convite_responsavel(request, responsabilidade.usuario, responsabilidade)
+    registrar_evento(
+        request.user,
+        EventoAuditoria.Acao.CONVITE,
+        responsabilidade,
+        empresa=responsabilidade.empresa,
+        detalhes=f"Convite reenviado para {responsabilidade.usuario.email}.",
+    )
     messages.success(
         request,
         f"Convite reenviado para {responsabilidade.usuario.email}.",
@@ -826,6 +883,13 @@ def empresas_operacionais(request):
         form = EmpresaForm(request.POST)
         if form.is_valid():
             empresa = form.save()
+            registrar_evento(
+                request.user,
+                EventoAuditoria.Acao.CADASTRO,
+                empresa,
+                empresa=empresa,
+                detalhes="Empresa criada pela tela operacional.",
+            )
             messages.success(request, f"Empresa {empresa.nome} criada com sucesso.")
             return redirect("empresas_operacionais")
     else:
@@ -847,6 +911,13 @@ def editar_empresa_operacional(request, empresa_id):
         form = EmpresaForm(request.POST, instance=empresa)
         if form.is_valid():
             empresa = form.save()
+            registrar_evento(
+                request.user,
+                EventoAuditoria.Acao.EDICAO,
+                empresa,
+                empresa=empresa,
+                detalhes="Empresa atualizada pela tela operacional.",
+            )
             messages.success(request, f"Empresa {empresa.nome} atualizada com sucesso.")
             return redirect("empresas_operacionais")
     else:
@@ -868,6 +939,13 @@ def alternar_empresa_operacional(request, empresa_id):
     empresa = get_object_or_404(Empresa, pk=empresa_id)
     empresa.ativa = not empresa.ativa
     empresa.save(update_fields=["ativa"])
+    registrar_evento(
+        request.user,
+        EventoAuditoria.Acao.STATUS,
+        empresa,
+        empresa=empresa,
+        detalhes=f"Status alterado para {'ativa' if empresa.ativa else 'inativa'}.",
+    )
     status = "ativada" if empresa.ativa else "desativada"
     messages.success(request, f"Empresa {status} com sucesso.")
     return redirect("empresas_operacionais")
@@ -882,6 +960,13 @@ def tecnicos_operacionais(request):
         form = TecnicoForm(request.POST, usuario=request.user)
         if form.is_valid():
             tecnico = form.save()
+            registrar_evento(
+                request.user,
+                EventoAuditoria.Acao.CADASTRO,
+                tecnico,
+                empresa=tecnico.empresa,
+                detalhes="Tecnico salvo pela tela operacional.",
+            )
             messages.success(request, f"Tecnico {tecnico.nome} salvo com sucesso.")
             return redirect("tecnicos_operacionais")
     else:
@@ -928,6 +1013,17 @@ def importar_tecnicos_operacionais(request):
                     f"{resultado_importacao['atualizados']} atualizado(s)."
                 ),
             )
+            registrar_evento(
+                request.user,
+                EventoAuditoria.Acao.IMPORTACAO,
+                form.cleaned_data["empresa"],
+                empresa=form.cleaned_data["empresa"],
+                detalhes=(
+                    "Importacao CSV de tecnicos: "
+                    f"{resultado_importacao['criados']} criado(s), "
+                    f"{resultado_importacao['atualizados']} atualizado(s)."
+                ),
+            )
             return redirect("tecnicos_operacionais")
 
     tecnicos = _tecnicos_visiveis(request).order_by("empresa__nome", "nome")
@@ -952,6 +1048,13 @@ def editar_tecnico_operacional(request, tecnico_id):
         form = TecnicoForm(request.POST, usuario=request.user, instance=tecnico)
         if form.is_valid():
             tecnico = form.save()
+            registrar_evento(
+                request.user,
+                EventoAuditoria.Acao.EDICAO,
+                tecnico,
+                empresa=tecnico.empresa,
+                detalhes="Tecnico atualizado pela tela operacional.",
+            )
             messages.success(request, f"Tecnico {tecnico.nome} atualizado com sucesso.")
             return redirect("tecnicos_operacionais")
     else:
@@ -971,6 +1074,13 @@ def alternar_tecnico_operacional(request, tecnico_id):
     tecnico = get_object_or_404(_tecnicos_visiveis(request), pk=tecnico_id)
     tecnico.ativo = not tecnico.ativo
     tecnico.save(update_fields=["ativo"])
+    registrar_evento(
+        request.user,
+        EventoAuditoria.Acao.STATUS,
+        tecnico,
+        empresa=tecnico.empresa,
+        detalhes=f"Status alterado para {'ativo' if tecnico.ativo else 'inativo'}.",
+    )
     status = "ativado" if tecnico.ativo else "desativado"
     messages.success(request, f"Tecnico {status} com sucesso.")
     return redirect("tecnicos_operacionais")

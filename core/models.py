@@ -23,6 +23,45 @@ class Empresa(models.Model):
         return self.nome
 
 
+class EventoAuditoria(models.Model):
+    class Acao(models.TextChoices):
+        CADASTRO = "cadastro", "Cadastro"
+        EDICAO = "edicao", "Edicao"
+        STATUS = "status", "Status"
+        IMPORTACAO = "importacao", "Importacao"
+        LIBERACAO = "liberacao", "Liberacao"
+        CONVITE = "convite", "Convite"
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="eventos_auditoria",
+    )
+    empresa = models.ForeignKey(
+        Empresa,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="eventos_auditoria",
+    )
+    acao = models.CharField(max_length=20, choices=Acao.choices)
+    alvo_tipo = models.CharField(max_length=80)
+    alvo_id = models.PositiveIntegerField(null=True, blank=True)
+    alvo_repr = models.CharField(max_length=255, blank=True)
+    detalhes = models.TextField(blank=True)
+    criado_em = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ("-criado_em", "-id")
+        verbose_name = "Evento de auditoria"
+        verbose_name_plural = "Eventos de auditoria"
+
+    def __str__(self):
+        return f"{self.get_acao_display()} - {self.alvo_repr or self.alvo_tipo}"
+
+
 class ResponsavelEmpresa(models.Model):
     class Papel(models.TextChoices):
         OPERACIONAL = "operacional", "Responsável operacional"

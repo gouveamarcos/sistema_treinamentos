@@ -20,6 +20,7 @@ from .models import (
     CursoLiberado,
     Empresa,
     EtapaCurso,
+    EventoAuditoria,
     Produto,
     ProgressoCurso,
     ProgressoEtapa,
@@ -32,6 +33,7 @@ from .admin import (
     ConclusaoTreinamentoAdmin,
     CursoLiberadoAdmin,
     EmpresaAdmin,
+    EventoAuditoriaAdmin,
     SituacaoVencimentoFilter,
     TecnicoAdmin,
 )
@@ -617,6 +619,110 @@ class ExperienciaResponsavelTest(TestCase):
         resposta = self.client.get(reverse("produtos_operacionais"))
 
         self.assertEqual(resposta.status_code, 403)
+
+
+class AuditoriaOperacionalTest(TestCase):
+    def setUp(self):
+        self.empresa = Empresa.objects.create(nome="Cliente Auditoria")
+        self.outra_empresa = Empresa.objects.create(nome="Outra Auditoria")
+        self.superadmin = User.objects.create_user(
+            username="superadmin-auditoria",
+            password="SenhaForte123!",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.responsavel = User.objects.create_user(
+            username="responsavel-auditoria",
+            password="SenhaForte123!",
+            is_staff=True,
+        )
+        ResponsavelEmpresa.objects.create(
+            empresa=self.empresa,
+            usuario=self.responsavel,
+            papel=ResponsavelEmpresa.Papel.OPERACIONAL,
+        )
+        self.produto = Produto.objects.create(nome="Produto Auditoria")
+        self.curso = Curso.objects.create(nome="Curso Auditoria", produto=self.produto)
+        self.tecnico = Tecnico.objects.create(
+            empresa=self.empresa,
+            nome="Tecnico Auditoria",
+            email="auditoria@exemplo.com",
+            matricula="AUD001",
+        )
+        self.tecnico_outra_empresa = Tecnico.objects.create(
+            empresa=self.outra_empresa,
+            nome="Tecnico Outra Auditoria",
+            email="auditoria.outra@exemplo.com",
+            matricula="AUD002",
+        )
+        self.site = AdminSite()
+
+    def test_registra_evento_ao_liberar_curso_manualmente(self):
+        self.client.force_login(self.responsavel)
+
+        resposta = self.client.post(
+            reverse("liberar_curso_lote"),
+            {
+                "empresa": self.empresa.id,
+                "curso": self.curso.id,
+                "tecnicos": [self.tecnico.id],
+                "obrigatorio": "on",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        evento = EventoAuditoria.objects.get(acao=EventoAuditoria.Acao.LIBERACAO)
+        self.assertEqual(evento.usuario, self.responsavel)
+        self.assertEqual(evento.empresa, self.empresa)
+        self.assertEqual(evento.alvo_repr, self.curso.nome)
+        self.assertIn("Liberacao manual", evento.detalhes)
+
+    def test_registra_evento_ao_importar_tecnicos(self):
+        self.client.force_login(self.responsavel)
+        arquivo = SimpleUploadedFile(
+            "tecnicos.csv",
+            "nome,email,matricula\nTecnico CSV,csv.audit@exemplo.com,AUDCSV\n".encode(),
+            content_type="text/csv",
+        )
+
+        resposta = self.client.post(
+            reverse("importar_tecnicos_operacionais"),
+            {"empresa": self.empresa.id, "arquivo": arquivo},
+            follow=True,
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        evento = EventoAuditoria.objects.get(acao=EventoAuditoria.Acao.IMPORTACAO)
+        self.assertEqual(evento.usuario, self.responsavel)
+        self.assertEqual(evento.empresa, self.empresa)
+        self.assertIn("Importacao CSV de tecnicos", evento.detalhes)
+
+    def test_admin_de_auditoria_respeita_escopo_da_empresa(self):
+        EventoAuditoria.objects.create(
+            usuario=self.superadmin,
+            empresa=self.empresa,
+            acao=EventoAuditoria.Acao.STATUS,
+            alvo_tipo="Tecnico",
+            alvo_id=self.tecnico.id,
+            alvo_repr=str(self.tecnico),
+        )
+        EventoAuditoria.objects.create(
+            usuario=self.superadmin,
+            empresa=self.outra_empresa,
+            acao=EventoAuditoria.Acao.STATUS,
+            alvo_tipo="Tecnico",
+            alvo_id=self.tecnico_outra_empresa.id,
+            alvo_repr=str(self.tecnico_outra_empresa),
+        )
+        request = RequestFactory().get("/admin/core/eventoauditoria/")
+        request.user = self.responsavel
+        admin_auditoria = EventoAuditoriaAdmin(EventoAuditoria, self.site)
+
+        queryset = admin_auditoria.get_queryset(request)
+
+        self.assertEqual(queryset.count(), 1)
+        self.assertEqual(queryset.first().empresa, self.empresa)
 
 
 class CadastroOperacionalTest(TestCase):
