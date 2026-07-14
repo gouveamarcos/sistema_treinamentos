@@ -64,6 +64,11 @@ urlpatterns = [
         name="relatorio_treinamentos",
     ),
     path(
+        "relatorios/treinamentos/exportar/",
+        views.exportar_relatorio_treinamentos,
+        name="exportar_relatorio_treinamentos",
+    ),
+    path(
         "historico/",
         views.historico_operacional,
         name="historico_operacional",

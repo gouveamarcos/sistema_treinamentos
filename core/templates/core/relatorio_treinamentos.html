@@ -33,6 +33,7 @@
             </select>
         </label>
         <button class="botao-principal botao-auto" type="submit">Filtrar</button>
+        <a class="botao-secundario botao-auto" href="{% url 'exportar_relatorio_treinamentos' %}?{{ request.GET.urlencode }}">Exportar CSV</a>
     </form>
 
     <section class="cards-resumo">
@@ -42,6 +43,74 @@
         <article><span>Em dia</span><strong>{{ totais.em_dia }}</strong></article>
         <article><span>Vence em 30 dias</span><strong>{{ totais.vence_30 }}</strong></article>
         <article><span>Vencidos</span><strong>{{ totais.vencido }}</strong></article>
+    </section>
+
+    <section class="grade-gerencial">
+        <article class="painel-gerencial">
+            <div class="painel-cabecalho">
+                <div>
+                    <span class="eyebrow">Risco por empresa</span>
+                    <h2>Onde agir primeiro</h2>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Empresa</th>
+                        <th>Total</th>
+                        <th>Pend.</th>
+                        <th>30 dias</th>
+                        <th>Venc.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for empresa in resumo_empresas %}
+                        <tr>
+                            <td>{{ empresa.nome }}</td>
+                            <td>{{ empresa.totais.total }}</td>
+                            <td>{{ empresa.totais.pendente }}</td>
+                            <td>{{ empresa.totais.vence_30 }}</td>
+                            <td>{{ empresa.totais.vencido }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="5">Nenhum dado para consolidar.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </article>
+
+        <article class="painel-gerencial">
+            <div class="painel-cabecalho">
+                <div>
+                    <span class="eyebrow">Risco por curso</span>
+                    <h2>Cursos que pedem atenção</h2>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Curso</th>
+                        <th>Total</th>
+                        <th>Pend.</th>
+                        <th>30 dias</th>
+                        <th>Venc.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for curso in resumo_cursos|slice:":8" %}
+                        <tr>
+                            <td>{{ curso.nome }}</td>
+                            <td>{{ curso.totais.total }}</td>
+                            <td>{{ curso.totais.pendente }}</td>
+                            <td>{{ curso.totais.vence_30 }}</td>
+                            <td>{{ curso.totais.vencido }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="5">Nenhum dado para consolidar.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </article>
     </section>
 
     <section class="tabela-relatorio">

@@ -1863,6 +1863,9 @@ class RelatorioTreinamentosTest(TestCase):
         self.assertEqual(resposta.context["totais"]["vencido"], 1)
         self.assertEqual(resposta.context["totais"]["vence_30"], 1)
         self.assertEqual(resposta.context["totais"]["em_dia"], 1)
+        self.assertEqual(resposta.context["resumo_empresas"][0]["nome"], "Empresa Relatório")
+        self.assertEqual(resposta.context["resumo_empresas"][0]["risco"], 3)
+        self.assertEqual(resposta.context["resumo_cursos"][0]["risco"], 1)
 
     def test_relatorio_filtra_por_situacao(self):
         self.client.force_login(self.staff)
@@ -1887,6 +1890,21 @@ class RelatorioTreinamentosTest(TestCase):
         self.assertEqual(resposta.context["totais"]["total"], 1)
         self.assertContains(resposta, "Curso Outra Empresa")
         self.assertNotContains(resposta, "Curso Pendente")
+
+    def test_exporta_relatorio_csv_com_filtros(self):
+        self.client.force_login(self.staff)
+
+        resposta = self.client.get(
+            reverse("exportar_relatorio_treinamentos"),
+            {"situacao": "vencido"},
+        )
+
+        conteudo = resposta.content.decode("utf-8-sig")
+        self.assertEqual(resposta.status_code, 200)
+        self.assertIn("text/csv", resposta["Content-Type"])
+        self.assertIn("Empresa;Tecnico;Matricula;Produto;Curso;Situacao", conteudo)
+        self.assertIn("Curso Vencido", conteudo)
+        self.assertNotIn("Curso Pendente", conteudo)
 
 
 class LiberarCursoLoteTest(TestCase):
@@ -2279,6 +2297,16 @@ class EscopoEmpresaTest(TestCase):
 
         self.assertEqual(resposta.context["totais"]["total"], 0)
         self.assertNotContains(resposta, "Curso Empresa B")
+
+    def test_responsavel_exporta_csv_apenas_da_sua_empresa(self):
+        self.client.force_login(self.responsavel)
+
+        resposta = self.client.get(reverse("exportar_relatorio_treinamentos"))
+
+        conteudo = resposta.content.decode("utf-8-sig")
+        self.assertEqual(resposta.status_code, 200)
+        self.assertIn("Curso Empresa A", conteudo)
+        self.assertNotIn("Curso Empresa B", conteudo)
 
     def test_superadmin_mantem_visao_global_no_relatorio(self):
         self.client.force_login(self.superadmin)

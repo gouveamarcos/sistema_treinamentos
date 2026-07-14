@@ -1,4 +1,5 @@
 import csv
+from collections import defaultdict
 from io import TextIOWrapper
 from datetime import timedelta
 from decimal import Decimal
@@ -10,6 +11,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Q
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -107,6 +109,106 @@ def _situacao_liberacao(liberacao, hoje=None):
         )
 
     return ultima_conclusao, progresso, "pendente", "Pendente", "status-pendente"
+
+
+def _totais_relatorio_vazios():
+    return {
+        "total": 0,
+        "pendente": 0,
+        "em_andamento": 0,
+        "em_dia": 0,
+        "vence_30": 0,
+        "vencido": 0,
+        "sem_vencimento": 0,
+    }
+
+
+def _incrementar_totais(totais, situacao):
+    totais["total"] += 1
+    totais[situacao] += 1
+
+
+def _risco_total(totais):
+    return totais["pendente"] + totais["vence_30"] + totais["vencido"]
+
+
+def _montar_relatorio_treinamentos(usuario, empresa_id="", situacao_filtro=""):
+    hoje = timezone.localdate()
+    empresas = empresas_do_usuario(usuario).order_by("nome")
+    liberacoes = CursoLiberado.objects.filter(
+        ativo=True,
+        tecnico__ativo=True,
+        curso__ativo=True,
+        tecnico__empresa__in=empresas,
+    ).select_related("tecnico__empresa", "curso__produto")
+
+    if empresa_id:
+        liberacoes = liberacoes.filter(tecnico__empresa_id=empresa_id)
+
+    itens = []
+    totais = _totais_relatorio_vazios()
+    resumo_empresas = defaultdict(_totais_relatorio_vazios)
+    resumo_cursos = defaultdict(_totais_relatorio_vazios)
+    nomes_empresas = {}
+    nomes_cursos = {}
+
+    for liberacao in liberacoes.order_by(
+        "tecnico__empresa__nome",
+        "tecnico__nome",
+        "curso__produto__nome",
+        "curso__nome",
+    ):
+        ultima_conclusao, progresso, situacao, rotulo, classe = _situacao_liberacao(
+            liberacao,
+            hoje=hoje,
+        )
+        if situacao_filtro and situacao != situacao_filtro:
+            continue
+
+        empresa = liberacao.tecnico.empresa
+        curso = liberacao.curso
+        _incrementar_totais(totais, situacao)
+        _incrementar_totais(resumo_empresas[empresa.id], situacao)
+        _incrementar_totais(resumo_cursos[curso.id], situacao)
+        nomes_empresas[empresa.id] = empresa.nome
+        nomes_cursos[curso.id] = f"{curso.produto.nome} - {curso.nome}"
+        itens.append(
+            {
+                "liberacao": liberacao,
+                "ultima_conclusao": ultima_conclusao,
+                "progresso": progresso,
+                "situacao": situacao,
+                "rotulo": rotulo,
+                "classe": classe,
+            }
+        )
+
+    empresas_resumo = [
+        {
+            "nome": nomes_empresas[empresa_id],
+            "totais": totais_empresa,
+            "risco": _risco_total(totais_empresa),
+        }
+        for empresa_id, totais_empresa in resumo_empresas.items()
+    ]
+    cursos_resumo = [
+        {
+            "nome": nomes_cursos[curso_id],
+            "totais": totais_curso,
+            "risco": _risco_total(totais_curso),
+        }
+        for curso_id, totais_curso in resumo_cursos.items()
+    ]
+    empresas_resumo.sort(key=lambda item: (-item["risco"], item["nome"]))
+    cursos_resumo.sort(key=lambda item: (-item["risco"], item["nome"]))
+
+    return {
+        "empresas": empresas,
+        "itens": itens,
+        "totais": totais,
+        "resumo_empresas": empresas_resumo,
+        "resumo_cursos": cursos_resumo,
+    }
 
 
 def _buscar_conclusao_por_codigo(codigo):
@@ -558,67 +660,74 @@ def relatorio_treinamentos(request):
     _exigir_operador_empresas(request)
     empresa_id = request.GET.get("empresa") or ""
     situacao_filtro = request.GET.get("situacao") or ""
-    hoje = timezone.localdate()
-    empresas = empresas_do_usuario(request.user).order_by("nome")
-
-    liberacoes = CursoLiberado.objects.filter(
-        ativo=True,
-        tecnico__ativo=True,
-        curso__ativo=True,
-        tecnico__empresa__in=empresas,
-    ).select_related("tecnico__empresa", "curso__produto")
-
-    if empresa_id:
-        liberacoes = liberacoes.filter(tecnico__empresa_id=empresa_id)
-
-    itens = []
-    totais = {
-        "total": 0,
-        "pendente": 0,
-        "em_andamento": 0,
-        "em_dia": 0,
-        "vence_30": 0,
-        "vencido": 0,
-        "sem_vencimento": 0,
-    }
-
-    for liberacao in liberacoes.order_by(
-        "tecnico__empresa__nome",
-        "tecnico__nome",
-        "curso__produto__nome",
-        "curso__nome",
-    ):
-        ultima_conclusao, progresso, situacao, rotulo, classe = _situacao_liberacao(
-            liberacao,
-            hoje=hoje,
-        )
-        if situacao_filtro and situacao != situacao_filtro:
-            continue
-
-        totais["total"] += 1
-        totais[situacao] += 1
-        itens.append(
-            {
-                "liberacao": liberacao,
-                "ultima_conclusao": ultima_conclusao,
-                "progresso": progresso,
-                "situacao": situacao,
-                "rotulo": rotulo,
-                "classe": classe,
-            }
-        )
+    relatorio = _montar_relatorio_treinamentos(
+        request.user,
+        empresa_id=empresa_id,
+        situacao_filtro=situacao_filtro,
+    )
 
     return render(
         request,
         "core/relatorio_treinamentos.html",
         {
-            "empresas": empresas,
+            "empresas": relatorio["empresas"],
             "empresa_id": empresa_id,
             "situacao_filtro": situacao_filtro,
-            "itens": itens,
-            "totais": totais,
+            "itens": relatorio["itens"],
+            "totais": relatorio["totais"],
+            "resumo_empresas": relatorio["resumo_empresas"],
+            "resumo_cursos": relatorio["resumo_cursos"],
         },
     )
+
+
+@staff_member_required
+def exportar_relatorio_treinamentos(request):
+    _exigir_operador_empresas(request)
+    relatorio = _montar_relatorio_treinamentos(
+        request.user,
+        empresa_id=request.GET.get("empresa") or "",
+        situacao_filtro=request.GET.get("situacao") or "",
+    )
+    resposta = HttpResponse(content_type="text/csv; charset=utf-8")
+    resposta["Content-Disposition"] = (
+        'attachment; filename="relatorio_treinamentos.csv"'
+    )
+    resposta.write("\ufeff")
+    escritor = csv.writer(resposta, delimiter=";")
+    escritor.writerow(
+        [
+            "Empresa",
+            "Tecnico",
+            "Matricula",
+            "Produto",
+            "Curso",
+            "Situacao",
+            "Conclusao",
+            "Validade",
+            "Certificado",
+        ]
+    )
+
+    for item in relatorio["itens"]:
+        liberacao = item["liberacao"]
+        conclusao = item["ultima_conclusao"]
+        escritor.writerow(
+            [
+                liberacao.tecnico.empresa.nome,
+                liberacao.tecnico.nome,
+                liberacao.tecnico.matricula,
+                liberacao.curso.produto.nome,
+                liberacao.curso.nome,
+                item["rotulo"],
+                conclusao.data_conclusao.strftime("%d/%m/%Y") if conclusao else "",
+                conclusao.data_vencimento.strftime("%d/%m/%Y")
+                if conclusao and conclusao.data_vencimento
+                else "",
+                conclusao.codigo_certificado if conclusao else "",
+            ]
+        )
+    return resposta
 
 
 @staff_member_required
