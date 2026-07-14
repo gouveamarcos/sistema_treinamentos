@@ -9,6 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -616,6 +617,45 @@ def relatorio_treinamentos(request):
             "situacao_filtro": situacao_filtro,
             "itens": itens,
             "totais": totais,
+        },
+    )
+
+
+@staff_member_required
+def historico_operacional(request):
+    _exigir_operador_empresas(request)
+    empresas = empresas_do_usuario(request.user).order_by("nome")
+    empresa_id = request.GET.get("empresa") or ""
+    acao = request.GET.get("acao") or ""
+    busca = request.GET.get("q", "").strip()
+
+    eventos = EventoAuditoria.objects.filter(empresa__in=empresas).select_related(
+        "usuario",
+        "empresa",
+    )
+    if empresa_id:
+        eventos = eventos.filter(empresa_id=empresa_id)
+    if acao:
+        eventos = eventos.filter(acao=acao)
+    if busca:
+        eventos = eventos.filter(
+            Q(alvo_repr__icontains=busca)
+            | Q(detalhes__icontains=busca)
+            | Q(usuario__username__icontains=busca)
+            | Q(usuario__email__icontains=busca)
+        )
+
+    eventos = eventos.order_by("-criado_em", "-id")[:200]
+    return render(
+        request,
+        "core/historico_operacional.html",
+        {
+            "eventos": eventos,
+            "empresas": empresas,
+            "empresa_id": empresa_id,
+            "acao": acao,
+            "busca": busca,
+            "acoes": EventoAuditoria.Acao.choices,
         },
     )
 

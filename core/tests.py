@@ -724,6 +724,80 @@ class AuditoriaOperacionalTest(TestCase):
         self.assertEqual(queryset.count(), 1)
         self.assertEqual(queryset.first().empresa, self.empresa)
 
+    def test_tela_historico_respeita_escopo(self):
+        EventoAuditoria.objects.create(
+            usuario=self.superadmin,
+            empresa=self.empresa,
+            acao=EventoAuditoria.Acao.LIBERACAO,
+            alvo_tipo="Curso",
+            alvo_id=self.curso.id,
+            alvo_repr="Curso Visivel",
+            detalhes="Evento visivel",
+        )
+        EventoAuditoria.objects.create(
+            usuario=self.superadmin,
+            empresa=self.outra_empresa,
+            acao=EventoAuditoria.Acao.LIBERACAO,
+            alvo_tipo="Curso",
+            alvo_id=self.curso.id,
+            alvo_repr="Curso Oculto",
+            detalhes="Evento oculto",
+        )
+        self.client.force_login(self.responsavel)
+
+        resposta = self.client.get(reverse("historico_operacional"))
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Curso Visivel")
+        self.assertNotContains(resposta, "Curso Oculto")
+
+    def test_tela_historico_filtra_por_acao_e_busca(self):
+        EventoAuditoria.objects.create(
+            usuario=self.responsavel,
+            empresa=self.empresa,
+            acao=EventoAuditoria.Acao.IMPORTACAO,
+            alvo_tipo="Empresa",
+            alvo_id=self.empresa.id,
+            alvo_repr="Importacao Tecnicos",
+            detalhes="Importacao CSV de tecnicos",
+        )
+        EventoAuditoria.objects.create(
+            usuario=self.responsavel,
+            empresa=self.empresa,
+            acao=EventoAuditoria.Acao.STATUS,
+            alvo_tipo="Tecnico",
+            alvo_id=self.tecnico.id,
+            alvo_repr="Alteracao Status",
+            detalhes="Status alterado",
+        )
+        self.client.force_login(self.responsavel)
+
+        resposta = self.client.get(
+            reverse("historico_operacional"),
+            {"acao": EventoAuditoria.Acao.IMPORTACAO, "q": "CSV"},
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Importacao Tecnicos")
+        self.assertNotContains(resposta, "Alteracao Status")
+
+    def test_editor_de_cursos_nao_acessa_historico_operacional(self):
+        editor = User.objects.create_user(
+            username="editor-historico",
+            password="SenhaForte123!",
+            is_staff=True,
+        )
+        ResponsavelEmpresa.objects.create(
+            empresa=self.empresa,
+            usuario=editor,
+            papel=ResponsavelEmpresa.Papel.EDITOR_CURSOS,
+        )
+        self.client.force_login(editor)
+
+        resposta = self.client.get(reverse("historico_operacional"))
+
+        self.assertEqual(resposta.status_code, 403)
+
 
 class CadastroOperacionalTest(TestCase):
     def setUp(self):

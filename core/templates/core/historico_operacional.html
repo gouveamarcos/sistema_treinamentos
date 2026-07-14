@@ -1,0 +1,70 @@
+{% extends "core/base.html" %}
+{% block title %}Historico operacional - Academia Tecnica{% endblock %}
+{% block content %}
+<main class="container">
+    <section class="cabecalho-pagina">
+        <div>
+            <span class="eyebrow">Auditoria</span>
+            <h1>Historico operacional</h1>
+            <p>Consulte as principais acoes administrativas registradas na plataforma.</p>
+        </div>
+    </section>
+
+    <form class="filtros-relatorio" method="get">
+        <label>
+            Empresa
+            <select name="empresa">
+                <option value="">Todas</option>
+                {% for empresa in empresas %}
+                    <option value="{{ empresa.id }}" {% if empresa_id == empresa.id|stringformat:"s" %}selected{% endif %}>{{ empresa.nome }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            Acao
+            <select name="acao">
+                <option value="">Todas</option>
+                {% for valor, rotulo in acoes %}
+                    <option value="{{ valor }}" {% if acao == valor %}selected{% endif %}>{{ rotulo }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            Busca
+            <input type="search" name="q" value="{{ busca }}" placeholder="Usuario, alvo ou detalhe">
+        </label>
+        <button class="botao-principal botao-auto" type="submit">Filtrar</button>
+    </form>
+
+    <section class="tabela-relatorio">
+        <table>
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Usuario</th>
+                    <th>Empresa</th>
+                    <th>Acao</th>
+                    <th>Alvo</th>
+                    <th>Detalhes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for evento in eventos %}
+                    <tr>
+                        <td>{{ evento.criado_em|date:"d/m/Y H:i" }}</td>
+                        <td>{{ evento.usuario.email|default:evento.usuario.username|default:"-" }}</td>
+                        <td>{{ evento.empresa.nome|default:"-" }}</td>
+                        <td><span class="status status-andamento">{{ evento.get_acao_display }}</span></td>
+                        <td>{{ evento.alvo_repr|default:evento.alvo_tipo }}</td>
+                        <td>{{ evento.detalhes|default:"-" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6">Nenhum evento encontrado para os filtros selecionados.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</main>
+{% endblock %}
