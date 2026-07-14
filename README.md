@@ -24,6 +24,10 @@ Plataforma Django para treinamento, avaliação e reciclagem periódica de técn
 - Filtros operacionais para certificações vencidas ou próximas do vencimento.
 - Relatório operacional de treinamentos por empresa, técnico, curso e situação.
 
+- Painel gerencial com risco por empresa e curso, além de exportação CSV.
+- Configuração por `DATABASE_URL` para PostgreSQL em produção.
+- Endpoint público `/saude/` para monitoramento da aplicação e do banco.
+
 ## Executar localmente
 
 ```powershell
@@ -104,10 +108,18 @@ python manage.py criar_cursos_demonstracao --sem-tecnico
 
 ## Produção
 
+Para uma hospedagem mais robusta com PostgreSQL e processo web, use o roteiro:
+
+[`deploy/PRODUCTION.md`](deploy/PRODUCTION.md).
+
 Defina ao menos:
 
 ```text
 DJANGO_DEBUG=False
 DJANGO_SECRET_KEY=uma-chave-longa-e-secreta
 DJANGO_ALLOWED_HOSTS=treinamentos.suaempresa.com.br
+DJANGO_CSRF_TRUSTED_ORIGINS=https://treinamentos.suaempresa.com.br
+DATABASE_URL=postgres://usuario:senha@host:5432/sistema_treinamentos
 ```
+
+Depois da publicação, monitore `/saude/`.

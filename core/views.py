@@ -9,9 +9,10 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
+from django.db import connection
 from django.db import transaction
 from django.db.models import Q
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -57,6 +58,17 @@ from .scopes import (
 )
 
 JANELA_VENCIMENTO_DIAS = 30
+
+
+def saude(request):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+    except Exception:
+        return JsonResponse({"status": "erro", "database": "indisponivel"}, status=503)
+
+    return JsonResponse({"status": "ok", "database": "ok"})
 
 
 def _situacao_certificado(conclusao):

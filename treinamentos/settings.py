@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 import os
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -87,14 +88,44 @@ TEMPLATES = [
 WSGI_APPLICATION = "treinamentos.wsgi.application"
 
 
+def database_config():
+    database_url = os.getenv("DATABASE_URL", "").strip()
+    if not database_url:
+        return {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+
+    url = urlparse(database_url)
+    if url.scheme in {"postgres", "postgresql"}:
+        config = {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": unquote(url.path.lstrip("/")),
+            "USER": unquote(url.username or ""),
+            "PASSWORD": unquote(url.password or ""),
+            "HOST": url.hostname or "",
+            "PORT": str(url.port or ""),
+            "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
+        }
+        sslmode = os.getenv("DB_SSLMODE", "").strip()
+        if sslmode:
+            config["OPTIONS"] = {"sslmode": sslmode}
+        return config
+
+    if url.scheme == "sqlite":
+        return {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": unquote(url.path),
+        }
+
+    raise ValueError("DATABASE_URL deve usar postgres://, postgresql:// ou sqlite://.")
+
+
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": database_config(),
 }
 
 

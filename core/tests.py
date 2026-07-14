@@ -1,6 +1,8 @@
 from datetime import timedelta
 from io import StringIO
+import os
 import re
+from unittest.mock import patch
 
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.models import Group, User
@@ -38,6 +40,7 @@ from .admin import (
     SituacaoVencimentoFilter,
     TecnicoAdmin,
 )
+from treinamentos.settings import database_config
 
 
 class ConfiguracaoSegurancaTest(TestCase):
@@ -49,6 +52,36 @@ class ConfiguracaoSegurancaTest(TestCase):
         self.assertEqual(settings.CSRF_COOKIE_SAMESITE, "Lax")
         self.assertEqual(settings.X_FRAME_OPTIONS, "DENY")
         self.assertEqual(settings.MAX_CSV_IMPORT_SIZE_BYTES, 2 * 1024 * 1024)
+
+    def test_database_url_postgres_configura_banco_de_producao(self):
+        with patch.dict(
+            os.environ,
+            {
+                "DATABASE_URL": (
+                    "postgres://usuario:senha@db.exemplo.com:5432/treinamentos"
+                ),
+                "DB_CONN_MAX_AGE": "120",
+                "DB_SSLMODE": "require",
+            },
+        ):
+            config = database_config()
+
+        self.assertEqual(config["ENGINE"], "django.db.backends.postgresql")
+        self.assertEqual(config["NAME"], "treinamentos")
+        self.assertEqual(config["USER"], "usuario")
+        self.assertEqual(config["PASSWORD"], "senha")
+        self.assertEqual(config["HOST"], "db.exemplo.com")
+        self.assertEqual(config["PORT"], "5432")
+        self.assertEqual(config["CONN_MAX_AGE"], 120)
+        self.assertEqual(config["OPTIONS"]["sslmode"], "require")
+
+
+class SaudeTest(TestCase):
+    def test_endpoint_de_saude_e_publico_e_verifica_banco(self):
+        resposta = self.client.get(reverse("saude"))
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(resposta.json(), {"status": "ok", "database": "ok"})
 
 
 class FluxoCursoTest(TestCase):
