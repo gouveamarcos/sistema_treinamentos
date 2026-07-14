@@ -74,6 +74,7 @@ a { color: inherit; }
 .mensagem { padding: 14px 16px; border-radius: 10px; font-size: 14px; font-weight: 600; }
 .mensagem + .mensagem { margin-top: 8px; }
 .mensagem.success { color: #006f68; background: #dcf7f3; }.mensagem.error { color: #972626; background: #fde5e5; }.mensagem.warning { color: #805400; background: #fff0c9; }
+.bloco-erros-importacao { margin-top: 18px; }.bloco-erros-importacao ul { margin: 8px 0 0; padding-left: 20px; }
 .auth-layout { min-height: calc(100vh - 150px); display: grid; grid-template-columns: 1.15fr .85fr; align-items: center; gap: clamp(40px, 8vw, 120px); width: min(1080px, calc(100% - 40px)); margin: 30px auto; }
 .auth-apresentacao { padding: 40px; }
 .auth-apresentacao h1 { margin: 14px 0 20px; font-size: clamp(38px, 5vw, 59px); line-height: 1.06; letter-spacing: -2px; }

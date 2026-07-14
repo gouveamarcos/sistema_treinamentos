@@ -89,6 +89,11 @@ urlpatterns = [
         name="tecnicos_operacionais",
     ),
     path(
+        "tecnicos/importar/",
+        views.importar_tecnicos_operacionais,
+        name="importar_tecnicos_operacionais",
+    ),
+    path(
         "tecnicos/<int:tecnico_id>/editar/",
         views.editar_tecnico_operacional,
         name="editar_tecnico_operacional",

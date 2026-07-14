@@ -57,6 +57,44 @@
         <button class="botao-principal botao-auto" type="submit">Salvar tecnico</button>
     </form>
 
+    <form class="card-formulario formulario-operacional" method="post" enctype="multipart/form-data" action="{% url 'importar_tecnicos_operacionais' %}">
+        {% csrf_token %}
+        <h2>Importar tecnicos por CSV</h2>
+        <p>Use um arquivo CSV com as colunas: <strong>nome,email,matricula,telefone,equipe,regiao,ativo</strong>. As colunas nome, email e matricula sao obrigatorias.</p>
+
+        {% if importacao_form.non_field_errors %}
+            <div class="mensagem error">
+                {% for erro in importacao_form.non_field_errors %}{{ erro }}{% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="grade-formulario">
+            <div class="campo-form">
+                {{ importacao_form.empresa.label_tag }}
+                {{ importacao_form.empresa }}
+                {% for erro in importacao_form.empresa.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+            <div class="campo-form">
+                {{ importacao_form.arquivo.label_tag }}
+                {{ importacao_form.arquivo }}
+                <small class="texto-ajuda">{{ importacao_form.arquivo.help_text }}</small>
+                {% for erro in importacao_form.arquivo.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+            </div>
+        </div>
+        <button class="botao-principal botao-auto" type="submit">Importar CSV</button>
+
+        {% if resultado_importacao and resultado_importacao.erros %}
+            <div class="mensagem error bloco-erros-importacao">
+                <strong>Erros encontrados:</strong>
+                <ul>
+                    {% for erro in resultado_importacao.erros %}
+                        <li>{{ erro }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+    </form>
+
     <section class="tabela-relatorio tabela-operacional">
         <table>
             <thead>

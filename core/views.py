@@ -1,3 +1,5 @@
+import csv
+from io import TextIOWrapper
 from datetime import timedelta
 from decimal import Decimal
 
@@ -16,6 +18,7 @@ from .forms import (
     AlternativaForm,
     CursoForm,
     EmpresaForm,
+    ImportarTecnicosForm,
     EtapaCursoForm,
     LiberarCursoLoteForm,
     PrimeiroAcessoForm,
@@ -146,6 +149,111 @@ def _tecnicos_visiveis(request):
     return Tecnico.objects.filter(
         empresa__in=_empresas_visiveis(request)
     ).select_related("empresa", "usuario")
+
+
+def _valor_booleano_csv(valor):
+    if valor is None or str(valor).strip() == "":
+        return True
+    return str(valor).strip().lower() in {"1", "sim", "s", "true", "ativo", "x"}
+
+
+def _linhas_csv_tecnicos(arquivo):
+    texto = TextIOWrapper(arquivo.file, encoding="utf-8-sig", newline="")
+    amostra = texto.read(2048)
+    texto.seek(0)
+    try:
+        dialecto = csv.Sniffer().sniff(amostra, delimiters=",;")
+    except csv.Error:
+        dialecto = csv.excel
+    leitor = csv.DictReader(texto, dialect=dialecto)
+    if not leitor.fieldnames:
+        return [], ["O arquivo CSV esta vazio."]
+
+    colunas = {coluna.strip().lower() for coluna in leitor.fieldnames if coluna}
+    obrigatorias = {"nome", "email", "matricula"}
+    faltantes = sorted(obrigatorias - colunas)
+    if faltantes:
+        return [], [f"Colunas obrigatorias ausentes: {', '.join(faltantes)}."]
+
+    linhas = []
+    for numero, linha in enumerate(leitor, start=2):
+        normalizada = {
+            (chave or "").strip().lower(): (valor or "").strip()
+            for chave, valor in linha.items()
+        }
+        if not any(normalizada.values()):
+            continue
+        linhas.append((numero, normalizada))
+    return linhas, []
+
+
+def _importar_tecnicos_csv(empresa, arquivo):
+    linhas, erros = _linhas_csv_tecnicos(arquivo)
+    dados_validos = []
+    matriculas_no_arquivo = set()
+    emails_no_arquivo = set()
+
+    for numero, linha in linhas:
+        nome = linha.get("nome", "")
+        email = linha.get("email", "").lower()
+        matricula = linha.get("matricula", "")
+
+        if not nome:
+            erros.append(f"Linha {numero}: nome e obrigatorio.")
+        if not email:
+            erros.append(f"Linha {numero}: email e obrigatorio.")
+        if not matricula:
+            erros.append(f"Linha {numero}: matricula e obrigatoria.")
+
+        if matricula and matricula in matriculas_no_arquivo:
+            erros.append(f"Linha {numero}: matricula duplicada no arquivo.")
+        if email and email in emails_no_arquivo:
+            erros.append(f"Linha {numero}: email duplicado no arquivo.")
+        matriculas_no_arquivo.add(matricula)
+        emails_no_arquivo.add(email)
+
+        tecnico_por_email = Tecnico.objects.filter(email__iexact=email).first()
+        tecnico_por_matricula = Tecnico.objects.filter(matricula=matricula).first()
+        existente = tecnico_por_matricula or tecnico_por_email
+        if tecnico_por_email and tecnico_por_matricula and tecnico_por_email != tecnico_por_matricula:
+            erros.append(
+                f"Linha {numero}: email e matricula pertencem a tecnicos diferentes."
+            )
+        if existente and existente.empresa_id != empresa.id:
+            erros.append(
+                f"Linha {numero}: tecnico ja existe em outra empresa."
+            )
+
+        dados_validos.append(
+            {
+                "existente": existente,
+                "nome": nome,
+                "email": email,
+                "matricula": matricula,
+                "telefone": linha.get("telefone", ""),
+                "equipe": linha.get("equipe", ""),
+                "regiao": linha.get("regiao", ""),
+                "ativo": _valor_booleano_csv(linha.get("ativo")),
+            }
+        )
+
+    if erros:
+        return {"criados": 0, "atualizados": 0, "erros": erros}
+
+    resultado = {"criados": 0, "atualizados": 0, "erros": []}
+    with transaction.atomic():
+        for item in dados_validos:
+            tecnico = item.pop("existente")
+            if tecnico:
+                for campo, valor in item.items():
+                    setattr(tecnico, campo, valor)
+                tecnico.empresa = empresa
+                tecnico.save()
+                resultado["atualizados"] += 1
+            else:
+                Tecnico.objects.create(empresa=empresa, **item)
+                resultado["criados"] += 1
+    return resultado
 
 
 def _exigir_editor_catalogo(request):
@@ -615,6 +723,8 @@ def alternar_empresa_operacional(request, empresa_id):
 @staff_member_required
 def tecnicos_operacionais(request):
     _exigir_operador_empresas(request)
+    importacao_form = ImportarTecnicosForm(usuario=request.user)
+    resultado_importacao = None
     if request.method == "POST":
         form = TecnicoForm(request.POST, usuario=request.user)
         if form.is_valid():
@@ -628,7 +738,56 @@ def tecnicos_operacionais(request):
     return render(
         request,
         "core/tecnicos_operacionais.html",
-        {"form": form, "tecnicos": tecnicos},
+        {
+            "form": form,
+            "importacao_form": importacao_form,
+            "resultado_importacao": resultado_importacao,
+            "tecnicos": tecnicos,
+        },
+    )
+
+
+@staff_member_required
+@transaction.atomic
+def importar_tecnicos_operacionais(request):
+    _exigir_operador_empresas(request)
+    if request.method != "POST":
+        return redirect("tecnicos_operacionais")
+
+    form = ImportarTecnicosForm(request.POST, request.FILES, usuario=request.user)
+    resultado_importacao = None
+    if form.is_valid():
+        resultado_importacao = _importar_tecnicos_csv(
+            form.cleaned_data["empresa"],
+            form.cleaned_data["arquivo"],
+        )
+        if resultado_importacao["erros"]:
+            messages.error(
+                request,
+                "Importacao nao realizada. Corrija os erros do arquivo e tente novamente.",
+            )
+        else:
+            messages.success(
+                request,
+                (
+                    "Importacao concluida: "
+                    f"{resultado_importacao['criados']} criado(s), "
+                    f"{resultado_importacao['atualizados']} atualizado(s)."
+                ),
+            )
+            return redirect("tecnicos_operacionais")
+
+    tecnicos = _tecnicos_visiveis(request).order_by("empresa__nome", "nome")
+    cadastro_form = TecnicoForm(usuario=request.user)
+    return render(
+        request,
+        "core/tecnicos_operacionais.html",
+        {
+            "form": cadastro_form,
+            "importacao_form": form,
+            "resultado_importacao": resultado_importacao,
+            "tecnicos": tecnicos,
+        },
     )
 
 

@@ -267,6 +267,36 @@ class TecnicoForm(forms.ModelForm):
         self.fields["empresa"].queryset = empresas.order_by("nome")
 
 
+class ImportarTecnicosForm(forms.Form):
+    empresa = forms.ModelChoiceField(
+        label="Empresa",
+        queryset=Empresa.objects.none(),
+        empty_label="Selecione a empresa",
+    )
+    arquivo = forms.FileField(
+        label="Arquivo CSV",
+        help_text=(
+            "Use as colunas: nome,email,matricula,telefone,equipe,regiao,ativo."
+        ),
+    )
+
+    def __init__(self, *args, usuario=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        empresas = (
+            Empresa.objects.filter(ativa=True)
+            if usuario is None
+            else empresas_do_usuario(usuario)
+        )
+        self.fields["empresa"].queryset = empresas.order_by("nome")
+
+    def clean_arquivo(self):
+        arquivo = self.cleaned_data["arquivo"]
+        nome = arquivo.name.lower()
+        if not nome.endswith(".csv"):
+            raise forms.ValidationError("Envie um arquivo CSV.")
+        return arquivo
+
+
 class ProdutoForm(forms.ModelForm):
     class Meta:
         model = Produto

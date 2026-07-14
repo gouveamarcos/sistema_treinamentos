@@ -5,6 +5,7 @@ import re
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.models import Group, User
 from django.core import mail
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import RequestFactory
 from django.test import TestCase
@@ -798,6 +799,105 @@ class CadastroOperacionalTest(TestCase):
         self.tecnico_a.refresh_from_db()
         self.assertEqual(resposta.status_code, 200)
         self.assertFalse(self.tecnico_a.ativo)
+
+    def test_superadmin_importa_tecnicos_por_csv(self):
+        self.client.force_login(self.superadmin)
+        arquivo = SimpleUploadedFile(
+            "tecnicos.csv",
+            (
+                "nome,email,matricula,telefone,equipe,regiao,ativo\n"
+                "Tecnico Importado,importado@exemplo.com,IMP001,11999999999,Campo,Sul,sim\n"
+                "Tecnico Inativo,inativo.importado@exemplo.com,IMP002,,,Norte,nao\n"
+            ).encode(),
+            content_type="text/csv",
+        )
+
+        resposta = self.client.post(
+            reverse("importar_tecnicos_operacionais"),
+            {"empresa": self.empresa_b.id, "arquivo": arquivo},
+            follow=True,
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTrue(
+            Tecnico.objects.filter(
+                empresa=self.empresa_b,
+                matricula="IMP001",
+                ativo=True,
+            ).exists()
+        )
+        self.assertTrue(
+            Tecnico.objects.filter(
+                empresa=self.empresa_b,
+                matricula="IMP002",
+                ativo=False,
+            ).exists()
+        )
+
+    def test_importacao_atualiza_tecnico_existente_por_matricula(self):
+        self.client.force_login(self.superadmin)
+        arquivo = SimpleUploadedFile(
+            "tecnicos.csv",
+            (
+                "nome,email,matricula,telefone,equipe,regiao,ativo\n"
+                "Tecnico Atualizado,novo.cadastro.a@exemplo.com,CAD-A,11888888888,Equipe Nova,Leste,sim\n"
+            ).encode(),
+            content_type="text/csv",
+        )
+
+        resposta = self.client.post(
+            reverse("importar_tecnicos_operacionais"),
+            {"empresa": self.empresa_a.id, "arquivo": arquivo},
+            follow=True,
+        )
+
+        self.tecnico_a.refresh_from_db()
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(self.tecnico_a.nome, "Tecnico Atualizado")
+        self.assertEqual(self.tecnico_a.email, "novo.cadastro.a@exemplo.com")
+        self.assertEqual(self.tecnico_a.equipe, "Equipe Nova")
+
+    def test_responsavel_nao_importa_tecnicos_para_empresa_fora_do_escopo(self):
+        self.client.force_login(self.responsavel_a)
+        arquivo = SimpleUploadedFile(
+            "tecnicos.csv",
+            "nome,email,matricula\nTecnico Fora,fora.import@exemplo.com,FORA-IMP\n".encode(),
+            content_type="text/csv",
+        )
+
+        resposta = self.client.post(
+            reverse("importar_tecnicos_operacionais"),
+            {"empresa": self.empresa_b.id, "arquivo": arquivo},
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(
+            Tecnico.objects.filter(email="fora.import@exemplo.com").exists()
+        )
+        self.assertContains(resposta, "Faça uma escolha válida", html=False)
+
+    def test_importacao_com_erro_nao_grava_linhas_validas(self):
+        self.client.force_login(self.superadmin)
+        arquivo = SimpleUploadedFile(
+            "tecnicos.csv",
+            (
+                "nome,email,matricula\n"
+                "Tecnico Valido,valido.import@exemplo.com,IMP-VALIDO\n"
+                ",sem.nome@exemplo.com,IMP-ERRO\n"
+            ).encode(),
+            content_type="text/csv",
+        )
+
+        resposta = self.client.post(
+            reverse("importar_tecnicos_operacionais"),
+            {"empresa": self.empresa_a.id, "arquivo": arquivo},
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Linha 3: nome e obrigatorio.")
+        self.assertFalse(
+            Tecnico.objects.filter(email="valido.import@exemplo.com").exists()
+        )
 
 
 class CatalogoOperacionalTest(TestCase):
