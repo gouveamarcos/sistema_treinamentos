@@ -37,6 +37,11 @@ Plataforma Django para treinamento, avaliação e reciclagem periódica de técn
 
 Acesse `http://127.0.0.1:8000/`.
 
+## Manuais
+
+- [Manual do Usuário](docs/MANUAL_USUARIO.md)
+- [Manual do Superadmin](docs/MANUAL_SUPERADMIN.md)
+
 ## Cadastrar conteúdo
 
 No painel `/admin/`:
