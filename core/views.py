@@ -1133,6 +1133,12 @@ def produtos_operacionais(request):
         form = ProdutoForm(request.POST)
         if form.is_valid():
             produto = form.save()
+            registrar_evento(
+                request.user,
+                EventoAuditoria.Acao.CADASTRO,
+                produto,
+                detalhes="Produto criado pela tela de catalogo.",
+            )
             messages.success(request, f"Produto {produto.nome} salvo com sucesso.")
             return redirect("produtos_operacionais")
     else:
@@ -1154,6 +1160,12 @@ def editar_produto_operacional(request, produto_id):
         form = ProdutoForm(request.POST, instance=produto)
         if form.is_valid():
             produto = form.save()
+            registrar_evento(
+                request.user,
+                EventoAuditoria.Acao.EDICAO,
+                produto,
+                detalhes="Produto atualizado pela tela de catalogo.",
+            )
             messages.success(request, f"Produto {produto.nome} atualizado com sucesso.")
             return redirect("produtos_operacionais")
     else:
@@ -1173,6 +1185,12 @@ def alternar_produto_operacional(request, produto_id):
     produto = get_object_or_404(Produto, pk=produto_id)
     produto.ativo = not produto.ativo
     produto.save(update_fields=["ativo"])
+    registrar_evento(
+        request.user,
+        EventoAuditoria.Acao.STATUS,
+        produto,
+        detalhes=f"Status alterado para {'ativo' if produto.ativo else 'inativo'}.",
+    )
     status = "ativado" if produto.ativo else "desativado"
     messages.success(request, f"Produto {status} com sucesso.")
     return redirect("produtos_operacionais")
@@ -1185,6 +1203,12 @@ def cursos_operacionais(request):
         form = CursoForm(request.POST)
         if form.is_valid():
             curso = form.save()
+            registrar_evento(
+                request.user,
+                EventoAuditoria.Acao.CADASTRO,
+                curso,
+                detalhes="Curso criado pela tela de catalogo.",
+            )
             messages.success(request, f"Curso {curso.nome} salvo com sucesso.")
             return redirect("cursos_operacionais")
     else:
@@ -1206,6 +1230,12 @@ def editar_curso_operacional(request, curso_id):
         form = CursoForm(request.POST, instance=curso)
         if form.is_valid():
             curso = form.save()
+            registrar_evento(
+                request.user,
+                EventoAuditoria.Acao.EDICAO,
+                curso,
+                detalhes="Curso atualizado pela tela de catalogo.",
+            )
             messages.success(request, f"Curso {curso.nome} atualizado com sucesso.")
             return redirect("cursos_operacionais")
     else:
@@ -1225,6 +1255,12 @@ def alternar_curso_operacional(request, curso_id):
     curso = get_object_or_404(Curso, pk=curso_id)
     curso.ativo = not curso.ativo
     curso.save(update_fields=["ativo"])
+    registrar_evento(
+        request.user,
+        EventoAuditoria.Acao.STATUS,
+        curso,
+        detalhes=f"Status alterado para {'ativo' if curso.ativo else 'inativo'}.",
+    )
     status = "ativado" if curso.ativo else "desativado"
     messages.success(request, f"Curso {status} com sucesso.")
     return redirect("cursos_operacionais")
@@ -1259,6 +1295,12 @@ def criar_etapa_operacional(request, curso_id):
         etapa = form.save(commit=False)
         etapa.curso = curso
         etapa.save()
+        registrar_evento(
+            request.user,
+            EventoAuditoria.Acao.CADASTRO,
+            etapa,
+            detalhes=f"Etapa criada no curso {curso.nome}.",
+        )
         messages.success(request, f"Etapa {etapa.titulo} criada com sucesso.")
     else:
         messages.error(request, "Nao foi possivel criar a etapa. Confira os dados.")
@@ -1273,6 +1315,12 @@ def editar_etapa_operacional(request, etapa_id):
         form = EtapaCursoForm(request.POST, instance=etapa)
         if form.is_valid():
             etapa = form.save()
+            registrar_evento(
+                request.user,
+                EventoAuditoria.Acao.EDICAO,
+                etapa,
+                detalhes=f"Etapa atualizada no curso {etapa.curso.nome}.",
+            )
             messages.success(request, f"Etapa {etapa.titulo} atualizada com sucesso.")
             return redirect("conteudo_curso_operacional", curso_id=etapa.curso_id)
     else:
@@ -1292,6 +1340,12 @@ def alternar_etapa_operacional(request, etapa_id):
     etapa = get_object_or_404(EtapaCurso.objects.select_related("curso"), pk=etapa_id)
     etapa.ativo = not etapa.ativo
     etapa.save(update_fields=["ativo"])
+    registrar_evento(
+        request.user,
+        EventoAuditoria.Acao.STATUS,
+        etapa,
+        detalhes=f"Status da etapa no curso {etapa.curso.nome} alterado para {'ativa' if etapa.ativo else 'inativa'}.",
+    )
     status = "ativada" if etapa.ativo else "desativada"
     messages.success(request, f"Etapa {status} com sucesso.")
     return redirect("conteudo_curso_operacional", curso_id=etapa.curso_id)
@@ -1312,6 +1366,12 @@ def criar_questao_operacional(request, etapa_id):
         questao = form.save(commit=False)
         questao.etapa = etapa
         questao.save()
+        registrar_evento(
+            request.user,
+            EventoAuditoria.Acao.CADASTRO,
+            questao,
+            detalhes=f"Questao criada na etapa {etapa.titulo}.",
+        )
         messages.success(request, "Questao criada com sucesso.")
     else:
         messages.error(request, "Nao foi possivel criar a questao. Confira os dados.")
@@ -1328,7 +1388,13 @@ def editar_questao_operacional(request, questao_id):
     if request.method == "POST":
         form = QuestaoForm(request.POST, instance=questao)
         if form.is_valid():
-            form.save()
+            questao = form.save()
+            registrar_evento(
+                request.user,
+                EventoAuditoria.Acao.EDICAO,
+                questao,
+                detalhes=f"Questao atualizada na etapa {questao.etapa.titulo}.",
+            )
             messages.success(request, "Questao atualizada com sucesso.")
             return redirect(
                 "conteudo_curso_operacional",
@@ -1353,6 +1419,12 @@ def excluir_questao_operacional(request, questao_id):
         pk=questao_id,
     )
     curso_id = questao.etapa.curso_id
+    registrar_evento(
+        request.user,
+        EventoAuditoria.Acao.EDICAO,
+        questao,
+        detalhes=f"Questao removida da etapa {questao.etapa.titulo}.",
+    )
     questao.delete()
     messages.success(request, "Questao removida com sucesso.")
     return redirect("conteudo_curso_operacional", curso_id=curso_id)
@@ -1373,6 +1445,12 @@ def criar_alternativa_operacional(request, questao_id):
         alternativa = form.save(commit=False)
         alternativa.questao = questao
         alternativa.save()
+        registrar_evento(
+            request.user,
+            EventoAuditoria.Acao.CADASTRO,
+            alternativa,
+            detalhes=f"Alternativa criada na questao {questao.id}.",
+        )
         messages.success(request, "Alternativa criada com sucesso.")
     else:
         messages.error(
@@ -1392,7 +1470,13 @@ def editar_alternativa_operacional(request, alternativa_id):
     if request.method == "POST":
         form = AlternativaForm(request.POST, instance=alternativa)
         if form.is_valid():
-            form.save()
+            alternativa = form.save()
+            registrar_evento(
+                request.user,
+                EventoAuditoria.Acao.EDICAO,
+                alternativa,
+                detalhes=f"Alternativa atualizada na questao {alternativa.questao_id}.",
+            )
             messages.success(request, "Alternativa atualizada com sucesso.")
             return redirect(
                 "conteudo_curso_operacional",
@@ -1417,6 +1501,12 @@ def excluir_alternativa_operacional(request, alternativa_id):
         pk=alternativa_id,
     )
     curso_id = alternativa.questao.etapa.curso_id
+    registrar_evento(
+        request.user,
+        EventoAuditoria.Acao.EDICAO,
+        alternativa,
+        detalhes=f"Alternativa removida da questao {alternativa.questao_id}.",
+    )
     alternativa.delete()
     messages.success(request, "Alternativa removida com sucesso.")
     return redirect("conteudo_curso_operacional", curso_id=curso_id)

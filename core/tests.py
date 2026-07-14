@@ -1231,6 +1231,51 @@ class CatalogoOperacionalTest(TestCase):
 
         self.assertFalse(self.curso.ativo)
 
+    def test_registra_auditoria_ao_criar_produto_e_curso(self):
+        self.client.force_login(self.editor)
+
+        self.client.post(
+            reverse("produtos_operacionais"),
+            {
+                "nome": "Produto Auditado",
+                "descricao": "Auditoria",
+                "ativo": "on",
+            },
+            follow=True,
+        )
+        produto = Produto.objects.get(nome="Produto Auditado")
+
+        self.client.post(
+            reverse("cursos_operacionais"),
+            {
+                "produto": produto.id,
+                "nome": "Curso Auditado",
+                "descricao": "Curso com auditoria",
+                "validade_meses": 12,
+                "nota_minima": 80,
+                "link_notebooklm": "",
+                "ativo": "on",
+            },
+            follow=True,
+        )
+
+        self.assertTrue(
+            EventoAuditoria.objects.filter(
+                usuario=self.editor,
+                acao=EventoAuditoria.Acao.CADASTRO,
+                alvo_tipo="Produto",
+                alvo_repr="Produto Auditado",
+            ).exists()
+        )
+        self.assertTrue(
+            EventoAuditoria.objects.filter(
+                usuario=self.editor,
+                acao=EventoAuditoria.Acao.CADASTRO,
+                alvo_tipo="Curso",
+                alvo_repr="Curso Auditado",
+            ).exists()
+        )
+
 
 class ConteudoCursoOperacionalTest(TestCase):
     def setUp(self):
@@ -1304,6 +1349,14 @@ class ConteudoCursoOperacionalTest(TestCase):
             ).exists()
         )
         self.assertContains(resposta, "Video explicativo")
+        self.assertTrue(
+            EventoAuditoria.objects.filter(
+                usuario=self.editor,
+                acao=EventoAuditoria.Acao.CADASTRO,
+                alvo_tipo="EtapaCurso",
+                alvo_repr__contains="Video explicativo",
+            ).exists()
+        )
 
     def test_editor_edita_e_alterna_etapa(self):
         self.client.force_login(self.editor)
@@ -1390,6 +1443,13 @@ class ConteudoCursoOperacionalTest(TestCase):
         )
 
         self.assertFalse(Questao.objects.filter(pk=questao.id).exists())
+        self.assertTrue(
+            EventoAuditoria.objects.filter(
+                usuario=self.editor,
+                alvo_tipo="Questao",
+                detalhes__contains="Questao removida",
+            ).exists()
+        )
 
     def test_editor_cria_edita_e_exclui_alternativa(self):
         questao = Questao.objects.create(
@@ -1434,6 +1494,13 @@ class ConteudoCursoOperacionalTest(TestCase):
         )
 
         self.assertFalse(Alternativa.objects.filter(pk=alternativa.id).exists())
+        self.assertTrue(
+            EventoAuditoria.objects.filter(
+                usuario=self.editor,
+                alvo_tipo="Alternativa",
+                detalhes__contains="Alternativa removida",
+            ).exists()
+        )
 
 
 class OperacaoAdminTest(TestCase):
