@@ -41,6 +41,7 @@ Acesse `http://127.0.0.1:8000/`.
 
 - [Manual do Usuário](docs/MANUAL_USUARIO.md)
 - [Manual do Superadmin](docs/MANUAL_SUPERADMIN.md)
+- [Roteiros de Teste Ponta a Ponta](docs/ROTEIROS_TESTE_E2E.md)
 
 ## Cadastrar conteúdo
 
