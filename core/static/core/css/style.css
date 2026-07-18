@@ -70,10 +70,10 @@ a { color: inherit; }
 .botao-principal:hover { background: var(--verde-escuro); }
 .botao-secundario { display: inline-block; padding: 14px 20px; border: 0; border-radius: 10px; color: var(--verde-escuro); background: #e7f8f6; font: inherit; font-weight: 700; text-align: center; text-decoration: none; cursor: pointer; }.botao-secundario:hover { background: #d4f2ef; }
 .botao-auto { width: auto; min-width: 170px; }
-.mensagens { width: min(1180px, calc(100% - 40px)); margin: 20px auto -20px; }
-.mensagem { padding: 14px 16px; border-radius: 10px; font-size: 14px; font-weight: 600; }
+.mensagens { width: min(1180px, calc(100% - 40px)); margin: 22px auto 0; }
+.mensagem { padding: 15px 18px; border: 1px solid transparent; border-radius: 12px; box-shadow: 0 8px 24px rgba(31,40,43,.06); font-size: 14px; font-weight: 700; }
 .mensagem + .mensagem { margin-top: 8px; }
-.mensagem.success { color: #006f68; background: #dcf7f3; }.mensagem.error { color: #972626; background: #fde5e5; }.mensagem.warning { color: #805400; background: #fff0c9; }
+.mensagem.success { border-color: #9ce7df; color: #006f68; background: #dcf7f3; }.mensagem.error { border-color: #f3b8b8; color: #972626; background: #fde5e5; }.mensagem.warning { border-color: #f4d891; color: #805400; background: #fff0c9; }
 .bloco-erros-importacao { margin-top: 18px; }.bloco-erros-importacao ul { margin: 8px 0 0; padding-left: 20px; }
 .auth-layout { min-height: calc(100vh - 150px); display: grid; grid-template-columns: 1.15fr .85fr; align-items: center; gap: clamp(40px, 8vw, 120px); width: min(1080px, calc(100% - 40px)); margin: 30px auto; }
 .auth-apresentacao { padding: 40px; }

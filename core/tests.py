@@ -899,6 +899,7 @@ class CadastroOperacionalTest(TestCase):
         self.assertEqual(resposta.status_code, 200)
         self.assertTrue(Empresa.objects.filter(nome="Cliente Novo").exists())
         self.assertContains(resposta, "Cliente Novo")
+        self.assertContains(resposta, "Empresa Cliente Novo criada com sucesso.")
 
     def test_responsavel_nao_cria_empresa(self):
         self.client.force_login(self.responsavel_a)
@@ -943,6 +944,10 @@ class CadastroOperacionalTest(TestCase):
         self.empresa_a.refresh_from_db()
         self.assertEqual(resposta.status_code, 200)
         self.assertEqual(self.empresa_a.responsavel, "Contato Atualizado")
+        self.assertContains(
+            resposta,
+            f"Empresa {self.empresa_a.nome} atualizada com sucesso.",
+        )
 
     def test_responsavel_nao_edita_empresa_fora_do_escopo(self):
         self.client.force_login(self.responsavel_a)
