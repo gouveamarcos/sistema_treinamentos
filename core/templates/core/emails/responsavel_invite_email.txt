@@ -9,6 +9,4 @@ Para definir sua senha e acessar a plataforma, use o link abaixo:
 
 Seu usuario de acesso e o e-mail cadastrado: {{ usuario.email }}
 
-Se voce nao esperava este convite, ignore esta mensagem.
-
 Academia Tecnica Sem Parar

@@ -163,7 +163,8 @@ Papéis disponíveis:
   alternativas.
 
 Ao cadastrar um responsável, o sistema envia convite por e-mail para definição
-de senha. Também é possível reenviar o convite.
+de senha. Também é possível reenviar o convite. Por padrão, o link fica válido
+por 7 dias, conforme `PASSWORD_RESET_TIMEOUT`.
 
 ## 8. Produtos
 

@@ -48,6 +48,7 @@ EMAIL_HOST_USER=usuario
 EMAIL_HOST_PASSWORD=senha
 EMAIL_USE_TLS=True
 DEFAULT_FROM_EMAIL=Academia Técnica <treinamentos@suaempresa.com.br>
+PASSWORD_RESET_TIMEOUT=604800
 ```
 
 ## Comandos de release

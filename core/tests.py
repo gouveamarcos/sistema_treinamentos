@@ -52,6 +52,7 @@ class ConfiguracaoSegurancaTest(TestCase):
         self.assertEqual(settings.CSRF_COOKIE_SAMESITE, "Lax")
         self.assertEqual(settings.X_FRAME_OPTIONS, "DENY")
         self.assertEqual(settings.MAX_CSV_IMPORT_SIZE_BYTES, 2 * 1024 * 1024)
+        self.assertEqual(settings.PASSWORD_RESET_TIMEOUT, 7 * 24 * 60 * 60)
 
     def test_database_url_postgres_configura_banco_de_producao(self):
         with patch.dict(
@@ -478,6 +479,7 @@ class GestaoResponsaveisEmpresaTest(TestCase):
         self.assertIn("novo.responsavel@exemplo.com", mail.outbox[0].to)
         self.assertIn("definir sua senha", mail.outbox[0].body)
         self.assertIn("/senha/redefinir/", mail.outbox[0].body)
+        self.assertNotIn("nao esperava este convite", mail.outbox[0].body)
 
     def test_responsavel_enxerga_apenas_vinculos_da_propria_empresa(self):
         self.client.force_login(self.responsavel_a)
@@ -570,6 +572,7 @@ class GestaoResponsaveisEmpresaTest(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn(self.responsavel_a.email, mail.outbox[0].to)
         self.assertIn("/senha/redefinir/", mail.outbox[0].body)
+        self.assertNotIn("nao esperava este convite", mail.outbox[0].body)
 
 
 class ExperienciaResponsavelTest(TestCase):
