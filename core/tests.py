@@ -622,8 +622,8 @@ class ExperienciaResponsavelTest(TestCase):
         self.assertEqual(resposta.status_code, 200)
         self.assertContains(resposta, "Painel operacional")
         self.assertContains(resposta, "Liberar cursos")
-        self.assertContains(resposta, "Relatorios")
-        self.assertContains(resposta, "Tecnicos")
+        self.assertContains(resposta, "Relatórios")
+        self.assertContains(resposta, "Técnicos")
         self.assertNotContains(resposta, "Produtos")
         self.assertNotContains(resposta, "Editor de cursos")
 

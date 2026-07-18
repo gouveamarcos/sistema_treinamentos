@@ -540,16 +540,16 @@ def home(request):
                 [
                     {
                         "titulo": "Liberar cursos",
-                        "texto": "Crie liberacoes para tecnicos das suas empresas.",
+                        "texto": "Crie liberações para técnicos das suas empresas.",
                         "url": "liberar_curso_lote",
                     },
                     {
-                        "titulo": "Relatorios",
-                        "texto": "Acompanhe pendencias, vencimentos e certificados.",
+                        "titulo": "Relatórios",
+                        "texto": "Acompanhe pendências, vencimentos e certificados.",
                         "url": "relatorio_treinamentos",
                     },
                     {
-                        "titulo": "Tecnicos",
+                        "titulo": "Técnicos",
                         "texto": "Cadastre e atualize profissionais por empresa.",
                         "url": "tecnicos_operacionais",
                     },
@@ -565,7 +565,7 @@ def home(request):
                     },
                     {
                         "titulo": "Produtos",
-                        "texto": "Organize as linhas de produto do catalogo.",
+                        "texto": "Organize as linhas de produto do catálogo.",
                         "url": "produtos_operacionais",
                     },
                 ]
@@ -977,7 +977,7 @@ def editar_responsavel_empresa(request, responsavel_id):
                 empresa=responsabilidade.empresa,
                 detalhes=f"Responsavel atualizado: {responsabilidade.usuario.email}.",
             )
-            messages.success(request, "ResponsÃ¡vel atualizado com sucesso.")
+            messages.success(request, "Responsável atualizado com sucesso.")
             return redirect("responsaveis_empresas")
     else:
         form = ResponsavelEmpresaForm(usuario=request.user, instance=responsabilidade)
@@ -1007,7 +1007,7 @@ def alternar_responsavel_empresa(request, responsavel_id):
         detalhes=f"Status alterado para {'ativo' if responsabilidade.ativo else 'inativo'}.",
     )
     status = "ativado" if responsabilidade.ativo else "desativado"
-    messages.success(request, f"ResponsÃ¡vel {status} com sucesso.")
+    messages.success(request, f"Responsável {status} com sucesso.")
     return redirect("responsaveis_empresas")
 
 

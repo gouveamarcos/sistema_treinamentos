@@ -123,10 +123,10 @@ a { color: inherit; }
 .filtros-relatorio label { display: grid; gap: 7px; min-width: 220px; color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; }
 .filtros-relatorio select, .filtros-relatorio input { padding: 12px 13px; border: 1px solid #ccd3d4; border-radius: 9px; color: var(--texto); background: var(--branco); font: inherit; text-transform: none; letter-spacing: 0; }
 .cards-resumo { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 18px; }
-.cards-operacionais { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-top: 28px; }
-.cards-resumo article { padding: 18px; border: 1px solid var(--borda); border-radius: 14px; background: var(--branco); }
-.cards-resumo span { display: block; color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; }
-.cards-resumo strong { display: block; margin-top: 8px; font-size: 30px; line-height: 1; }
+.cards-operacionais { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin: 28px 0 18px; }
+.cards-resumo article { display: grid; gap: 10px; padding: 18px; border: 1px solid var(--borda); border-radius: 14px; background: var(--branco); }
+.cards-resumo span { display: block; min-height: 26px; color: var(--muted); font-size: 11px; font-weight: 800; line-height: 1.25; text-transform: uppercase; letter-spacing: .6px; }
+.cards-resumo strong { display: block; font-size: 34px; line-height: 1; letter-spacing: -1px; }
 .grade-gerencial { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0 0 22px; }
 .painel-gerencial { overflow: hidden; border: 1px solid var(--borda); border-radius: 16px; background: var(--branco); }
 .painel-cabecalho { padding: 18px 18px 4px; }

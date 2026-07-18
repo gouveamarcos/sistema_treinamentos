@@ -1,13 +1,13 @@
 {% extends "core/base.html" %}
-{% block title %}Inicio - Academia Tecnica{% endblock %}
+{% block title %}Início - Academia Técnica{% endblock %}
 {% block content %}
 <main class="container">
     {% if painel_operacional %}
         <section class="hero">
             <div>
                 <span class="eyebrow">Painel operacional</span>
-                <h1>Bem-vindo ao seu espaco de gestao.</h1>
-                <p>Use os atalhos abaixo para operar empresas, tecnicos, liberacoes e catalogo conforme seu papel na plataforma.</p>
+                <h1>Bem-vindo ao seu espaço de gestão.</h1>
+                <p>Use os atalhos abaixo para operar empresas, técnicos, liberações e catálogo conforme seu papel na plataforma.</p>
             </div>
             <div class="hero-badge">
                 <strong>{{ resumo_operacional.empresas }}</strong>
@@ -17,8 +17,8 @@
 
         <section class="cards-resumo cards-operacionais">
             <article><span>Empresas</span><strong>{{ resumo_operacional.empresas }}</strong></article>
-            <article><span>Tecnicos</span><strong>{{ resumo_operacional.tecnicos }}</strong></article>
-            <article><span>Liberacoes ativas</span><strong>{{ resumo_operacional.liberacoes }}</strong></article>
+            <article><span>Técnicos</span><strong>{{ resumo_operacional.tecnicos }}</strong></article>
+            <article><span>Liberações ativas</span><strong>{{ resumo_operacional.liberacoes }}</strong></article>
             {% if pode_catalogo %}
                 <article><span>Produtos ativos</span><strong>{{ resumo_operacional.produtos }}</strong></article>
                 <article><span>Cursos ativos</span><strong>{{ resumo_operacional.cursos }}</strong></article>
@@ -29,17 +29,17 @@
             <div class="secao-titulo">
                 <div>
                     <span class="eyebrow">Seu papel</span>
-                    <h2>O que voce pode fazer</h2>
+                    <h2>O que você pode fazer</h2>
                 </div>
                 <p>
                     {% if user.is_superuser %}
-                        Superadmin: visao completa da plataforma.
+                        Superadmin: visão completa da plataforma.
                     {% elif pode_operar and pode_catalogo %}
-                        Operacao e catalogo: voce atua nas empresas do seu escopo e tambem edita cursos.
+                        Operação e catálogo: você atua nas empresas do seu escopo e também edita cursos.
                     {% elif pode_catalogo %}
-                        Editor de cursos: voce gerencia produtos, cursos e conteudo.
+                        Editor de cursos: você gerencia produtos, cursos e conteúdo.
                     {% else %}
-                        Responsavel operacional: voce opera empresas, tecnicos, liberacoes e relatorios.
+                        Responsável operacional: você opera empresas, técnicos, liberações e relatórios.
                     {% endif %}
                 </p>
             </div>
@@ -61,7 +61,7 @@
             <div class="secao-titulo">
                 <div>
                     <span class="eyebrow">Escopo</span>
-                    <h2>Empresas visiveis</h2>
+                    <h2>Empresas visíveis</h2>
                 </div>
                 <p>As telas operacionais usam esse mesmo limite.</p>
             </div>
@@ -83,7 +83,7 @@
                 {% empty %}
                     <div class="estado-vazio">
                         <h3>Nenhuma empresa vinculada</h3>
-                        <p>Peca ao superadmin para vincular seu usuario como responsavel.</p>
+                        <p>Peça ao superadmin para vincular seu usuário como responsável.</p>
                     </div>
                 {% endfor %}
             </div>
@@ -91,9 +91,9 @@
     {% else %}
         <section class="hero">
             <div>
-                <span class="eyebrow">Sua jornada de capacitacao</span>
-                <h1>Conhecimento tecnico para manter tudo em movimento.</h1>
-                <p>Acesse seus treinamentos obrigatorios, acompanhe certificacoes e mantenha sua qualificacao em dia.</p>
+                <span class="eyebrow">Sua jornada de capacitação</span>
+                <h1>Conhecimento técnico para manter tudo em movimento.</h1>
+                <p>Acesse seus treinamentos obrigatórios, acompanhe certificações e mantenha sua qualificação em dia.</p>
             </div>
             <div class="hero-badge">
                 <strong>{{ produtos|length }}</strong>
@@ -107,7 +107,7 @@
                     <span class="eyebrow">Treinamentos</span>
                     <h2>Escolha um produto</h2>
                 </div>
-                <p>Voce vera apenas os cursos liberados para o seu perfil.</p>
+                <p>Você verá apenas os cursos liberados para o seu perfil.</p>
             </div>
             <div class="produtos">
                 {% for produto in produtos %}
@@ -115,14 +115,14 @@
                         <span class="produto-icone produto-cor-{{ forloop.counter }}">0{{ forloop.counter }}</span>
                         <div>
                             <h3>{{ produto.nome }}</h3>
-                            <p>{{ produto.descricao|default:"Treinamentos tecnicos, procedimentos e certificacoes." }}</p>
+                            <p>{{ produto.descricao|default:"Treinamentos técnicos, procedimentos e certificações." }}</p>
                         </div>
                         <span class="seta">></span>
                     </a>
                 {% empty %}
                     <div class="estado-vazio">
                         <h3>Nenhum treinamento liberado</h3>
-                        <p>Peca ao responsavel pela plataforma para liberar seus cursos.</p>
+                        <p>Peça ao responsável pela plataforma para liberar seus cursos.</p>
                     </div>
                 {% endfor %}
             </div>
