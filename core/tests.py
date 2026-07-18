@@ -925,6 +925,33 @@ class CadastroOperacionalTest(TestCase):
         self.assertNotContains(resposta, self.empresa_b.nome)
         self.assertFalse(resposta.context["pode_criar"])
 
+    def test_superadmin_lista_empresa_inativa_para_reativar(self):
+        self.empresa_a.ativa = False
+        self.empresa_a.save(update_fields=["ativa"])
+        self.client.force_login(self.superadmin)
+
+        resposta = self.client.get(reverse("empresas_operacionais"))
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, self.empresa_a.nome)
+        self.assertContains(resposta, "Inativa")
+        self.assertContains(resposta, "Ativar")
+
+    def test_superadmin_reativa_empresa_inativa_pela_tela_operacional(self):
+        self.empresa_a.ativa = False
+        self.empresa_a.save(update_fields=["ativa"])
+        self.client.force_login(self.superadmin)
+
+        resposta = self.client.post(
+            reverse("alternar_empresa_operacional", args=(self.empresa_a.id,)),
+            follow=True,
+        )
+
+        self.empresa_a.refresh_from_db()
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTrue(self.empresa_a.ativa)
+        self.assertContains(resposta, "Empresa ativada com sucesso.")
+
     def test_responsavel_edita_empresa_do_proprio_escopo(self):
         self.client.force_login(self.responsavel_a)
 

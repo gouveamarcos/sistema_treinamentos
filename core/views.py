@@ -260,6 +260,8 @@ def _responsaveis_visiveis(request):
 
 
 def _empresas_visiveis(request):
+    if request.user.is_superuser:
+        return empresas_do_usuario(request.user, incluir_inativas=True)
     return empresas_do_usuario(request.user)
 
 

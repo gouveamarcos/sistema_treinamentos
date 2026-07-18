@@ -1,12 +1,15 @@
 from .models import Empresa
 
 
-def empresas_do_usuario(user):
+def empresas_do_usuario(user, incluir_inativas=False):
     if not getattr(user, "is_authenticated", False):
         return Empresa.objects.none()
 
     if user.is_superuser:
-        return Empresa.objects.filter(ativa=True)
+        empresas = Empresa.objects.all()
+        if not incluir_inativas:
+            empresas = empresas.filter(ativa=True)
+        return empresas
 
     return Empresa.objects.filter(
         ativa=True,
