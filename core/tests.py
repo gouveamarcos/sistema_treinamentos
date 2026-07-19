@@ -645,7 +645,7 @@ class ExperienciaResponsavelTest(TestCase):
         self.assertContains(resposta, "Painel operacional")
         self.assertContains(resposta, "Editor de cursos")
         self.assertContains(resposta, "Cursos")
-        self.assertContains(resposta, "Produtos")
+        self.assertNotContains(resposta, "Organize as linhas de produto do catálogo.")
         self.assertNotContains(resposta, "Liberar cursos")
         self.assertNotContains(resposta, "Relatorios")
 
@@ -658,7 +658,18 @@ class ExperienciaResponsavelTest(TestCase):
         self.assertContains(resposta, "Superadmin")
         self.assertContains(resposta, "Liberar cursos")
         self.assertContains(resposta, "Cursos")
-        self.assertContains(resposta, "Produtos")
+        self.assertNotContains(resposta, "Organize as linhas de produto do catálogo.")
+
+    def test_home_com_empresa_contexto_nao_lista_todas_empresas(self):
+        self.client.force_login(self.superadmin)
+        self.client.post(reverse("acessar_empresa_operacional", args=(self.empresa.id,)))
+
+        resposta = self.client.get(reverse("home"))
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, self.empresa.nome)
+        self.assertNotContains(resposta, "Empresas visíveis")
+        self.assertNotContains(resposta, "Acessar painel da empresa")
 
     def test_editor_nao_acessa_tela_operacional_por_url_direta(self):
         self.client.force_login(self.editor)

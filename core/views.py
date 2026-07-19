@@ -627,11 +627,6 @@ def home(request):
                         "texto": "Gerencie cursos e construa etapas, questoes e alternativas.",
                         "url": "cursos_operacionais",
                     },
-                    {
-                        "titulo": "Produtos",
-                        "texto": "Organize as linhas de produto do catálogo.",
-                        "url": "produtos_operacionais",
-                    },
                 ]
             )
 

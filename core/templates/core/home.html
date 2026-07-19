@@ -62,43 +62,45 @@
             </div>
         </section>
 
-        <section class="secao">
-            <div class="secao-titulo">
-                <div>
-                    <span class="eyebrow">Escopo</span>
-                    <h2>Empresas visíveis</h2>
+        {% if not empresa_contexto_painel %}
+            <section class="secao">
+                <div class="secao-titulo">
+                    <div>
+                        <span class="eyebrow">Escopo</span>
+                        <h2>Empresas visíveis</h2>
+                    </div>
+                    <p>Use Acessar para entrar no painel operacional de uma empresa.</p>
                 </div>
-                <p>Use Acessar para entrar no painel operacional de uma empresa.</p>
-            </div>
-            <div class="lista-operacional">
-                {% for empresa in empresas %}
-                    <article class="card-formulario item-operacional">
-                        <div class="item-operacional-topo">
-                            <div>
-                                <h2>{{ empresa.nome }}</h2>
-                                <p>{{ empresa.responsavel|default:"Sem contato principal cadastrado." }}</p>
+                <div class="lista-operacional">
+                    {% for empresa in empresas %}
+                        <article class="card-formulario item-operacional">
+                            <div class="item-operacional-topo">
+                                <div>
+                                    <h2>{{ empresa.nome }}</h2>
+                                    <p>{{ empresa.responsavel|default:"Sem contato principal cadastrado." }}</p>
+                                </div>
+                                {% if empresa.ativa %}
+                                    <span class="status status-em-dia">Ativa</span>
+                                {% else %}
+                                    <span class="status status-vencido">Inativa</span>
+                                {% endif %}
                             </div>
                             {% if empresa.ativa %}
-                                <span class="status status-em-dia">Ativa</span>
-                            {% else %}
-                                <span class="status status-vencido">Inativa</span>
+                                <form method="post" action="{% url 'acessar_empresa_operacional' empresa.id %}">
+                                    {% csrf_token %}
+                                    <button class="botao-principal botao-auto" type="submit">Acessar painel da empresa</button>
+                                </form>
                             {% endif %}
+                        </article>
+                    {% empty %}
+                        <div class="estado-vazio">
+                            <h3>Nenhuma empresa vinculada</h3>
+                            <p>Peça ao superadmin para vincular seu usuário como responsável.</p>
                         </div>
-                        {% if empresa.ativa %}
-                            <form method="post" action="{% url 'acessar_empresa_operacional' empresa.id %}">
-                                {% csrf_token %}
-                                <button class="botao-principal botao-auto" type="submit">Acessar painel da empresa</button>
-                            </form>
-                        {% endif %}
-                    </article>
-                {% empty %}
-                    <div class="estado-vazio">
-                        <h3>Nenhuma empresa vinculada</h3>
-                        <p>Peça ao superadmin para vincular seu usuário como responsável.</p>
-                    </div>
-                {% endfor %}
-            </div>
-        </section>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
     {% else %}
         <section class="hero">
             <div>
