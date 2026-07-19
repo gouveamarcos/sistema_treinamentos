@@ -25,21 +25,27 @@
             <a href="{% url 'validar_certificado' %}">Validar certificado</a>
             {% if user.is_authenticated %}
                 <span class="usuario">Olá, <strong>{{ user.first_name|default:user.username }}</strong></span>
-                {% if empresa_contexto %}
+                {% if empresa_contexto and not painel_superadmin %}
                     <span class="usuario">Operando: <strong>{{ empresa_contexto.nome }}</strong></span>
                 {% endif %}
-                <a href="{% url 'home' %}">Início</a>
-                {% if pode_operar_empresas %}
-                    <a href="{% url 'empresas_operacionais' %}">Empresas</a>
-                    <a href="{% url 'tecnicos_operacionais' %}">Técnicos</a>
-                    <a href="{% url 'relatorio_treinamentos' %}">Relatórios</a>
-                    <a href="{% url 'historico_operacional' %}">Histórico</a>
-                    <a href="{% url 'liberar_curso_lote' %}">Liberar cursos</a>
-                    <a href="{% url 'responsaveis_empresas' %}">Responsáveis</a>
-                {% endif %}
-                {% if pode_gerenciar_catalogo %}
-                    <a href="{% url 'produtos_operacionais' %}">Produtos</a>
-                    <a href="{% url 'cursos_operacionais' %}">Cursos</a>
+                {% if not painel_superadmin %}
+                    {% if empresa_contexto %}
+                        <a href="{% url 'painel_empresa_operacional' empresa_contexto.id %}">Início</a>
+                    {% else %}
+                        <a href="{% url 'home' %}">Início</a>
+                    {% endif %}
+                    {% if pode_operar_empresas %}
+                        <a href="{% url 'empresas_operacionais' %}">Empresas</a>
+                        <a href="{% url 'tecnicos_operacionais' %}">Técnicos</a>
+                        <a href="{% url 'relatorio_treinamentos' %}">Relatórios</a>
+                        <a href="{% url 'historico_operacional' %}">Histórico</a>
+                        <a href="{% url 'liberar_curso_lote' %}">Liberar cursos</a>
+                        <a href="{% url 'responsaveis_empresas' %}">Responsáveis</a>
+                    {% endif %}
+                    {% if pode_gerenciar_catalogo %}
+                        <a href="{% url 'produtos_operacionais' %}">Produtos</a>
+                        <a href="{% url 'cursos_operacionais' %}">Cursos</a>
+                    {% endif %}
                 {% endif %}
                 <form method="post" action="{% url 'logout' %}">
                     {% csrf_token %}

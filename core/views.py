@@ -571,79 +571,29 @@ def home(request):
     pode_operar = usuario_pode_operar_empresas(request.user)
     pode_catalogo = usuario_pode_gerenciar_catalogo(request.user)
 
-    if request.user.is_staff and (pode_operar or pode_catalogo):
-        empresa_contexto = _empresa_contexto(request)
-        empresas = empresas_do_usuario(request.user)
-        empresas_resumo = (
-            empresas.filter(pk=empresa_contexto.pk) if empresa_contexto else empresas
+    if request.user.is_superuser:
+        empresas = empresas_do_usuario(request.user, incluir_inativas=True).order_by(
+            "nome"
         )
-        papeis = papeis_responsavel_usuario(request.user)
-        resumo_operacional = {
-            "empresas": empresas_resumo.count(),
-            "tecnicos": Tecnico.objects.filter(empresa__in=empresas_resumo).count(),
-            "liberacoes": CursoLiberado.objects.filter(
-                tecnico__empresa__in=empresas_resumo,
-                ativo=True,
-            ).count(),
-            "produtos": Produto.objects.filter(
-                ativo=True,
-                empresa__in=empresas_resumo,
-            ).count()
-            if pode_catalogo
-            else None,
-            "cursos": Curso.objects.filter(
-                ativo=True,
-                produto__empresa__in=empresas_resumo,
-            ).count()
-            if pode_catalogo
-            else None,
+        resumo_superadmin = {
+            "empresas": empresas.count(),
+            "tecnicos": Tecnico.objects.count(),
+            "liberacoes": CursoLiberado.objects.filter(ativo=True).count(),
+            "produtos": Produto.objects.filter(ativo=True).count(),
+            "cursos": Curso.objects.filter(ativo=True).count(),
         }
-        atalhos = []
-        if pode_operar:
-            atalhos.extend(
-                [
-                    {
-                        "titulo": "Liberar cursos",
-                        "texto": "Crie liberações para técnicos das suas empresas.",
-                        "url": "liberar_curso_lote",
-                    },
-                    {
-                        "titulo": "Relatórios",
-                        "texto": "Acompanhe pendências, vencimentos e certificados.",
-                        "url": "relatorio_treinamentos",
-                    },
-                    {
-                        "titulo": "Técnicos",
-                        "texto": "Cadastre e atualize profissionais por empresa.",
-                        "url": "tecnicos_operacionais",
-                    },
-                ]
-            )
-        if pode_catalogo:
-            atalhos.extend(
-                [
-                    {
-                        "titulo": "Cursos",
-                        "texto": "Gerencie cursos e construa etapas, questoes e alternativas.",
-                        "url": "cursos_operacionais",
-                    },
-                ]
-            )
-
         return render(
             request,
             "core/home.html",
             {
-                "painel_operacional": True,
-                "pode_operar": pode_operar,
-                "pode_catalogo": pode_catalogo,
+                "painel_superadmin": True,
                 "empresas": empresas,
-                "empresa_contexto_painel": empresa_contexto,
-                "papeis": papeis,
-                "resumo_operacional": resumo_operacional,
-                "atalhos": atalhos,
+                "resumo_operacional": resumo_superadmin,
             },
         )
+
+    if request.user.is_staff and (pode_operar or pode_catalogo):
+        return _render_painel_empresa(request, _empresa_contexto(request))
 
     produtos = Produto.objects.filter(
         ativo=True,
@@ -652,6 +602,84 @@ def home(request):
         cursos__liberacoes__ativo=True,
     ).distinct().order_by("nome")
     return render(request, "core/home.html", {"produtos": produtos})
+
+
+def _contexto_painel_empresa(request, empresa_contexto):
+    pode_operar = usuario_pode_operar_empresas(request.user)
+    pode_catalogo = usuario_pode_gerenciar_catalogo(request.user)
+    empresas = empresas_do_usuario(request.user)
+    empresas_resumo = (
+        empresas.filter(pk=empresa_contexto.pk) if empresa_contexto else empresas
+    )
+    papeis = papeis_responsavel_usuario(request.user)
+    resumo_operacional = {
+        "empresas": empresas_resumo.count(),
+        "tecnicos": Tecnico.objects.filter(empresa__in=empresas_resumo).count(),
+        "liberacoes": CursoLiberado.objects.filter(
+            tecnico__empresa__in=empresas_resumo,
+            ativo=True,
+        ).count(),
+        "produtos": Produto.objects.filter(
+            ativo=True,
+            empresa__in=empresas_resumo,
+        ).count()
+        if pode_catalogo
+        else None,
+        "cursos": Curso.objects.filter(
+            ativo=True,
+            produto__empresa__in=empresas_resumo,
+        ).count()
+        if pode_catalogo
+        else None,
+    }
+    atalhos = []
+    if pode_operar:
+        atalhos.extend(
+            [
+                {
+                    "titulo": "Liberar cursos",
+                    "texto": "Crie liberações para técnicos das suas empresas.",
+                    "url": "liberar_curso_lote",
+                },
+                {
+                    "titulo": "Relatórios",
+                    "texto": "Acompanhe pendências, vencimentos e certificados.",
+                    "url": "relatorio_treinamentos",
+                },
+                {
+                    "titulo": "Técnicos",
+                    "texto": "Cadastre e atualize profissionais por empresa.",
+                    "url": "tecnicos_operacionais",
+                },
+            ]
+        )
+    if pode_catalogo:
+        atalhos.append(
+            {
+                "titulo": "Cursos",
+                "texto": "Gerencie cursos e construa etapas, questoes e alternativas.",
+                "url": "cursos_operacionais",
+            }
+        )
+
+    return {
+        "painel_operacional": True,
+        "pode_operar": pode_operar,
+        "pode_catalogo": pode_catalogo,
+        "empresas": empresas,
+        "empresa_contexto_painel": empresa_contexto,
+        "papeis": papeis,
+        "resumo_operacional": resumo_operacional,
+        "atalhos": atalhos,
+    }
+
+
+def _render_painel_empresa(request, empresa_contexto):
+    return render(
+        request,
+        "core/home.html",
+        _contexto_painel_empresa(request, empresa_contexto),
+    )
 
 
 def primeiro_acesso(request):
@@ -1189,7 +1217,18 @@ def acessar_empresa_operacional(request, empresa_id):
     )
     _definir_empresa_contexto(request, empresa)
     messages.success(request, f"Você está operando a empresa {empresa.nome}.")
-    return redirect("home")
+    return redirect("painel_empresa_operacional", empresa_id=empresa.id)
+
+
+@staff_member_required
+def painel_empresa_operacional(request, empresa_id):
+    _exigir_operador_empresas(request)
+    empresa = get_object_or_404(
+        _empresas_visiveis(request).filter(ativa=True),
+        pk=empresa_id,
+    )
+    _definir_empresa_contexto(request, empresa)
+    return _render_painel_empresa(request, empresa)
 
 
 @staff_member_required

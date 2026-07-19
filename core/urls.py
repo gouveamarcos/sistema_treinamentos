@@ -100,6 +100,11 @@ urlpatterns = [
         name="acessar_empresa_operacional",
     ),
     path(
+        "empresas/<int:empresa_id>/painel/",
+        views.painel_empresa_operacional,
+        name="painel_empresa_operacional",
+    ),
+    path(
         "empresas/<int:empresa_id>/alternar/",
         views.alternar_empresa_operacional,
         name="alternar_empresa_operacional",

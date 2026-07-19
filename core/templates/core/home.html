@@ -2,7 +2,65 @@
 {% block title %}Início - Academia Técnica{% endblock %}
 {% block content %}
 <main class="container">
-    {% if painel_operacional %}
+    {% if painel_superadmin %}
+        <section class="hero">
+            <div>
+                <span class="eyebrow">Painel do superadmin</span>
+                <h1>Visão geral da plataforma.</h1>
+                <p>Escolha uma empresa para entrar no painel operacional dela. A partir dali, o menu completo da empresa fica disponível.</p>
+            </div>
+            <div class="hero-badge">
+                <strong>{{ resumo_operacional.empresas }}</strong>
+                <span>empresa{{ resumo_operacional.empresas|pluralize }} cadastrada{{ resumo_operacional.empresas|pluralize }}</span>
+            </div>
+        </section>
+
+        <section class="cards-resumo cards-operacionais">
+            <article><span>Empresas</span><strong>{{ resumo_operacional.empresas }}</strong></article>
+            <article><span>Técnicos</span><strong>{{ resumo_operacional.tecnicos }}</strong></article>
+            <article><span>Liberações ativas</span><strong>{{ resumo_operacional.liberacoes }}</strong></article>
+            <article><span>Produtos ativos</span><strong>{{ resumo_operacional.produtos }}</strong></article>
+            <article><span>Cursos ativos</span><strong>{{ resumo_operacional.cursos }}</strong></article>
+        </section>
+
+        <section class="secao">
+            <div class="secao-titulo">
+                <div>
+                    <span class="eyebrow">Empresas</span>
+                    <h2>Acessar painel operacional</h2>
+                </div>
+                <p>O menu operacional aparece somente dentro do painel de uma empresa.</p>
+            </div>
+            <div class="lista-operacional">
+                {% for empresa in empresas %}
+                    <article class="card-formulario item-operacional">
+                        <div class="item-operacional-topo">
+                            <div>
+                                <h2>{{ empresa.nome }}</h2>
+                                <p>{{ empresa.responsavel|default:"Sem contato principal cadastrado." }}</p>
+                            </div>
+                            {% if empresa.ativa %}
+                                <span class="status status-em-dia">Ativa</span>
+                            {% else %}
+                                <span class="status status-vencido">Inativa</span>
+                            {% endif %}
+                        </div>
+                        {% if empresa.ativa %}
+                            <form method="post" action="{% url 'acessar_empresa_operacional' empresa.id %}">
+                                {% csrf_token %}
+                                <button class="botao-principal botao-auto" type="submit">Acessar painel da empresa</button>
+                            </form>
+                        {% endif %}
+                    </article>
+                {% empty %}
+                    <div class="estado-vazio">
+                        <h3>Nenhuma empresa cadastrada</h3>
+                        <p>Cadastre a primeira empresa para começar a operar a plataforma.</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    {% elif painel_operacional %}
         <section class="hero">
             <div>
                 <span class="eyebrow">Painel operacional</span>

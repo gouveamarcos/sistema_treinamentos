@@ -655,21 +655,36 @@ class ExperienciaResponsavelTest(TestCase):
         resposta = self.client.get(reverse("home"))
 
         self.assertEqual(resposta.status_code, 200)
-        self.assertContains(resposta, "Superadmin")
-        self.assertContains(resposta, "Liberar cursos")
-        self.assertContains(resposta, "Cursos")
-        self.assertNotContains(resposta, "Organize as linhas de produto do catálogo.")
+        self.assertContains(resposta, "Painel do superadmin")
+        self.assertContains(resposta, "Acessar painel da empresa")
+        self.assertNotContains(resposta, reverse("tecnicos_operacionais"))
+        self.assertNotContains(resposta, reverse("liberar_curso_lote"))
+        self.assertNotContains(resposta, reverse("cursos_operacionais"))
 
-    def test_home_com_empresa_contexto_nao_lista_todas_empresas(self):
+    def test_superadmin_acessa_painel_dedicado_da_empresa(self):
+        self.client.force_login(self.superadmin)
+
+        resposta = self.client.post(
+            reverse("acessar_empresa_operacional", args=(self.empresa.id,)),
+            follow=True,
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, self.empresa.nome)
+        self.assertContains(resposta, reverse("tecnicos_operacionais"))
+        self.assertContains(resposta, reverse("liberar_curso_lote"))
+        self.assertNotContains(resposta, "Empresas visíveis")
+        self.assertNotContains(resposta, "Acessar painel da empresa")
+
+    def test_home_do_superadmin_continua_sendo_lobby_apos_acessar_empresa(self):
         self.client.force_login(self.superadmin)
         self.client.post(reverse("acessar_empresa_operacional", args=(self.empresa.id,)))
 
         resposta = self.client.get(reverse("home"))
 
         self.assertEqual(resposta.status_code, 200)
-        self.assertContains(resposta, self.empresa.nome)
-        self.assertNotContains(resposta, "Empresas visíveis")
-        self.assertNotContains(resposta, "Acessar painel da empresa")
+        self.assertContains(resposta, "Painel do superadmin")
+        self.assertContains(resposta, "Acessar painel da empresa")
 
     def test_editor_nao_acessa_tela_operacional_por_url_direta(self):
         self.client.force_login(self.editor)
