@@ -187,8 +187,9 @@ class TecnicoAdmin(admin.ModelAdmin):
 @admin.register(Curso)
 class CursoAdmin(admin.ModelAdmin):
     list_display = ("nome", "produto", "nota_minima", "validade_meses", "ativo")
-    search_fields = ("nome", "produto__nome")
-    list_filter = ("produto", "ativo")
+    search_fields = ("nome", "produto__nome", "empresas_disponiveis__nome")
+    list_filter = ("produto", "empresas_disponiveis", "ativo")
+    filter_horizontal = ("empresas_disponiveis",)
     inlines = (EtapaCursoInline,)
 
 

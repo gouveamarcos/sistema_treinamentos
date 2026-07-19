@@ -1337,7 +1337,11 @@ def cursos_operacionais(request):
     else:
         form = CursoForm()
 
-    cursos = Curso.objects.select_related("produto").order_by("produto__nome", "nome")
+    cursos = (
+        Curso.objects.select_related("produto")
+        .prefetch_related("empresas_disponiveis")
+        .order_by("produto__nome", "nome")
+    )
     return render(
         request,
         "core/cursos_operacionais.html",

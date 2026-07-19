@@ -691,6 +691,7 @@ class AuditoriaOperacionalTest(TestCase):
         )
         self.produto = Produto.objects.create(nome="Produto Auditoria")
         self.curso = Curso.objects.create(nome="Curso Auditoria", produto=self.produto)
+        self.curso.empresas_disponiveis.add(self.empresa)
         self.tecnico = Tecnico.objects.create(
             empresa=self.empresa,
             nome="Tecnico Auditoria",
@@ -1223,6 +1224,7 @@ class CatalogoOperacionalTest(TestCase):
             validade_meses=12,
             nota_minima=80,
         )
+        self.curso.empresas_disponiveis.add(self.empresa)
 
     def test_editor_cria_produto(self):
         self.client.force_login(self.editor)
@@ -1285,6 +1287,7 @@ class CatalogoOperacionalTest(TestCase):
                 "validade_meses": 18,
                 "nota_minima": 75,
                 "link_notebooklm": "",
+                "empresas_disponiveis": [self.empresa.id],
                 "ativo": "on",
             },
             follow=True,
@@ -1315,6 +1318,7 @@ class CatalogoOperacionalTest(TestCase):
                 "validade_meses": 24,
                 "nota_minima": 90,
                 "link_notebooklm": "https://example.com/material",
+                "empresas_disponiveis": [self.empresa.id],
                 "ativo": "on",
             },
             follow=True,
@@ -1357,6 +1361,7 @@ class CatalogoOperacionalTest(TestCase):
                 "validade_meses": 12,
                 "nota_minima": 80,
                 "link_notebooklm": "",
+                "empresas_disponiveis": [self.empresa.id],
                 "ativo": "on",
             },
             follow=True,
@@ -2016,6 +2021,7 @@ class LiberarCursoLoteTest(TestCase):
         )
         self.produto = Produto.objects.create(nome="Produto Liberação")
         self.curso = Curso.objects.create(nome="Curso Liberação", produto=self.produto)
+        self.curso.empresas_disponiveis.add(self.empresa)
 
     def test_liberacao_lote_exige_staff(self):
         resposta_anonima = self.client.get(reverse("liberar_curso_lote"))
@@ -2123,6 +2129,30 @@ class LiberarCursoLoteTest(TestCase):
             resposta,
             "Selecione ao menos um técnico ou marque a liberação para todos.",
         )
+
+    def test_liberacao_lote_rejeita_curso_fora_da_empresa(self):
+        curso_fora = Curso.objects.create(nome="Curso Fora", produto=self.produto)
+        curso_fora.empresas_disponiveis.add(self.outra_empresa)
+        self.client.force_login(self.staff)
+
+        resposta = self.client.post(
+            reverse("liberar_curso_lote"),
+            {
+                "empresa": self.empresa.id,
+                "curso": curso_fora.id,
+                "todos_tecnicos": "on",
+                "obrigatorio": "on",
+            },
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(
+            CursoLiberado.objects.filter(
+                tecnico=self.tecnico_1,
+                curso=curso_fora,
+            ).exists()
+        )
+        self.assertContains(resposta, "Faça uma escolha válida", html=False)
 
     def test_importa_liberacoes_por_csv(self):
         self.client.force_login(self.staff)
@@ -2320,6 +2350,8 @@ class EscopoEmpresaTest(TestCase):
         self.produto = Produto.objects.create(nome="Produto Escopo")
         self.curso_a = Curso.objects.create(nome="Curso Empresa A", produto=self.produto)
         self.curso_b = Curso.objects.create(nome="Curso Empresa B", produto=self.produto)
+        self.curso_a.empresas_disponiveis.add(self.empresa_a)
+        self.curso_b.empresas_disponiveis.add(self.empresa_b)
         self.liberacao_a = CursoLiberado.objects.create(
             tecnico=self.tecnico_a,
             curso=self.curso_a,
@@ -2398,9 +2430,12 @@ class EscopoEmpresaTest(TestCase):
         )
         self.assertIn(self.tecnico_a, form.fields["tecnicos"].queryset)
         self.assertNotIn(self.tecnico_b, form.fields["tecnicos"].queryset)
+        self.assertIn(self.curso_a, form.fields["curso"].queryset)
+        self.assertNotIn(self.curso_b, form.fields["curso"].queryset)
 
     def test_liberacao_lote_rejeita_empresa_fora_do_escopo_do_responsavel(self):
         curso_novo = Curso.objects.create(nome="Curso Novo", produto=self.produto)
+        curso_novo.empresas_disponiveis.add(self.empresa_b)
         self.client.force_login(self.responsavel)
 
         resposta = self.client.post(

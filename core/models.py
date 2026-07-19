@@ -201,6 +201,12 @@ class Curso(models.Model):
     produto = models.ForeignKey(
         Produto, on_delete=models.PROTECT, related_name="cursos"
     )
+    empresas_disponiveis = models.ManyToManyField(
+        Empresa,
+        blank=True,
+        related_name="cursos_disponiveis",
+        verbose_name="empresas com acesso",
+    )
     validade_meses = models.PositiveIntegerField(default=6)
     nota_minima = models.PositiveSmallIntegerField(
         default=70,

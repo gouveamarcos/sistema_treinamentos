@@ -16,6 +16,14 @@ from .models import (
 from .scopes import empresas_do_usuario
 
 
+def cursos_disponiveis_para_empresas(empresas):
+    return Curso.objects.filter(
+        ativo=True,
+        produto__ativo=True,
+        empresas_disponiveis__in=empresas,
+    ).select_related("produto").distinct()
+
+
 def _validar_upload_csv(arquivo):
     if not arquivo.name.lower().endswith(".csv"):
         raise forms.ValidationError("Envie um arquivo CSV.")
@@ -78,14 +86,27 @@ class LiberarCursoLoteForm(forms.Form):
         self.fields["empresa"].queryset = empresas.order_by("nome")
 
         empresa_id = self.data.get("empresa") or self.initial.get("empresa")
+        cursos = cursos_disponiveis_para_empresas(empresas)
         tecnicos = Tecnico.objects.filter(ativo=True, empresa__in=empresas)
         if empresa_id:
-            tecnicos = tecnicos.filter(empresa_id=empresa_id)
+            filtro_empresa = (
+                {"empresa": empresa_id}
+                if isinstance(empresa_id, Empresa)
+                else {"empresa_id": empresa_id}
+            )
+            filtro_curso = (
+                {"empresas_disponiveis": empresa_id}
+                if isinstance(empresa_id, Empresa)
+                else {"empresas_disponiveis__id": empresa_id}
+            )
+            tecnicos = tecnicos.filter(**filtro_empresa)
+            cursos = cursos.filter(**filtro_curso)
             self.fields["tecnicos"].queryset = tecnicos.order_by("nome")
         else:
             self.fields["tecnicos"].queryset = tecnicos.select_related(
                 "empresa"
             ).order_by("empresa__nome", "nome")
+        self.fields["curso"].queryset = cursos.order_by("produto__nome", "nome")
 
     def clean(self):
         dados = super().clean()
@@ -349,10 +370,16 @@ class ImportarLiberacoesForm(forms.Form):
             else empresas_do_usuario(usuario)
         )
         self.fields["empresa"].queryset = empresas.order_by("nome")
-        self.fields["curso"].queryset = Curso.objects.filter(
-            ativo=True,
-            produto__ativo=True,
-        ).select_related("produto").order_by("produto__nome", "nome")
+        cursos = cursos_disponiveis_para_empresas(empresas)
+        empresa_id = self.data.get("empresa") or self.initial.get("empresa")
+        if empresa_id:
+            filtro_curso = (
+                {"empresas_disponiveis": empresa_id}
+                if isinstance(empresa_id, Empresa)
+                else {"empresas_disponiveis__id": empresa_id}
+            )
+            cursos = cursos.filter(**filtro_curso)
+        self.fields["curso"].queryset = cursos.order_by("produto__nome", "nome")
 
     def clean_arquivo(self):
         return _validar_upload_csv(self.cleaned_data["arquivo"])
@@ -380,6 +407,7 @@ class CursoForm(forms.ModelForm):
             "validade_meses",
             "nota_minima",
             "link_notebooklm",
+            "empresas_disponiveis",
             "ativo",
         )
         widgets = {
@@ -390,6 +418,7 @@ class CursoForm(forms.ModelForm):
             "link_notebooklm": forms.URLInput(
                 attrs={"placeholder": "https://notebooklm.google.com/..."}
             ),
+            "empresas_disponiveis": forms.SelectMultiple(attrs={"size": "8"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -397,6 +426,12 @@ class CursoForm(forms.ModelForm):
         self.fields["produto"].queryset = Produto.objects.filter(ativo=True).order_by(
             "nome"
         )
+        self.fields["empresas_disponiveis"].queryset = Empresa.objects.filter(
+            ativa=True
+        ).order_by("nome")
+        self.fields[
+            "empresas_disponiveis"
+        ].help_text = "Selecione as empresas que poderão receber liberações deste curso."
 
 
 class EtapaCursoForm(forms.ModelForm):
