@@ -6,8 +6,13 @@
         <section class="hero">
             <div>
                 <span class="eyebrow">Painel operacional</span>
-                <h1>Bem-vindo ao seu espaço de gestão.</h1>
-                <p>Use os atalhos abaixo para operar empresas, técnicos, liberações e catálogo conforme seu papel na plataforma.</p>
+                {% if empresa_contexto_painel %}
+                    <h1>{{ empresa_contexto_painel.nome }}</h1>
+                    <p>Você está operando esta empresa. Produtos, cursos, técnicos, liberações e relatórios ficam limitados a esse contexto.</p>
+                {% else %}
+                    <h1>Bem-vindo ao seu espaço de gestão.</h1>
+                    <p>Escolha uma empresa em Empresas para operar produtos, cursos, técnicos, liberações e relatórios dentro dela.</p>
+                {% endif %}
             </div>
             <div class="hero-badge">
                 <strong>{{ resumo_operacional.empresas }}</strong>
@@ -63,7 +68,7 @@
                     <span class="eyebrow">Escopo</span>
                     <h2>Empresas visíveis</h2>
                 </div>
-                <p>As telas operacionais usam esse mesmo limite.</p>
+                <p>Use Acessar para entrar no painel operacional de uma empresa.</p>
             </div>
             <div class="lista-operacional">
                 {% for empresa in empresas %}
@@ -79,6 +84,12 @@
                                 <span class="status status-vencido">Inativa</span>
                             {% endif %}
                         </div>
+                        {% if empresa.ativa %}
+                            <form method="post" action="{% url 'acessar_empresa_operacional' empresa.id %}">
+                                {% csrf_token %}
+                                <button class="botao-principal botao-auto" type="submit">Acessar painel da empresa</button>
+                            </form>
+                        {% endif %}
                     </article>
                 {% empty %}
                     <div class="estado-vazio">

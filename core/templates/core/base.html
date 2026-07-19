@@ -25,6 +25,9 @@
             <a href="{% url 'validar_certificado' %}">Validar certificado</a>
             {% if user.is_authenticated %}
                 <span class="usuario">Olá, <strong>{{ user.first_name|default:user.username }}</strong></span>
+                {% if empresa_contexto %}
+                    <span class="usuario">Operando: <strong>{{ empresa_contexto.nome }}</strong></span>
+                {% endif %}
                 <a href="{% url 'home' %}">Início</a>
                 {% if pode_operar_empresas %}
                     <a href="{% url 'empresas_operacionais' %}">Empresas</a>

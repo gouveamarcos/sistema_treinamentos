@@ -58,6 +58,7 @@ from .scopes import (
 )
 
 JANELA_VENCIMENTO_DIAS = 30
+EMPRESA_CONTEXTO_SESSION_KEY = "empresa_operacional_id"
 
 
 def saude(request):
@@ -254,9 +255,13 @@ def _curso_liberado(tecnico, curso):
 
 
 def _responsaveis_visiveis(request):
-    return ResponsavelEmpresa.objects.filter(
+    responsaveis = ResponsavelEmpresa.objects.filter(
         empresa__in=empresas_do_usuario(request.user)
     ).select_related("empresa", "usuario")
+    empresa = _empresa_contexto(request)
+    if empresa is not None:
+        responsaveis = responsaveis.filter(empresa=empresa)
+    return responsaveis
 
 
 def _empresas_visiveis(request):
@@ -265,10 +270,57 @@ def _empresas_visiveis(request):
     return empresas_do_usuario(request.user)
 
 
+def _empresa_contexto(request):
+    empresas = _empresas_visiveis(request).filter(ativa=True)
+    empresa_id = request.session.get(EMPRESA_CONTEXTO_SESSION_KEY)
+    if empresa_id:
+        empresa = empresas.filter(pk=empresa_id).first()
+        if empresa:
+            return empresa
+        request.session.pop(EMPRESA_CONTEXTO_SESSION_KEY, None)
+
+    if empresas.count() == 1:
+        empresa = empresas.first()
+        request.session[EMPRESA_CONTEXTO_SESSION_KEY] = empresa.id
+        return empresa
+
+    return None
+
+
+def _empresa_contexto_obrigatoria(request):
+    empresa = _empresa_contexto(request)
+    if empresa is None:
+        messages.warning(request, "Selecione uma empresa para continuar.")
+    return empresa
+
+
+def _definir_empresa_contexto(request, empresa):
+    request.session[EMPRESA_CONTEXTO_SESSION_KEY] = empresa.id
+
+
 def _tecnicos_visiveis(request):
-    return Tecnico.objects.filter(
-        empresa__in=_empresas_visiveis(request)
-    ).select_related("empresa", "usuario")
+    empresas = _empresas_visiveis(request)
+    empresa = _empresa_contexto(request)
+    if empresa is not None:
+        empresas = empresas.filter(pk=empresa.pk)
+    return Tecnico.objects.filter(empresa__in=empresas).select_related(
+        "empresa",
+        "usuario",
+    )
+
+
+def _produtos_contexto(request):
+    empresa = _empresa_contexto(request)
+    if empresa is None:
+        return Produto.objects.none()
+    return Produto.objects.filter(empresa=empresa)
+
+
+def _cursos_contexto(request):
+    empresa = _empresa_contexto(request)
+    if empresa is None:
+        return Curso.objects.none()
+    return Curso.objects.filter(produto__empresa=empresa)
 
 
 def _valor_booleano_csv(valor):
@@ -520,19 +572,29 @@ def home(request):
     pode_catalogo = usuario_pode_gerenciar_catalogo(request.user)
 
     if request.user.is_staff and (pode_operar or pode_catalogo):
+        empresa_contexto = _empresa_contexto(request)
         empresas = empresas_do_usuario(request.user)
+        empresas_resumo = (
+            empresas.filter(pk=empresa_contexto.pk) if empresa_contexto else empresas
+        )
         papeis = papeis_responsavel_usuario(request.user)
         resumo_operacional = {
-            "empresas": empresas.count(),
-            "tecnicos": Tecnico.objects.filter(empresa__in=empresas).count(),
+            "empresas": empresas_resumo.count(),
+            "tecnicos": Tecnico.objects.filter(empresa__in=empresas_resumo).count(),
             "liberacoes": CursoLiberado.objects.filter(
-                tecnico__empresa__in=empresas,
+                tecnico__empresa__in=empresas_resumo,
                 ativo=True,
             ).count(),
-            "produtos": Produto.objects.filter(ativo=True).count()
+            "produtos": Produto.objects.filter(
+                ativo=True,
+                empresa__in=empresas_resumo,
+            ).count()
             if pode_catalogo
             else None,
-            "cursos": Curso.objects.filter(ativo=True).count()
+            "cursos": Curso.objects.filter(
+                ativo=True,
+                produto__empresa__in=empresas_resumo,
+            ).count()
             if pode_catalogo
             else None,
         }
@@ -581,6 +643,7 @@ def home(request):
                 "pode_operar": pode_operar,
                 "pode_catalogo": pode_catalogo,
                 "empresas": empresas,
+                "empresa_contexto_painel": empresa_contexto,
                 "papeis": papeis,
                 "resumo_operacional": resumo_operacional,
                 "atalhos": atalhos,
@@ -672,7 +735,12 @@ def validar_certificado(request, codigo=None):
 @staff_member_required
 def relatorio_treinamentos(request):
     _exigir_operador_empresas(request)
-    empresa_id = request.GET.get("empresa") or ""
+    empresa_contexto = _empresa_contexto(request)
+    empresa_id = (
+        str(empresa_contexto.id)
+        if empresa_contexto
+        else request.GET.get("empresa") or ""
+    )
     situacao_filtro = request.GET.get("situacao") or ""
     relatorio = _montar_relatorio_treinamentos(
         request.user,
@@ -698,9 +766,12 @@ def relatorio_treinamentos(request):
 @staff_member_required
 def exportar_relatorio_treinamentos(request):
     _exigir_operador_empresas(request)
+    empresa_contexto = _empresa_contexto(request)
     relatorio = _montar_relatorio_treinamentos(
         request.user,
-        empresa_id=request.GET.get("empresa") or "",
+        empresa_id=str(empresa_contexto.id)
+        if empresa_contexto
+        else request.GET.get("empresa") or "",
         situacao_filtro=request.GET.get("situacao") or "",
     )
     resposta = HttpResponse(content_type="text/csv; charset=utf-8")
@@ -747,8 +818,16 @@ def exportar_relatorio_treinamentos(request):
 @staff_member_required
 def historico_operacional(request):
     _exigir_operador_empresas(request)
-    empresas = empresas_do_usuario(request.user).order_by("nome")
-    empresa_id = request.GET.get("empresa") or ""
+    empresa_contexto = _empresa_contexto(request)
+    empresas = empresas_do_usuario(request.user)
+    if empresa_contexto:
+        empresas = empresas.filter(pk=empresa_contexto.pk)
+    empresas = empresas.order_by("nome")
+    empresa_id = (
+        str(empresa_contexto.id)
+        if empresa_contexto
+        else request.GET.get("empresa") or ""
+    )
     acao = request.GET.get("acao") or ""
     busca = request.GET.get("q", "").strip()
 
@@ -787,11 +866,20 @@ def historico_operacional(request):
 @transaction.atomic
 def liberar_curso_lote(request):
     _exigir_operador_empresas(request)
+    empresa_contexto = _empresa_contexto(request)
     resultado = None
-    importacao_form = ImportarLiberacoesForm(usuario=request.user)
+    importacao_form = ImportarLiberacoesForm(
+        usuario=request.user,
+        empresa_contexto=empresa_contexto,
+        initial={"empresa": empresa_contexto} if empresa_contexto else None,
+    )
     resultado_importacao = None
     if request.method == "POST":
-        form = LiberarCursoLoteForm(request.POST, usuario=request.user)
+        form = LiberarCursoLoteForm(
+            request.POST,
+            usuario=request.user,
+            empresa_contexto=empresa_contexto,
+        )
         if form.is_valid():
             curso = form.cleaned_data["curso"]
             tecnicos = form.cleaned_data["tecnicos"]
@@ -829,6 +917,7 @@ def liberar_curso_lote(request):
             form = LiberarCursoLoteForm(
                 initial={"empresa": empresa},
                 usuario=request.user,
+                empresa_contexto=empresa_contexto,
             )
             registrar_evento(
                 request.user,
@@ -842,7 +931,11 @@ def liberar_curso_lote(request):
                 ),
             )
     else:
-        form = LiberarCursoLoteForm(usuario=request.user)
+        form = LiberarCursoLoteForm(
+            usuario=request.user,
+            empresa_contexto=empresa_contexto,
+            initial={"empresa": empresa_contexto} if empresa_contexto else None,
+        )
 
     return render(
         request,
@@ -862,7 +955,13 @@ def importar_liberacoes_operacionais(request):
     if request.method != "POST":
         return redirect("liberar_curso_lote")
 
-    form = ImportarLiberacoesForm(request.POST, request.FILES, usuario=request.user)
+    empresa_contexto = _empresa_contexto(request)
+    form = ImportarLiberacoesForm(
+        request.POST,
+        request.FILES,
+        usuario=request.user,
+        empresa_contexto=empresa_contexto,
+    )
     resultado_importacao = None
     if form.is_valid():
         resultado_importacao = _importar_liberacoes_csv(
@@ -904,7 +1003,11 @@ def importar_liberacoes_operacionais(request):
         request,
         "core/liberar_curso_lote.html",
         {
-            "form": LiberarCursoLoteForm(usuario=request.user),
+            "form": LiberarCursoLoteForm(
+                usuario=request.user,
+                empresa_contexto=empresa_contexto,
+                initial={"empresa": empresa_contexto} if empresa_contexto else None,
+            ),
             "importacao_form": form,
             "resultado": None,
             "resultado_importacao": resultado_importacao,
@@ -915,8 +1018,13 @@ def importar_liberacoes_operacionais(request):
 @staff_member_required
 def responsaveis_empresas(request):
     _exigir_operador_empresas(request)
+    empresa_contexto = _empresa_contexto(request)
     if request.method == "POST":
-        form = ResponsavelEmpresaForm(request.POST, usuario=request.user)
+        form = ResponsavelEmpresaForm(
+            request.POST,
+            usuario=request.user,
+            empresa_contexto=empresa_contexto,
+        )
         if form.is_valid():
             responsabilidade = form.save()
             enviar_convite_responsavel(
@@ -943,7 +1051,11 @@ def responsaveis_empresas(request):
             )
             return redirect("responsaveis_empresas")
     else:
-        form = ResponsavelEmpresaForm(usuario=request.user)
+        form = ResponsavelEmpresaForm(
+            usuario=request.user,
+            empresa_contexto=empresa_contexto,
+            initial={"empresa": empresa_contexto} if empresa_contexto else None,
+        )
 
     responsaveis = _responsaveis_visiveis(request).order_by(
         "empresa__nome",
@@ -969,6 +1081,7 @@ def editar_responsavel_empresa(request, responsavel_id):
             request.POST,
             usuario=request.user,
             instance=responsabilidade,
+            empresa_contexto=_empresa_contexto(request),
         )
         if form.is_valid():
             form.save()
@@ -982,7 +1095,12 @@ def editar_responsavel_empresa(request, responsavel_id):
             messages.success(request, "Responsável atualizado com sucesso.")
             return redirect("responsaveis_empresas")
     else:
-        form = ResponsavelEmpresaForm(usuario=request.user, instance=responsabilidade)
+        empresa_contexto = _empresa_contexto(request)
+        form = ResponsavelEmpresaForm(
+            usuario=request.user,
+            instance=responsabilidade,
+            empresa_contexto=empresa_contexto,
+        )
 
     return render(
         request,
@@ -1067,6 +1185,19 @@ def empresas_operacionais(request):
 
 
 @staff_member_required
+@require_POST
+def acessar_empresa_operacional(request, empresa_id):
+    _exigir_operador_empresas(request)
+    empresa = get_object_or_404(
+        _empresas_visiveis(request).filter(ativa=True),
+        pk=empresa_id,
+    )
+    _definir_empresa_contexto(request, empresa)
+    messages.success(request, f"Você está operando a empresa {empresa.nome}.")
+    return redirect("home")
+
+
+@staff_member_required
 def editar_empresa_operacional(request, empresa_id):
     _exigir_operador_empresas(request)
     empresa = get_object_or_404(_empresas_visiveis(request), pk=empresa_id)
@@ -1117,10 +1248,19 @@ def alternar_empresa_operacional(request, empresa_id):
 @staff_member_required
 def tecnicos_operacionais(request):
     _exigir_operador_empresas(request)
-    importacao_form = ImportarTecnicosForm(usuario=request.user)
+    empresa_contexto = _empresa_contexto(request)
+    importacao_form = ImportarTecnicosForm(
+        usuario=request.user,
+        empresa_contexto=empresa_contexto,
+        initial={"empresa": empresa_contexto} if empresa_contexto else None,
+    )
     resultado_importacao = None
     if request.method == "POST":
-        form = TecnicoForm(request.POST, usuario=request.user)
+        form = TecnicoForm(
+            request.POST,
+            usuario=request.user,
+            empresa_contexto=empresa_contexto,
+        )
         if form.is_valid():
             tecnico = form.save()
             registrar_evento(
@@ -1133,7 +1273,11 @@ def tecnicos_operacionais(request):
             messages.success(request, f"Tecnico {tecnico.nome} salvo com sucesso.")
             return redirect("tecnicos_operacionais")
     else:
-        form = TecnicoForm(usuario=request.user)
+        form = TecnicoForm(
+            usuario=request.user,
+            empresa_contexto=empresa_contexto,
+            initial={"empresa": empresa_contexto} if empresa_contexto else None,
+        )
 
     tecnicos = _tecnicos_visiveis(request).order_by("empresa__nome", "nome")
     return render(
@@ -1155,7 +1299,13 @@ def importar_tecnicos_operacionais(request):
     if request.method != "POST":
         return redirect("tecnicos_operacionais")
 
-    form = ImportarTecnicosForm(request.POST, request.FILES, usuario=request.user)
+    empresa_contexto = _empresa_contexto(request)
+    form = ImportarTecnicosForm(
+        request.POST,
+        request.FILES,
+        usuario=request.user,
+        empresa_contexto=empresa_contexto,
+    )
     resultado_importacao = None
     if form.is_valid():
         resultado_importacao = _importar_tecnicos_csv(
@@ -1190,7 +1340,11 @@ def importar_tecnicos_operacionais(request):
             return redirect("tecnicos_operacionais")
 
     tecnicos = _tecnicos_visiveis(request).order_by("empresa__nome", "nome")
-    cadastro_form = TecnicoForm(usuario=request.user)
+    cadastro_form = TecnicoForm(
+        usuario=request.user,
+        empresa_contexto=empresa_contexto,
+        initial={"empresa": empresa_contexto} if empresa_contexto else None,
+    )
     return render(
         request,
         "core/tecnicos_operacionais.html",
@@ -1208,7 +1362,12 @@ def editar_tecnico_operacional(request, tecnico_id):
     _exigir_operador_empresas(request)
     tecnico = get_object_or_404(_tecnicos_visiveis(request), pk=tecnico_id)
     if request.method == "POST":
-        form = TecnicoForm(request.POST, usuario=request.user, instance=tecnico)
+        form = TecnicoForm(
+            request.POST,
+            usuario=request.user,
+            empresa_contexto=_empresa_contexto(request),
+            instance=tecnico,
+        )
         if form.is_valid():
             tecnico = form.save()
             registrar_evento(
@@ -1221,7 +1380,11 @@ def editar_tecnico_operacional(request, tecnico_id):
             messages.success(request, f"Tecnico {tecnico.nome} atualizado com sucesso.")
             return redirect("tecnicos_operacionais")
     else:
-        form = TecnicoForm(usuario=request.user, instance=tecnico)
+        form = TecnicoForm(
+            usuario=request.user,
+            empresa_contexto=_empresa_contexto(request),
+            instance=tecnico,
+        )
 
     return render(
         request,
@@ -1252,14 +1415,21 @@ def alternar_tecnico_operacional(request, tecnico_id):
 @staff_member_required
 def produtos_operacionais(request):
     _exigir_editor_catalogo(request)
+    empresa = _empresa_contexto_obrigatoria(request)
+    if empresa is None:
+        return redirect("empresas_operacionais")
+
     if request.method == "POST":
         form = ProdutoForm(request.POST)
         if form.is_valid():
-            produto = form.save()
+            produto = form.save(commit=False)
+            produto.empresa = empresa
+            produto.save()
             registrar_evento(
                 request.user,
                 EventoAuditoria.Acao.CADASTRO,
                 produto,
+                empresa=empresa,
                 detalhes="Produto criado pela tela de catalogo.",
             )
             messages.success(request, f"Produto {produto.nome} salvo com sucesso.")
@@ -1267,7 +1437,7 @@ def produtos_operacionais(request):
     else:
         form = ProdutoForm()
 
-    produtos = Produto.objects.order_by("nome")
+    produtos = _produtos_contexto(request).order_by("nome")
     return render(
         request,
         "core/produtos_operacionais.html",
@@ -1278,7 +1448,16 @@ def produtos_operacionais(request):
 @staff_member_required
 def editar_produto_operacional(request, produto_id):
     _exigir_editor_catalogo(request)
-    produto = get_object_or_404(Produto, pk=produto_id)
+    produto = get_object_or_404(
+        Produto.objects.select_related("empresa").filter(
+            empresa__in=_empresas_visiveis(request).filter(ativa=True)
+        ),
+        pk=produto_id,
+    )
+    empresa = _empresa_contexto(request)
+    if empresa is None or empresa.pk != produto.empresa_id:
+        empresa = produto.empresa
+        _definir_empresa_contexto(request, empresa)
     if request.method == "POST":
         form = ProdutoForm(request.POST, instance=produto)
         if form.is_valid():
@@ -1287,6 +1466,7 @@ def editar_produto_operacional(request, produto_id):
                 request.user,
                 EventoAuditoria.Acao.EDICAO,
                 produto,
+                empresa=empresa,
                 detalhes="Produto atualizado pela tela de catalogo.",
             )
             messages.success(request, f"Produto {produto.nome} atualizado com sucesso.")
@@ -1305,13 +1485,18 @@ def editar_produto_operacional(request, produto_id):
 @require_POST
 def alternar_produto_operacional(request, produto_id):
     _exigir_editor_catalogo(request)
-    produto = get_object_or_404(Produto, pk=produto_id)
+    empresa = _empresa_contexto_obrigatoria(request)
+    if empresa is None:
+        return redirect("empresas_operacionais")
+
+    produto = get_object_or_404(_produtos_contexto(request), pk=produto_id)
     produto.ativo = not produto.ativo
     produto.save(update_fields=["ativo"])
     registrar_evento(
         request.user,
         EventoAuditoria.Acao.STATUS,
         produto,
+        empresa=empresa,
         detalhes=f"Status alterado para {'ativo' if produto.ativo else 'inativo'}.",
     )
     status = "ativado" if produto.ativo else "desativado"
@@ -1322,24 +1507,29 @@ def alternar_produto_operacional(request, produto_id):
 @staff_member_required
 def cursos_operacionais(request):
     _exigir_editor_catalogo(request)
+    empresa = _empresa_contexto_obrigatoria(request)
+    if empresa is None:
+        return redirect("empresas_operacionais")
+
     if request.method == "POST":
-        form = CursoForm(request.POST)
+        form = CursoForm(request.POST, empresa=empresa)
         if form.is_valid():
             curso = form.save()
             registrar_evento(
                 request.user,
                 EventoAuditoria.Acao.CADASTRO,
                 curso,
+                empresa=empresa,
                 detalhes="Curso criado pela tela de catalogo.",
             )
             messages.success(request, f"Curso {curso.nome} salvo com sucesso.")
             return redirect("cursos_operacionais")
     else:
-        form = CursoForm()
+        form = CursoForm(empresa=empresa)
 
     cursos = (
-        Curso.objects.select_related("produto")
-        .prefetch_related("empresas_disponiveis")
+        _cursos_contexto(request)
+        .select_related("produto")
         .order_by("produto__nome", "nome")
     )
     return render(
@@ -1352,21 +1542,31 @@ def cursos_operacionais(request):
 @staff_member_required
 def editar_curso_operacional(request, curso_id):
     _exigir_editor_catalogo(request)
-    curso = get_object_or_404(Curso.objects.select_related("produto"), pk=curso_id)
+    curso = get_object_or_404(
+        Curso.objects.select_related("produto", "produto__empresa").filter(
+            produto__empresa__in=_empresas_visiveis(request).filter(ativa=True)
+        ),
+        pk=curso_id,
+    )
+    empresa = _empresa_contexto(request)
+    if empresa is None or empresa.pk != curso.produto.empresa_id:
+        empresa = curso.produto.empresa
+        _definir_empresa_contexto(request, empresa)
     if request.method == "POST":
-        form = CursoForm(request.POST, instance=curso)
+        form = CursoForm(request.POST, instance=curso, empresa=empresa)
         if form.is_valid():
             curso = form.save()
             registrar_evento(
                 request.user,
                 EventoAuditoria.Acao.EDICAO,
                 curso,
+                empresa=empresa,
                 detalhes="Curso atualizado pela tela de catalogo.",
             )
             messages.success(request, f"Curso {curso.nome} atualizado com sucesso.")
             return redirect("cursos_operacionais")
     else:
-        form = CursoForm(instance=curso)
+        form = CursoForm(instance=curso, empresa=empresa)
 
     return render(
         request,
@@ -1379,13 +1579,18 @@ def editar_curso_operacional(request, curso_id):
 @require_POST
 def alternar_curso_operacional(request, curso_id):
     _exigir_editor_catalogo(request)
-    curso = get_object_or_404(Curso, pk=curso_id)
+    empresa = _empresa_contexto_obrigatoria(request)
+    if empresa is None:
+        return redirect("empresas_operacionais")
+
+    curso = get_object_or_404(_cursos_contexto(request), pk=curso_id)
     curso.ativo = not curso.ativo
     curso.save(update_fields=["ativo"])
     registrar_evento(
         request.user,
         EventoAuditoria.Acao.STATUS,
         curso,
+        empresa=empresa,
         detalhes=f"Status alterado para {'ativo' if curso.ativo else 'inativo'}.",
     )
     status = "ativado" if curso.ativo else "desativado"
@@ -1396,7 +1601,12 @@ def alternar_curso_operacional(request, curso_id):
 @staff_member_required
 def conteudo_curso_operacional(request, curso_id):
     _exigir_editor_catalogo(request)
-    curso = get_object_or_404(Curso.objects.select_related("produto"), pk=curso_id)
+    if _empresa_contexto_obrigatoria(request) is None:
+        return redirect("empresas_operacionais")
+    curso = get_object_or_404(
+        _cursos_contexto(request).select_related("produto"),
+        pk=curso_id,
+    )
     etapas = curso.etapas.prefetch_related("questoes__alternativas").order_by(
         "ordem",
         "id",
@@ -1413,7 +1623,9 @@ def conteudo_curso_operacional(request, curso_id):
 @staff_member_required
 def criar_etapa_operacional(request, curso_id):
     _exigir_editor_catalogo(request)
-    curso = get_object_or_404(Curso, pk=curso_id)
+    if _empresa_contexto_obrigatoria(request) is None:
+        return redirect("empresas_operacionais")
+    curso = get_object_or_404(_cursos_contexto(request), pk=curso_id)
     if request.method != "POST":
         return redirect("conteudo_curso_operacional", curso_id=curso.id)
 
@@ -1437,7 +1649,14 @@ def criar_etapa_operacional(request, curso_id):
 @staff_member_required
 def editar_etapa_operacional(request, etapa_id):
     _exigir_editor_catalogo(request)
-    etapa = get_object_or_404(EtapaCurso.objects.select_related("curso"), pk=etapa_id)
+    if _empresa_contexto_obrigatoria(request) is None:
+        return redirect("empresas_operacionais")
+    etapa = get_object_or_404(
+        EtapaCurso.objects.select_related("curso").filter(
+            curso__in=_cursos_contexto(request)
+        ),
+        pk=etapa_id,
+    )
     if request.method == "POST":
         form = EtapaCursoForm(request.POST, instance=etapa)
         if form.is_valid():
@@ -1464,7 +1683,14 @@ def editar_etapa_operacional(request, etapa_id):
 @require_POST
 def alternar_etapa_operacional(request, etapa_id):
     _exigir_editor_catalogo(request)
-    etapa = get_object_or_404(EtapaCurso.objects.select_related("curso"), pk=etapa_id)
+    if _empresa_contexto_obrigatoria(request) is None:
+        return redirect("empresas_operacionais")
+    etapa = get_object_or_404(
+        EtapaCurso.objects.select_related("curso").filter(
+            curso__in=_cursos_contexto(request)
+        ),
+        pk=etapa_id,
+    )
     etapa.ativo = not etapa.ativo
     etapa.save(update_fields=["ativo"])
     registrar_evento(
@@ -1481,7 +1707,14 @@ def alternar_etapa_operacional(request, etapa_id):
 @staff_member_required
 def criar_questao_operacional(request, etapa_id):
     _exigir_editor_catalogo(request)
-    etapa = get_object_or_404(EtapaCurso.objects.select_related("curso"), pk=etapa_id)
+    if _empresa_contexto_obrigatoria(request) is None:
+        return redirect("empresas_operacionais")
+    etapa = get_object_or_404(
+        EtapaCurso.objects.select_related("curso").filter(
+            curso__in=_cursos_contexto(request)
+        ),
+        pk=etapa_id,
+    )
     if not etapa.avaliativa:
         messages.error(request, "Questoes so podem ser criadas em etapas avaliativas.")
         return redirect("conteudo_curso_operacional", curso_id=etapa.curso_id)
@@ -1508,8 +1741,12 @@ def criar_questao_operacional(request, etapa_id):
 @staff_member_required
 def editar_questao_operacional(request, questao_id):
     _exigir_editor_catalogo(request)
+    if _empresa_contexto_obrigatoria(request) is None:
+        return redirect("empresas_operacionais")
     questao = get_object_or_404(
-        Questao.objects.select_related("etapa__curso"),
+        Questao.objects.select_related("etapa__curso").filter(
+            etapa__curso__in=_cursos_contexto(request)
+        ),
         pk=questao_id,
     )
     if request.method == "POST":
@@ -1541,8 +1778,12 @@ def editar_questao_operacional(request, questao_id):
 @require_POST
 def excluir_questao_operacional(request, questao_id):
     _exigir_editor_catalogo(request)
+    if _empresa_contexto_obrigatoria(request) is None:
+        return redirect("empresas_operacionais")
     questao = get_object_or_404(
-        Questao.objects.select_related("etapa__curso"),
+        Questao.objects.select_related("etapa__curso").filter(
+            etapa__curso__in=_cursos_contexto(request)
+        ),
         pk=questao_id,
     )
     curso_id = questao.etapa.curso_id
@@ -1560,8 +1801,12 @@ def excluir_questao_operacional(request, questao_id):
 @staff_member_required
 def criar_alternativa_operacional(request, questao_id):
     _exigir_editor_catalogo(request)
+    if _empresa_contexto_obrigatoria(request) is None:
+        return redirect("empresas_operacionais")
     questao = get_object_or_404(
-        Questao.objects.select_related("etapa__curso"),
+        Questao.objects.select_related("etapa__curso").filter(
+            etapa__curso__in=_cursos_contexto(request)
+        ),
         pk=questao_id,
     )
     if request.method != "POST":
@@ -1590,8 +1835,12 @@ def criar_alternativa_operacional(request, questao_id):
 @staff_member_required
 def editar_alternativa_operacional(request, alternativa_id):
     _exigir_editor_catalogo(request)
+    if _empresa_contexto_obrigatoria(request) is None:
+        return redirect("empresas_operacionais")
     alternativa = get_object_or_404(
-        Alternativa.objects.select_related("questao__etapa__curso"),
+        Alternativa.objects.select_related("questao__etapa__curso").filter(
+            questao__etapa__curso__in=_cursos_contexto(request)
+        ),
         pk=alternativa_id,
     )
     if request.method == "POST":
@@ -1623,8 +1872,12 @@ def editar_alternativa_operacional(request, alternativa_id):
 @require_POST
 def excluir_alternativa_operacional(request, alternativa_id):
     _exigir_editor_catalogo(request)
+    if _empresa_contexto_obrigatoria(request) is None:
+        return redirect("empresas_operacionais")
     alternativa = get_object_or_404(
-        Alternativa.objects.select_related("questao__etapa__curso"),
+        Alternativa.objects.select_related("questao__etapa__curso").filter(
+            questao__etapa__curso__in=_cursos_contexto(request)
+        ),
         pk=alternativa_id,
     )
     curso_id = alternativa.questao.etapa.curso_id
@@ -1663,7 +1916,6 @@ def certificado_imprimir(request, codigo):
 
 @login_required
 def cursos_por_produto(request, produto_id):
-    produto = get_object_or_404(Produto, id=produto_id, ativo=True)
     tecnico = _tecnico_logado(request)
     if not tecnico:
         messages.error(
@@ -1671,6 +1923,12 @@ def cursos_por_produto(request, produto_id):
             "Seu usuário não está vinculado a um técnico. Procure o administrador.",
         )
         return redirect("home")
+    produto = get_object_or_404(
+        Produto,
+        id=produto_id,
+        ativo=True,
+        empresa=tecnico.empresa,
+    )
 
     hoje = timezone.localdate()
     liberacoes = CursoLiberado.objects.filter(

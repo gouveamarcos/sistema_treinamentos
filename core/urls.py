@@ -95,6 +95,11 @@ urlpatterns = [
         name="editar_empresa_operacional",
     ),
     path(
+        "empresas/<int:empresa_id>/acessar/",
+        views.acessar_empresa_operacional,
+        name="acessar_empresa_operacional",
+    ),
+    path(
         "empresas/<int:empresa_id>/alternar/",
         views.alternar_empresa_operacional,
         name="alternar_empresa_operacional",

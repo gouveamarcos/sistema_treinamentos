@@ -20,7 +20,7 @@ def cursos_disponiveis_para_empresas(empresas):
     return Curso.objects.filter(
         ativo=True,
         produto__ativo=True,
-        empresas_disponiveis__in=empresas,
+        produto__empresa__in=empresas,
     ).select_related("produto").distinct()
 
 
@@ -76,13 +76,15 @@ class LiberarCursoLoteForm(forms.Form):
         initial=True,
     )
 
-    def __init__(self, *args, usuario=None, **kwargs):
+    def __init__(self, *args, usuario=None, empresa_contexto=None, **kwargs):
         super().__init__(*args, **kwargs)
         empresas = (
             Empresa.objects.filter(ativa=True)
             if usuario is None
             else empresas_do_usuario(usuario)
         )
+        if empresa_contexto is not None:
+            empresas = empresas.filter(pk=empresa_contexto.pk)
         self.fields["empresa"].queryset = empresas.order_by("nome")
 
         empresa_id = self.data.get("empresa") or self.initial.get("empresa")
@@ -95,9 +97,9 @@ class LiberarCursoLoteForm(forms.Form):
                 else {"empresa_id": empresa_id}
             )
             filtro_curso = (
-                {"empresas_disponiveis": empresa_id}
+                {"produto__empresa": empresa_id}
                 if isinstance(empresa_id, Empresa)
-                else {"empresas_disponiveis__id": empresa_id}
+                else {"produto__empresa_id": empresa_id}
             )
             tecnicos = tecnicos.filter(**filtro_empresa)
             cursos = cursos.filter(**filtro_curso)
@@ -163,7 +165,14 @@ class ResponsavelEmpresaForm(forms.Form):
         initial=True,
     )
 
-    def __init__(self, *args, usuario=None, instance=None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        usuario=None,
+        instance=None,
+        empresa_contexto=None,
+        **kwargs,
+    ):
         self.instance = instance
         super().__init__(*args, **kwargs)
         empresas = (
@@ -171,6 +180,8 @@ class ResponsavelEmpresaForm(forms.Form):
             if usuario is None
             else empresas_do_usuario(usuario)
         )
+        if empresa_contexto is not None:
+            empresas = empresas.filter(pk=empresa_contexto.pk)
         self.fields["empresa"].queryset = empresas.order_by("nome")
 
         if instance and not self.is_bound:
@@ -301,13 +312,15 @@ class TecnicoForm(forms.ModelForm):
             "regiao": forms.TextInput(attrs={"placeholder": "Regiao"}),
         }
 
-    def __init__(self, *args, usuario=None, **kwargs):
+    def __init__(self, *args, usuario=None, empresa_contexto=None, **kwargs):
         super().__init__(*args, **kwargs)
         empresas = (
             Empresa.objects.filter(ativa=True)
             if usuario is None
             else empresas_do_usuario(usuario)
         )
+        if empresa_contexto is not None:
+            empresas = empresas.filter(pk=empresa_contexto.pk)
         self.fields["empresa"].queryset = empresas.order_by("nome")
 
 
@@ -325,13 +338,15 @@ class ImportarTecnicosForm(forms.Form):
         ),
     )
 
-    def __init__(self, *args, usuario=None, **kwargs):
+    def __init__(self, *args, usuario=None, empresa_contexto=None, **kwargs):
         super().__init__(*args, **kwargs)
         empresas = (
             Empresa.objects.filter(ativa=True)
             if usuario is None
             else empresas_do_usuario(usuario)
         )
+        if empresa_contexto is not None:
+            empresas = empresas.filter(pk=empresa_contexto.pk)
         self.fields["empresa"].queryset = empresas.order_by("nome")
 
     def clean_arquivo(self):
@@ -362,21 +377,23 @@ class ImportarLiberacoesForm(forms.Form):
         initial=True,
     )
 
-    def __init__(self, *args, usuario=None, **kwargs):
+    def __init__(self, *args, usuario=None, empresa_contexto=None, **kwargs):
         super().__init__(*args, **kwargs)
         empresas = (
             Empresa.objects.filter(ativa=True)
             if usuario is None
             else empresas_do_usuario(usuario)
         )
+        if empresa_contexto is not None:
+            empresas = empresas.filter(pk=empresa_contexto.pk)
         self.fields["empresa"].queryset = empresas.order_by("nome")
         cursos = cursos_disponiveis_para_empresas(empresas)
         empresa_id = self.data.get("empresa") or self.initial.get("empresa")
         if empresa_id:
             filtro_curso = (
-                {"empresas_disponiveis": empresa_id}
+                {"produto__empresa": empresa_id}
                 if isinstance(empresa_id, Empresa)
-                else {"empresas_disponiveis__id": empresa_id}
+                else {"produto__empresa_id": empresa_id}
             )
             cursos = cursos.filter(**filtro_curso)
         self.fields["curso"].queryset = cursos.order_by("produto__nome", "nome")
@@ -407,7 +424,6 @@ class CursoForm(forms.ModelForm):
             "validade_meses",
             "nota_minima",
             "link_notebooklm",
-            "empresas_disponiveis",
             "ativo",
         )
         widgets = {
@@ -418,20 +434,14 @@ class CursoForm(forms.ModelForm):
             "link_notebooklm": forms.URLInput(
                 attrs={"placeholder": "https://notebooklm.google.com/..."}
             ),
-            "empresas_disponiveis": forms.SelectMultiple(attrs={"size": "8"}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, empresa=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["produto"].queryset = Produto.objects.filter(ativo=True).order_by(
-            "nome"
-        )
-        self.fields["empresas_disponiveis"].queryset = Empresa.objects.filter(
-            ativa=True
-        ).order_by("nome")
-        self.fields[
-            "empresas_disponiveis"
-        ].help_text = "Selecione as empresas que poderão receber liberações deste curso."
+        produtos = Produto.objects.filter(ativo=True)
+        if empresa is not None:
+            produtos = produtos.filter(empresa=empresa)
+        self.fields["produto"].queryset = produtos.order_by("nome")
 
 
 class EtapaCursoForm(forms.ModelForm):

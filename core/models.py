@@ -162,9 +162,22 @@ class ResponsavelEmpresa(models.Model):
 
 
 class Produto(models.Model):
+    empresa = models.ForeignKey(
+        Empresa,
+        on_delete=models.PROTECT,
+        related_name="produtos",
+    )
     nome = models.CharField(max_length=100)
     descricao = models.TextField(blank=True, null=True)
     ativo = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("empresa", "nome"),
+                name="produto_nome_unico_por_empresa",
+            )
+        ]
 
     def __str__(self):
         return self.nome
@@ -200,12 +213,6 @@ class Curso(models.Model):
     descricao = models.TextField(blank=True, null=True)
     produto = models.ForeignKey(
         Produto, on_delete=models.PROTECT, related_name="cursos"
-    )
-    empresas_disponiveis = models.ManyToManyField(
-        Empresa,
-        blank=True,
-        related_name="cursos_disponiveis",
-        verbose_name="empresas com acesso",
     )
     validade_meses = models.PositiveIntegerField(default=6)
     nota_minima = models.PositiveSmallIntegerField(

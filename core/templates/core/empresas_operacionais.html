@@ -74,6 +74,12 @@
                             {% endif %}
                         </td>
                         <td class="acoes-tabela">
+                            {% if empresa.ativa %}
+                                <form method="post" action="{% url 'acessar_empresa_operacional' empresa.id %}">
+                                    {% csrf_token %}
+                                    <button class="link-button" type="submit">Acessar</button>
+                                </form>
+                            {% endif %}
                             <a href="{% url 'editar_empresa_operacional' empresa.id %}">Editar</a>
                             {% if user.is_superuser %}
                                 <form method="post" action="{% url 'alternar_empresa_operacional' empresa.id %}">

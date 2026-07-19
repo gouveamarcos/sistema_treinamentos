@@ -97,7 +97,10 @@ class FluxoCursoTest(TestCase):
             email="tecnico@exemplo.com",
             matricula="TEC001",
         )
-        self.produto = Produto.objects.create(nome="Abastece")
+        self.produto = Produto.objects.create(
+            nome="Abastece",
+            empresa=self.tecnico.empresa,
+        )
         self.curso = Curso.objects.create(
             nome="Manutenção básica",
             produto=self.produto,
@@ -293,7 +296,7 @@ class CargaDemonstracaoTest(TestCase):
         self.assertEqual(Curso.objects.count(), 4)
         self.assertEqual(EtapaCurso.objects.count(), 24)
         self.assertEqual(Questao.objects.count(), 32)
-        self.assertEqual(Empresa.objects.count(), 0)
+        self.assertEqual(Empresa.objects.count(), 1)
         self.assertEqual(Tecnico.objects.count(), 0)
         self.assertEqual(CursoLiberado.objects.count(), 0)
         self.assertIn("Nenhum técnico foi criado", saida.getvalue())
@@ -607,7 +610,10 @@ class ExperienciaResponsavelTest(TestCase):
             is_staff=True,
             is_superuser=True,
         )
-        self.produto = Produto.objects.create(nome="Produto Experiencia")
+        self.produto = Produto.objects.create(
+            nome="Produto Experiencia",
+            empresa=self.empresa,
+        )
         self.curso = Curso.objects.create(nome="Curso Experiencia", produto=self.produto)
         self.tecnico = Tecnico.objects.create(
             empresa=self.empresa,
@@ -627,7 +633,7 @@ class ExperienciaResponsavelTest(TestCase):
         self.assertContains(resposta, "Liberar cursos")
         self.assertContains(resposta, "Relatórios")
         self.assertContains(resposta, "Técnicos")
-        self.assertNotContains(resposta, "Produtos")
+        self.assertNotContains(resposta, reverse("produtos_operacionais"))
         self.assertNotContains(resposta, "Editor de cursos")
 
     def test_home_do_editor_mostra_catalogo_e_oculta_operacao(self):
@@ -689,9 +695,11 @@ class AuditoriaOperacionalTest(TestCase):
             usuario=self.responsavel,
             papel=ResponsavelEmpresa.Papel.OPERACIONAL,
         )
-        self.produto = Produto.objects.create(nome="Produto Auditoria")
+        self.produto = Produto.objects.create(
+            nome="Produto Auditoria",
+            empresa=self.empresa,
+        )
         self.curso = Curso.objects.create(nome="Curso Auditoria", produto=self.produto)
-        self.curso.empresas_disponiveis.add(self.empresa)
         self.tecnico = Tecnico.objects.create(
             empresa=self.empresa,
             nome="Tecnico Auditoria",
@@ -1214,6 +1222,7 @@ class CatalogoOperacionalTest(TestCase):
             papel=ResponsavelEmpresa.Papel.OPERACIONAL,
         )
         self.produto = Produto.objects.create(
+            empresa=self.empresa,
             nome="Produto Catalogo",
             descricao="Descricao inicial",
         )
@@ -1224,7 +1233,6 @@ class CatalogoOperacionalTest(TestCase):
             validade_meses=12,
             nota_minima=80,
         )
-        self.curso.empresas_disponiveis.add(self.empresa)
 
     def test_editor_cria_produto(self):
         self.client.force_login(self.editor)
@@ -1287,7 +1295,6 @@ class CatalogoOperacionalTest(TestCase):
                 "validade_meses": 18,
                 "nota_minima": 75,
                 "link_notebooklm": "",
-                "empresas_disponiveis": [self.empresa.id],
                 "ativo": "on",
             },
             follow=True,
@@ -1318,7 +1325,6 @@ class CatalogoOperacionalTest(TestCase):
                 "validade_meses": 24,
                 "nota_minima": 90,
                 "link_notebooklm": "https://example.com/material",
-                "empresas_disponiveis": [self.empresa.id],
                 "ativo": "on",
             },
             follow=True,
@@ -1361,7 +1367,6 @@ class CatalogoOperacionalTest(TestCase):
                 "validade_meses": 12,
                 "nota_minima": 80,
                 "link_notebooklm": "",
-                "empresas_disponiveis": [self.empresa.id],
                 "ativo": "on",
             },
             follow=True,
@@ -1408,7 +1413,10 @@ class ConteudoCursoOperacionalTest(TestCase):
             usuario=self.operacional,
             papel=ResponsavelEmpresa.Papel.OPERACIONAL,
         )
-        self.produto = Produto.objects.create(nome="Produto Conteudo")
+        self.produto = Produto.objects.create(
+            nome="Produto Conteudo",
+            empresa=self.empresa,
+        )
         self.curso = Curso.objects.create(nome="Curso Conteudo", produto=self.produto)
         self.etapa_texto = EtapaCurso.objects.create(
             curso=self.curso,
@@ -1620,7 +1628,10 @@ class OperacaoAdminTest(TestCase):
             email="operacional@exemplo.com",
             matricula="OP001",
         )
-        self.produto = Produto.objects.create(nome="Produto Operacional")
+        self.produto = Produto.objects.create(
+            nome="Produto Operacional",
+            empresa=self.empresa,
+        )
         self.curso = Curso.objects.create(nome="Curso Operacional", produto=self.produto)
         self.site = AdminSite()
 
@@ -1738,7 +1749,10 @@ class ValidacaoCertificadoTest(TestCase):
             email="certificado@exemplo.com",
             matricula="CERT001",
         )
-        self.produto = Produto.objects.create(nome="Produto Certificado")
+        self.produto = Produto.objects.create(
+            nome="Produto Certificado",
+            empresa=self.empresa,
+        )
         self.curso = Curso.objects.create(
             nome="Curso Certificado",
             produto=self.produto,
@@ -1866,7 +1880,10 @@ class RelatorioTreinamentosTest(TestCase):
             email="outro.relatorio@exemplo.com",
             matricula="REL002",
         )
-        self.produto = Produto.objects.create(nome="Produto Relatório")
+        self.produto = Produto.objects.create(
+            nome="Produto Relatório",
+            empresa=self.empresa,
+        )
 
         self.curso_pendente = self._criar_liberacao("Curso Pendente")
         self.curso_andamento = self._criar_liberacao("Curso Em Andamento")
@@ -2019,9 +2036,11 @@ class LiberarCursoLoteTest(TestCase):
             email="outra@exemplo.com",
             matricula="LIB004",
         )
-        self.produto = Produto.objects.create(nome="Produto Liberação")
+        self.produto = Produto.objects.create(
+            nome="Produto Liberação",
+            empresa=self.empresa,
+        )
         self.curso = Curso.objects.create(nome="Curso Liberação", produto=self.produto)
-        self.curso.empresas_disponiveis.add(self.empresa)
 
     def test_liberacao_lote_exige_staff(self):
         resposta_anonima = self.client.get(reverse("liberar_curso_lote"))
@@ -2131,8 +2150,11 @@ class LiberarCursoLoteTest(TestCase):
         )
 
     def test_liberacao_lote_rejeita_curso_fora_da_empresa(self):
-        curso_fora = Curso.objects.create(nome="Curso Fora", produto=self.produto)
-        curso_fora.empresas_disponiveis.add(self.outra_empresa)
+        produto_fora = Produto.objects.create(
+            nome="Produto Fora",
+            empresa=self.outra_empresa,
+        )
+        curso_fora = Curso.objects.create(nome="Curso Fora", produto=produto_fora)
         self.client.force_login(self.staff)
 
         resposta = self.client.post(
@@ -2347,11 +2369,16 @@ class EscopoEmpresaTest(TestCase):
             email="tecnico.b@exemplo.com",
             matricula="ESCOPO-B",
         )
-        self.produto = Produto.objects.create(nome="Produto Escopo")
-        self.curso_a = Curso.objects.create(nome="Curso Empresa A", produto=self.produto)
-        self.curso_b = Curso.objects.create(nome="Curso Empresa B", produto=self.produto)
-        self.curso_a.empresas_disponiveis.add(self.empresa_a)
-        self.curso_b.empresas_disponiveis.add(self.empresa_b)
+        self.produto_a = Produto.objects.create(
+            nome="Produto Escopo A",
+            empresa=self.empresa_a,
+        )
+        self.produto_b = Produto.objects.create(
+            nome="Produto Escopo B",
+            empresa=self.empresa_b,
+        )
+        self.curso_a = Curso.objects.create(nome="Curso Empresa A", produto=self.produto_a)
+        self.curso_b = Curso.objects.create(nome="Curso Empresa B", produto=self.produto_b)
         self.liberacao_a = CursoLiberado.objects.create(
             tecnico=self.tecnico_a,
             curso=self.curso_a,
@@ -2395,7 +2422,8 @@ class EscopoEmpresaTest(TestCase):
             {"empresa": str(self.empresa_b.id)},
         )
 
-        self.assertEqual(resposta.context["totais"]["total"], 0)
+        self.assertEqual(resposta.context["totais"]["total"], 1)
+        self.assertContains(resposta, "Curso Empresa A")
         self.assertNotContains(resposta, "Curso Empresa B")
 
     def test_responsavel_exporta_csv_apenas_da_sua_empresa(self):
@@ -2434,8 +2462,7 @@ class EscopoEmpresaTest(TestCase):
         self.assertNotIn(self.curso_b, form.fields["curso"].queryset)
 
     def test_liberacao_lote_rejeita_empresa_fora_do_escopo_do_responsavel(self):
-        curso_novo = Curso.objects.create(nome="Curso Novo", produto=self.produto)
-        curso_novo.empresas_disponiveis.add(self.empresa_b)
+        curso_novo = Curso.objects.create(nome="Curso Novo", produto=self.produto_b)
         self.client.force_login(self.responsavel)
 
         resposta = self.client.post(

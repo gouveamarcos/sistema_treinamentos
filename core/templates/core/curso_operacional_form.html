@@ -47,12 +47,6 @@
             {{ form.link_notebooklm }}
             {% for erro in form.link_notebooklm.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
         </div>
-        <div class="campo-form">
-            {{ form.empresas_disponiveis.label_tag }}
-            {{ form.empresas_disponiveis }}
-            {% if form.empresas_disponiveis.help_text %}<small class="texto-ajuda">{{ form.empresas_disponiveis.help_text }}</small>{% endif %}
-            {% for erro in form.empresas_disponiveis.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
-        </div>
         <label class="check-operacional">{{ form.ativo }} {{ form.ativo.label }}</label>
         <button class="botao-principal botao-auto" type="submit">Atualizar curso</button>
     </form>

@@ -154,9 +154,9 @@ class ResponsavelEmpresaAdmin(admin.ModelAdmin):
 
 @admin.register(Produto)
 class ProdutoAdmin(admin.ModelAdmin):
-    list_display = ("nome", "ativo")
-    search_fields = ("nome",)
-    list_filter = ("ativo",)
+    list_display = ("nome", "empresa", "ativo")
+    search_fields = ("nome", "empresa__nome")
+    list_filter = ("empresa", "ativo")
 
 
 @admin.register(Tecnico)
@@ -187,9 +187,8 @@ class TecnicoAdmin(admin.ModelAdmin):
 @admin.register(Curso)
 class CursoAdmin(admin.ModelAdmin):
     list_display = ("nome", "produto", "nota_minima", "validade_meses", "ativo")
-    search_fields = ("nome", "produto__nome", "empresas_disponiveis__nome")
-    list_filter = ("produto", "empresas_disponiveis", "ativo")
-    filter_horizontal = ("empresas_disponiveis",)
+    search_fields = ("nome", "produto__nome", "produto__empresa__nome")
+    list_filter = ("produto__empresa", "produto", "ativo")
     inlines = (EtapaCursoInline,)
 
 

@@ -46,12 +46,6 @@
             {{ form.link_notebooklm }}
             {% for erro in form.link_notebooklm.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
         </div>
-        <div class="campo-form">
-            {{ form.empresas_disponiveis.label_tag }}
-            {{ form.empresas_disponiveis }}
-            {% if form.empresas_disponiveis.help_text %}<small class="texto-ajuda">{{ form.empresas_disponiveis.help_text }}</small>{% endif %}
-            {% for erro in form.empresas_disponiveis.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
-        </div>
         <label class="check-operacional">{{ form.ativo }} {{ form.ativo.label }}</label>
         <button class="botao-principal botao-auto" type="submit">Salvar curso</button>
     </form>
@@ -64,7 +58,6 @@
                     <th>Curso</th>
                     <th>Validade</th>
                     <th>Nota minima</th>
-                    <th>Empresas</th>
                     <th>Status</th>
                     <th>Acoes</th>
                 </tr>
@@ -76,13 +69,6 @@
                         <td>{{ curso.nome }}</td>
                         <td>{{ curso.validade_meses }} meses</td>
                         <td>{{ curso.nota_minima }}%</td>
-                        <td>
-                            {% for empresa in curso.empresas_disponiveis.all %}
-                                {{ empresa.nome }}{% if not forloop.last %}, {% endif %}
-                            {% empty %}
-                                -
-                            {% endfor %}
-                        </td>
                         <td>
                             {% if curso.ativo %}
                                 <span class="status status-em-dia">Ativo</span>
@@ -103,7 +89,7 @@
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="7">Nenhum curso cadastrado.</td>
+                        <td colspan="6">Nenhum curso cadastrado.</td>
                     </tr>
                 {% endfor %}
             </tbody>

@@ -107,10 +107,16 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self._limpar_dados()
         tecnico = None if options["sem_tecnico"] else self._criar_tecnico()
+        empresa, _ = Empresa.objects.get_or_create(
+            nome="Sem Parar",
+            defaults={"responsavel": "Administrador", "ativa": True},
+        )
+        if tecnico:
+            empresa = tecnico.empresa
 
         totais = {"cursos": 0, "etapas": 0, "questoes": 0}
         for dados in CURSOS:
-            curso = self._criar_curso(dados)
+            curso = self._criar_curso(dados, empresa)
             if tecnico:
                 CursoLiberado.objects.create(
                     tecnico=tecnico, curso=curso, obrigatorio=True, ativo=True
@@ -171,8 +177,9 @@ class Command(BaseCommand):
             ativo=True,
         )
 
-    def _criar_curso(self, dados):
+    def _criar_curso(self, dados, empresa):
         produto = Produto.objects.create(
+            empresa=empresa,
             nome=dados["produto"],
             descricao=dados["descricao_produto"],
             ativo=True,
