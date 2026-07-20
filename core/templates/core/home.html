@@ -8,7 +8,9 @@
                 <span class="eyebrow">Painel do superadmin</span>
                 <h1>Visão geral da plataforma.</h1>
                 <p>Escolha uma empresa para entrar no painel operacional dela. A partir dali, o menu completo da empresa fica disponível.</p>
-                <a class="botao-principal botao-auto" href="{% url 'empresas_operacionais' %}">Gerenciar empresas</a>
+                <div class="hero-acoes">
+                    <a class="botao-principal botao-auto" href="{% url 'empresas_operacionais' %}">Gerenciar empresas</a>
+                </div>
             </div>
             <div class="hero-badge">
                 <strong>{{ resumo_operacional.empresas }}</strong>
