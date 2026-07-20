@@ -41,6 +41,19 @@
     <section class="aula">
         {% if etapa_atual %}
             <div class="aula-card">
+                {% if conclusao_disponivel %}
+                    <div class="conclusao-curso">
+                        <span class="eyebrow">Curso concluído</span>
+                        <h2>Seu certificado está disponível.</h2>
+                        <p>
+                            Código {{ conclusao_disponivel.codigo_certificado }} ·
+                            válido até {{ conclusao_disponivel.data_vencimento|date:"d/m/Y"|default:"sem vencimento" }}.
+                        </p>
+                        <a class="botao-principal botao-auto" href="{% url 'certificado_imprimir' conclusao_disponivel.codigo_certificado %}">
+                            Ver ou imprimir certificado
+                        </a>
+                    </div>
+                {% endif %}
                 <div class="aula-topo">
                     <span class="tipo-etapa">{{ etapa_atual.get_tipo_display }}</span>
                     {% if etapa_concluida %}<span class="status status-em-dia">Concluída</span>{% endif %}

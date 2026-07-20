@@ -2041,6 +2041,7 @@ def curso_detalhe(request, curso_id, etapa_id=None):
     ultima_conclusao = curso.conclusoes.filter(tecnico=tecnico).order_by(
         "-data_conclusao"
     ).first()
+    conclusao_disponivel = ultima_conclusao
     if (
         progresso.status == ProgressoCurso.Status.APROVADO
         and ultima_conclusao
@@ -2057,6 +2058,7 @@ def curso_detalhe(request, curso_id, etapa_id=None):
                 "atualizado_em",
             ]
         )
+        conclusao_disponivel = None
 
     if not progresso.iniciado_em:
         progresso.iniciado_em = timezone.now()
@@ -2111,6 +2113,9 @@ def curso_detalhe(request, curso_id, etapa_id=None):
             "itens": itens,
             "etapa_atual": etapa,
             "etapa_concluida": etapa.id in concluidas,
+            "conclusao_disponivel": conclusao_disponivel
+            if progresso.status == ProgressoCurso.Status.APROVADO
+            else None,
             "percentual": percentual,
         },
     )
@@ -2184,9 +2189,10 @@ def _avancar_ou_concluir(request, tecnico, curso, progresso):
     if etapas and len(concluidas) == len(etapas):
         progresso.status = ProgressoCurso.Status.APROVADO
         progresso.save(update_fields=["status", "atualizado_em"])
-        ConclusaoTreinamento.objects.create(tecnico=tecnico, curso=curso)
+        conclusao = ConclusaoTreinamento.objects.create(tecnico=tecnico, curso=curso)
         messages.success(
             request,
             "Parabéns! Curso concluído e certificação renovada com sucesso.",
         )
+        return redirect("certificado_imprimir", codigo=conclusao.codigo_certificado)
     return redirect("cursos_por_produto", produto_id=curso.produto_id)

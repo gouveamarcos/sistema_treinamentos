@@ -181,7 +181,8 @@ class FluxoCursoTest(TestCase):
             tecnico=self.tecnico, curso=self.curso
         )
         self.assertRedirects(
-            resposta, reverse("cursos_por_produto", args=(self.produto.id,))
+            resposta,
+            reverse("certificado_imprimir", args=(conclusao.codigo_certificado,)),
         )
         self.assertEqual(progresso.status, ProgressoCurso.Status.APROVADO)
         self.assertIsNotNone(conclusao.data_vencimento)
@@ -190,6 +191,36 @@ class FluxoCursoTest(TestCase):
             TentativaAvaliacao.objects.filter(
                 progresso=progresso, aprovado=True, nota=100
             ).exists()
+        )
+
+    def test_curso_concluido_exibe_atalho_para_certificado(self):
+        progresso = ProgressoCurso.objects.create(
+            tecnico=self.tecnico,
+            curso=self.curso,
+            status=ProgressoCurso.Status.APROVADO,
+            tentativa_atual=1,
+            iniciado_em=timezone.now(),
+        )
+        ProgressoEtapa.objects.create(
+            progresso=progresso, etapa=self.aula, tentativa=1
+        )
+        ProgressoEtapa.objects.create(
+            progresso=progresso, etapa=self.prova, tentativa=1, nota=100
+        )
+        conclusao = ConclusaoTreinamento.objects.create(
+            tecnico=self.tecnico,
+            curso=self.curso,
+            data_conclusao=timezone.localdate(),
+        )
+
+        resposta = self.client.get(reverse("curso_detalhe", args=(self.curso.id,)))
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Seu certificado está disponível.")
+        self.assertContains(resposta, conclusao.codigo_certificado)
+        self.assertContains(
+            resposta,
+            reverse("certificado_imprimir", args=(conclusao.codigo_certificado,)),
         )
 
     def test_certificacao_vencida_abre_nova_tentativa(self):
