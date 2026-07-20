@@ -6,7 +6,7 @@
     --grafite: #20252a;
     --texto: #30363b;
     --muted: #687078;
-    --fundo: #f4f6f6;
+    --fundo: #e9eeee;
     --branco: #fff;
     --borda: #e1e6e7;
     --sombra: 0 16px 45px rgba(27, 38, 43, .09);
@@ -148,6 +148,7 @@ a { color: inherit; }
 .acoes-tabela .link-button { color: var(--rosa); font-weight: 700; }
 .acoes-tabela .link-perigo { color: #b42318; }
 .lista-operacional { display: grid; gap: 18px; margin-top: 28px; }
+.empresas-painel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .item-operacional { box-shadow: 0 8px 28px rgba(31,40,43,.05); }
 .item-operacional h2 { margin: 8px 0; }
 .item-operacional p { color: var(--muted); line-height: 1.6; }
@@ -196,7 +197,7 @@ a { color: inherit; }
 @media (max-width: 850px) {
     .usuario { display: none; }.hero { padding: 34px; }.hero-badge { display: none; }.produtos { grid-template-columns: 1fr; }
     .curso-card { align-items: stretch; flex-direction: column; }.cabecalho-pagina { align-items: start; flex-direction: column; }.botao-auto { width: 100%; }
-    .auth-layout, .validacao-grid, .certificado-dados, .cards-resumo, .grade-formulario, .grade-gerencial { grid-template-columns: 1fr; }.auth-apresentacao { display: none; }
+    .auth-layout, .validacao-grid, .certificado-dados, .cards-resumo, .grade-formulario, .grade-gerencial, .empresas-painel-grid { grid-template-columns: 1fr; }.auth-apresentacao { display: none; }
     .filtros-relatorio, .formulario-inline { align-items: stretch; grid-template-columns: 1fr; flex-direction: column; }.filtros-relatorio label { min-width: 0; }
     .curso-layout { grid-template-columns: 1fr; }.trilha { padding: 28px 22px; border-right: 0; border-bottom: 1px solid var(--borda); }.etapas-menu { max-height: 310px; overflow: auto; }.aula { padding: 30px 20px; }.aula-card { padding: 26px; }
 }
