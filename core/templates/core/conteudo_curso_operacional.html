@@ -11,7 +11,7 @@
         </div>
     </section>
 
-    <form class="card-formulario formulario-operacional" method="post" action="{% url 'criar_etapa_operacional' curso.id %}">
+    <form id="nova-etapa" class="card-formulario formulario-operacional" method="post" action="{% url 'criar_etapa_operacional' curso.id %}">
         {% csrf_token %}
         <h2>Nova etapa</h2>
         <div class="grade-formulario">
@@ -54,7 +54,7 @@
 
     <section class="lista-operacional">
         {% for etapa in etapas %}
-            <article class="card-formulario item-operacional">
+            <article id="etapa-{{ etapa.id }}" class="card-formulario item-operacional">
                 <div class="item-operacional-topo">
                     <div>
                         <span class="eyebrow">Etapa {{ etapa.ordem }} - {{ etapa.get_tipo_display }}</span>
@@ -93,7 +93,7 @@
 
                     <div class="lista-questoes">
                         {% for questao in etapa.questoes.all %}
-                            <section class="questao-card">
+                            <section id="questao-{{ questao.id }}" class="questao-card">
                                 <div class="item-operacional-topo">
                                     <div>
                                         <strong>Questao {{ questao.ordem }}</strong>

@@ -10,7 +10,7 @@
         </div>
     </section>
 
-    <form class="card-formulario formulario-operacional" method="post">
+    <form class="card-formulario formulario-operacional" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <div class="grade-formulario">
             <div class="campo-form">
@@ -46,6 +46,11 @@
             {{ form.link_notebooklm }}
             {% for erro in form.link_notebooklm.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
         </div>
+        <div class="campo-form">
+            {{ form.material_pdf.label_tag }}
+            {{ form.material_pdf }}
+            {% for erro in form.material_pdf.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+        </div>
         <label class="check-operacional">{{ form.ativo }} {{ form.ativo.label }}</label>
         <button class="botao-principal botao-auto" type="submit">Salvar curso</button>
     </form>
@@ -58,6 +63,7 @@
                     <th>Curso</th>
                     <th>Validade</th>
                     <th>Nota minima</th>
+                    <th>PDF</th>
                     <th>Status</th>
                     <th>Acoes</th>
                 </tr>
@@ -69,6 +75,13 @@
                         <td>{{ curso.nome }}</td>
                         <td>{{ curso.validade_meses }} meses</td>
                         <td>{{ curso.nota_minima }}%</td>
+                        <td>
+                            {% if curso.material_pdf %}
+                                <a href="{{ curso.material_pdf.url }}" target="_blank" rel="noopener">Abrir PDF</a>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
                         <td>
                             {% if curso.ativo %}
                                 <span class="status status-em-dia">Ativo</span>
@@ -89,7 +102,7 @@
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="6">Nenhum curso cadastrado.</td>
+                        <td colspan="7">Nenhum curso cadastrado.</td>
                     </tr>
                 {% endfor %}
             </tbody>

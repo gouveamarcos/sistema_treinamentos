@@ -2,6 +2,8 @@ from datetime import timedelta
 from io import StringIO
 import os
 import re
+import shutil
+import tempfile
 from unittest.mock import patch
 
 from django.contrib.admin.sites import AdminSite
@@ -1334,6 +1336,37 @@ class CatalogoOperacionalTest(TestCase):
         )
         self.assertContains(resposta, "Curso Novo")
 
+    def test_editor_cria_curso_com_pdf(self):
+        media_root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, media_root, ignore_errors=True)
+        self.client.force_login(self.editor)
+        arquivo = SimpleUploadedFile(
+            "manual.pdf",
+            b"%PDF-1.4\nconteudo de teste\n%%EOF",
+            content_type="application/pdf",
+        )
+
+        with override_settings(MEDIA_ROOT=media_root):
+            resposta = self.client.post(
+                reverse("cursos_operacionais"),
+                {
+                    "produto": self.produto.id,
+                    "nome": "Curso com PDF",
+                    "descricao": "Conteudo com PDF",
+                    "validade_meses": 18,
+                    "nota_minima": 75,
+                    "link_notebooklm": "",
+                    "material_pdf": arquivo,
+                    "ativo": "on",
+                },
+                follow=True,
+            )
+
+            curso = Curso.objects.get(nome="Curso com PDF")
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTrue(curso.material_pdf.name.endswith(".pdf"))
+
     def test_operacional_nao_acessa_catalogo_de_cursos(self):
         self.client.force_login(self.operacional)
 
@@ -1484,13 +1517,12 @@ class ConteudoCursoOperacionalTest(TestCase):
             },
             follow=True,
         )
+        etapa = EtapaCurso.objects.get(titulo="Video explicativo")
 
         self.assertEqual(resposta.status_code, 200)
-        self.assertTrue(
-            EtapaCurso.objects.filter(
-                curso=self.curso,
-                titulo="Video explicativo",
-            ).exists()
+        self.assertEqual(
+            resposta.redirect_chain[-1][0].split("#")[-1],
+            f"etapa-{etapa.id}",
         )
         self.assertContains(resposta, "Video explicativo")
         self.assertTrue(
@@ -1565,6 +1597,10 @@ class ConteudoCursoOperacionalTest(TestCase):
         questao = Questao.objects.get(etapa=self.etapa_prova)
 
         self.assertEqual(resposta_criacao.status_code, 200)
+        self.assertEqual(
+            resposta_criacao.redirect_chain[-1][0].split("#")[-1],
+            f"questao-{questao.id}",
+        )
         self.assertContains(resposta_criacao, "Qual e a resposta?")
 
         resposta_edicao = self.client.post(
@@ -1614,6 +1650,10 @@ class ConteudoCursoOperacionalTest(TestCase):
         alternativa = Alternativa.objects.get(questao=questao)
 
         self.assertEqual(resposta_criacao.status_code, 200)
+        self.assertEqual(
+            resposta_criacao.redirect_chain[-1][0].split("#")[-1],
+            f"questao-{questao.id}",
+        )
         self.assertTrue(alternativa.correta)
         self.assertContains(resposta_criacao, "Alternativa correta")
 

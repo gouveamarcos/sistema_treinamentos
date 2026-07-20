@@ -424,6 +424,7 @@ class CursoForm(forms.ModelForm):
             "validade_meses",
             "nota_minima",
             "link_notebooklm",
+            "material_pdf",
             "ativo",
         )
         widgets = {
@@ -442,6 +443,17 @@ class CursoForm(forms.ModelForm):
         if empresa is not None:
             produtos = produtos.filter(empresa=empresa)
         self.fields["produto"].queryset = produtos.order_by("nome")
+
+    def clean_material_pdf(self):
+        arquivo = self.cleaned_data.get("material_pdf")
+        if not arquivo:
+            return arquivo
+        if not arquivo.name.lower().endswith(".pdf"):
+            raise forms.ValidationError("Envie um arquivo PDF.")
+        limite = 20 * 1024 * 1024
+        if arquivo.size > limite:
+            raise forms.ValidationError("Arquivo PDF muito grande. Limite: 20 MB.")
+        return arquivo
 
 
 class EtapaCursoForm(forms.ModelForm):

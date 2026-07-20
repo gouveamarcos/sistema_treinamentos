@@ -66,6 +66,7 @@ a { color: inherit; }
 .progresso-info > div:first-child { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; }
 .barra { height: 7px; overflow: hidden; border-radius: 10px; background: #e8eded; }
 .barra span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--verde), #26c9bd); }
+.material-apoio-link { display: block; margin: 18px 0 24px; }
 .validade { display: flex; gap: 20px; margin-top: 14px; color: var(--muted); font-size: 12px; }
 .botao-principal { display: inline-block; width: 100%; padding: 14px 20px; border: 0; border-radius: 10px; color: white; background: var(--verde); font: inherit; font-weight: 700; text-align: center; text-decoration: none; cursor: pointer; }
 .botao-principal:hover { background: var(--verde-escuro); }

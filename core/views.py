@@ -12,8 +12,9 @@ from django.core.exceptions import PermissionDenied
 from django.db import connection
 from django.db import transaction
 from django.db.models import Q
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -50,6 +51,7 @@ from .models import (
     Tecnico,
     TentativaAvaliacao,
 )
+
 from .scopes import (
     empresas_do_usuario,
     papeis_responsavel_usuario,
@@ -59,6 +61,13 @@ from .scopes import (
 
 JANELA_VENCIMENTO_DIAS = 30
 EMPRESA_CONTEXTO_SESSION_KEY = "empresa_operacional_id"
+
+
+def _redirect_conteudo_curso(curso_id, anchor=""):
+    url = reverse("conteudo_curso_operacional", args=(curso_id,))
+    if anchor:
+        url = f"{url}#{anchor}"
+    return HttpResponseRedirect(url)
 
 
 def saude(request):
@@ -1546,7 +1555,7 @@ def cursos_operacionais(request):
         return redirect("empresas_operacionais")
 
     if request.method == "POST":
-        form = CursoForm(request.POST, empresa=empresa)
+        form = CursoForm(request.POST, request.FILES, empresa=empresa)
         if form.is_valid():
             curso = form.save()
             registrar_evento(
@@ -1587,7 +1596,7 @@ def editar_curso_operacional(request, curso_id):
         empresa = curso.produto.empresa
         _definir_empresa_contexto(request, empresa)
     if request.method == "POST":
-        form = CursoForm(request.POST, instance=curso, empresa=empresa)
+        form = CursoForm(request.POST, request.FILES, instance=curso, empresa=empresa)
         if form.is_valid():
             curso = form.save()
             registrar_evento(
@@ -1661,7 +1670,7 @@ def criar_etapa_operacional(request, curso_id):
         return redirect("empresas_operacionais")
     curso = get_object_or_404(_cursos_contexto(request), pk=curso_id)
     if request.method != "POST":
-        return redirect("conteudo_curso_operacional", curso_id=curso.id)
+        return _redirect_conteudo_curso(curso.id, "nova-etapa")
 
     form = EtapaCursoForm(request.POST)
     if form.is_valid():
@@ -1675,9 +1684,10 @@ def criar_etapa_operacional(request, curso_id):
             detalhes=f"Etapa criada no curso {curso.nome}.",
         )
         messages.success(request, f"Etapa {etapa.titulo} criada com sucesso.")
+        return _redirect_conteudo_curso(curso.id, f"etapa-{etapa.id}")
     else:
         messages.error(request, "Nao foi possivel criar a etapa. Confira os dados.")
-    return redirect("conteudo_curso_operacional", curso_id=curso.id)
+    return _redirect_conteudo_curso(curso.id, "nova-etapa")
 
 
 @staff_member_required
@@ -1702,7 +1712,7 @@ def editar_etapa_operacional(request, etapa_id):
                 detalhes=f"Etapa atualizada no curso {etapa.curso.nome}.",
             )
             messages.success(request, f"Etapa {etapa.titulo} atualizada com sucesso.")
-            return redirect("conteudo_curso_operacional", curso_id=etapa.curso_id)
+            return _redirect_conteudo_curso(etapa.curso_id, f"etapa-{etapa.id}")
     else:
         form = EtapaCursoForm(instance=etapa)
 
@@ -1735,7 +1745,7 @@ def alternar_etapa_operacional(request, etapa_id):
     )
     status = "ativada" if etapa.ativo else "desativada"
     messages.success(request, f"Etapa {status} com sucesso.")
-    return redirect("conteudo_curso_operacional", curso_id=etapa.curso_id)
+    return _redirect_conteudo_curso(etapa.curso_id, f"etapa-{etapa.id}")
 
 
 @staff_member_required
@@ -1751,9 +1761,9 @@ def criar_questao_operacional(request, etapa_id):
     )
     if not etapa.avaliativa:
         messages.error(request, "Questoes so podem ser criadas em etapas avaliativas.")
-        return redirect("conteudo_curso_operacional", curso_id=etapa.curso_id)
+        return _redirect_conteudo_curso(etapa.curso_id, f"etapa-{etapa.id}")
     if request.method != "POST":
-        return redirect("conteudo_curso_operacional", curso_id=etapa.curso_id)
+        return _redirect_conteudo_curso(etapa.curso_id, f"etapa-{etapa.id}")
 
     form = QuestaoForm(request.POST)
     if form.is_valid():
@@ -1767,9 +1777,10 @@ def criar_questao_operacional(request, etapa_id):
             detalhes=f"Questao criada na etapa {etapa.titulo}.",
         )
         messages.success(request, "Questao criada com sucesso.")
+        return _redirect_conteudo_curso(etapa.curso_id, f"questao-{questao.id}")
     else:
         messages.error(request, "Nao foi possivel criar a questao. Confira os dados.")
-    return redirect("conteudo_curso_operacional", curso_id=etapa.curso_id)
+    return _redirect_conteudo_curso(etapa.curso_id, f"etapa-{etapa.id}")
 
 
 @staff_member_required
@@ -1794,9 +1805,8 @@ def editar_questao_operacional(request, questao_id):
                 detalhes=f"Questao atualizada na etapa {questao.etapa.titulo}.",
             )
             messages.success(request, "Questao atualizada com sucesso.")
-            return redirect(
-                "conteudo_curso_operacional",
-                curso_id=questao.etapa.curso_id,
+            return _redirect_conteudo_curso(
+                questao.etapa.curso_id, f"questao-{questao.id}"
             )
     else:
         form = QuestaoForm(instance=questao)
@@ -1829,7 +1839,7 @@ def excluir_questao_operacional(request, questao_id):
     )
     questao.delete()
     messages.success(request, "Questao removida com sucesso.")
-    return redirect("conteudo_curso_operacional", curso_id=curso_id)
+    return _redirect_conteudo_curso(curso_id, f"etapa-{questao.etapa_id}")
 
 
 @staff_member_required
@@ -1844,7 +1854,9 @@ def criar_alternativa_operacional(request, questao_id):
         pk=questao_id,
     )
     if request.method != "POST":
-        return redirect("conteudo_curso_operacional", curso_id=questao.etapa.curso_id)
+        return _redirect_conteudo_curso(
+            questao.etapa.curso_id, f"questao-{questao.id}"
+        )
 
     form = AlternativaForm(request.POST)
     if form.is_valid():
@@ -1858,12 +1870,15 @@ def criar_alternativa_operacional(request, questao_id):
             detalhes=f"Alternativa criada na questao {questao.id}.",
         )
         messages.success(request, "Alternativa criada com sucesso.")
+        return _redirect_conteudo_curso(
+            questao.etapa.curso_id, f"questao-{questao.id}"
+        )
     else:
         messages.error(
             request,
             "Nao foi possivel criar a alternativa. Confira os dados.",
         )
-    return redirect("conteudo_curso_operacional", curso_id=questao.etapa.curso_id)
+    return _redirect_conteudo_curso(questao.etapa.curso_id, f"questao-{questao.id}")
 
 
 @staff_member_required
@@ -1888,9 +1903,9 @@ def editar_alternativa_operacional(request, alternativa_id):
                 detalhes=f"Alternativa atualizada na questao {alternativa.questao_id}.",
             )
             messages.success(request, "Alternativa atualizada com sucesso.")
-            return redirect(
-                "conteudo_curso_operacional",
-                curso_id=alternativa.questao.etapa.curso_id,
+            return _redirect_conteudo_curso(
+                alternativa.questao.etapa.curso_id,
+                f"questao-{alternativa.questao_id}",
             )
     else:
         form = AlternativaForm(instance=alternativa)
@@ -1923,7 +1938,7 @@ def excluir_alternativa_operacional(request, alternativa_id):
     )
     alternativa.delete()
     messages.success(request, "Alternativa removida com sucesso.")
-    return redirect("conteudo_curso_operacional", curso_id=curso_id)
+    return _redirect_conteudo_curso(curso_id, f"questao-{alternativa.questao_id}")
 
 
 def certificado_imprimir(request, codigo):

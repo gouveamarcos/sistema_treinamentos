@@ -11,7 +11,7 @@
         </div>
     </section>
 
-    <form class="card-formulario formulario-operacional" method="post">
+    <form class="card-formulario formulario-operacional" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <div class="grade-formulario">
             <div class="campo-form">
@@ -46,6 +46,14 @@
             {{ form.link_notebooklm.label_tag }}
             {{ form.link_notebooklm }}
             {% for erro in form.link_notebooklm.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
+        </div>
+        <div class="campo-form">
+            {{ form.material_pdf.label_tag }}
+            {{ form.material_pdf }}
+            {% if curso.material_pdf %}
+                <small class="texto-ajuda">PDF atual: <a href="{{ curso.material_pdf.url }}" target="_blank" rel="noopener">abrir arquivo</a></small>
+            {% endif %}
+            {% for erro in form.material_pdf.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
         </div>
         <label class="check-operacional">{{ form.ativo }} {{ form.ativo.label }}</label>
         <button class="botao-principal botao-auto" type="submit">Atualizar curso</button>

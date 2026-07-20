@@ -220,6 +220,12 @@ class Curso(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(100)],
     )
     link_notebooklm = models.URLField(blank=True, null=True)
+    material_pdf = models.FileField(
+        upload_to="cursos/pdfs/",
+        blank=True,
+        null=True,
+        verbose_name="PDF do curso",
+    )
     ativo = models.BooleanField(default=True)
     data_criacao = models.DateTimeField(default=timezone.now)
 
