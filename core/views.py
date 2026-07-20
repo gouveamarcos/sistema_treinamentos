@@ -12,6 +12,7 @@ from django.core.exceptions import PermissionDenied
 from django.db import connection
 from django.db import transaction
 from django.db.models import Q
+from django.db.models.deletion import ProtectedError
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -1347,6 +1348,39 @@ def alternar_empresa_operacional(request, empresa_id):
     )
     status = "ativada" if empresa.ativa else "desativada"
     messages.success(request, f"Empresa {status} com sucesso.")
+    return redirect("empresas_operacionais")
+
+
+@staff_member_required
+@require_POST
+def excluir_empresa_operacional(request, empresa_id):
+    _exigir_operador_empresas(request)
+    if not request.user.is_superuser:
+        raise PermissionDenied
+    empresa = get_object_or_404(Empresa, pk=empresa_id)
+    nome = empresa.nome
+    try:
+        empresa.delete()
+    except ProtectedError:
+        messages.error(
+            request,
+            (
+                f"A empresa {nome} nao pode ser excluida porque possui "
+                "produtos, tecnicos, liberacoes ou certificados vinculados. "
+                "Desative a empresa ou remova os vinculos antes de excluir."
+            ),
+        )
+    else:
+        EventoAuditoria.objects.create(
+            usuario=request.user,
+            empresa=None,
+            acao=EventoAuditoria.Acao.EDICAO,
+            alvo_tipo="Empresa",
+            alvo_id=empresa_id,
+            alvo_repr=nome,
+            detalhes="Empresa excluida pela tela operacional.",
+        )
+        messages.success(request, f"Empresa {nome} excluida com sucesso.")
     return redirect("empresas_operacionais")
 
 

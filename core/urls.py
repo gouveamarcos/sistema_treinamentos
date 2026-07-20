@@ -110,6 +110,11 @@ urlpatterns = [
         name="alternar_empresa_operacional",
     ),
     path(
+        "empresas/<int:empresa_id>/excluir/",
+        views.excluir_empresa_operacional,
+        name="excluir_empresa_operacional",
+    ),
+    path(
         "tecnicos/",
         views.tecnicos_operacionais,
         name="tecnicos_operacionais",

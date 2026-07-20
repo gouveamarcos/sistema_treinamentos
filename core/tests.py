@@ -1080,6 +1080,49 @@ class CadastroOperacionalTest(TestCase):
         self.assertTrue(self.empresa_a.ativa)
         self.assertContains(resposta, "Empresa ativada com sucesso.")
 
+    def test_superadmin_exclui_empresa_sem_vinculos(self):
+        empresa = Empresa.objects.create(nome="Cliente Sem Vinculos")
+        self.client.force_login(self.superadmin)
+
+        resposta = self.client.post(
+            reverse("excluir_empresa_operacional", args=(empresa.id,)),
+            follow=True,
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(Empresa.objects.filter(pk=empresa.id).exists())
+        self.assertContains(resposta, "Empresa Cliente Sem Vinculos excluida com sucesso.")
+        self.assertTrue(
+            EventoAuditoria.objects.filter(
+                alvo_tipo="Empresa",
+                alvo_repr="Cliente Sem Vinculos",
+                detalhes__contains="Empresa excluida",
+            ).exists()
+        )
+
+    def test_responsavel_nao_exclui_empresa(self):
+        empresa = Empresa.objects.create(nome="Cliente Protegido")
+        self.client.force_login(self.responsavel_a)
+
+        resposta = self.client.post(
+            reverse("excluir_empresa_operacional", args=(empresa.id,))
+        )
+
+        self.assertEqual(resposta.status_code, 403)
+        self.assertTrue(Empresa.objects.filter(pk=empresa.id).exists())
+
+    def test_empresa_com_vinculos_nao_e_excluida(self):
+        self.client.force_login(self.superadmin)
+
+        resposta = self.client.post(
+            reverse("excluir_empresa_operacional", args=(self.empresa_a.id,)),
+            follow=True,
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTrue(Empresa.objects.filter(pk=self.empresa_a.id).exists())
+        self.assertContains(resposta, "nao pode ser excluida")
+
     def test_responsavel_edita_empresa_do_proprio_escopo(self):
         self.client.force_login(self.responsavel_a)
 
