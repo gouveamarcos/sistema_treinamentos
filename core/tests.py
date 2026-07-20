@@ -265,6 +265,61 @@ class FluxoCursoTest(TestCase):
 
         self.assertContains(resposta, conclusao.codigo_certificado)
 
+    def test_superadmin_pode_fazer_curso_com_tecnico_interno(self):
+        superadmin = User.objects.create_user(
+            username="superadmin-teste-curso",
+            password="SenhaForte123!",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.force_login(superadmin)
+
+        resposta = self.client.get(reverse("curso_detalhe", args=(self.curso.id,)))
+
+        tecnico_teste = Tecnico.objects.get(
+            matricula=f"TESTE-{superadmin.id}-{self.tecnico.empresa_id}"
+        )
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(tecnico_teste.empresa, self.tecnico.empresa)
+        self.assertTrue(
+            CursoLiberado.objects.filter(
+                tecnico=tecnico_teste,
+                curso=self.curso,
+                ativo=True,
+            ).exists()
+        )
+        self.assertContains(resposta, self.aula.titulo)
+
+    def test_editor_pode_fazer_curso_da_empresa_como_teste(self):
+        editor = User.objects.create_user(
+            username="editor-teste-curso",
+            password="SenhaForte123!",
+            is_staff=True,
+        )
+        ResponsavelEmpresa.objects.create(
+            empresa=self.tecnico.empresa,
+            usuario=editor,
+            papel=ResponsavelEmpresa.Papel.EDITOR_CURSOS,
+        )
+        self.client.force_login(editor)
+
+        resposta = self.client.get(
+            reverse("cursos_por_produto", args=(self.produto.id,))
+        )
+
+        tecnico_teste = Tecnico.objects.get(
+            matricula=f"TESTE-{editor.id}-{self.tecnico.empresa_id}"
+        )
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, self.curso.nome)
+        self.assertTrue(
+            CursoLiberado.objects.filter(
+                tecnico=tecnico_teste,
+                curso=self.curso,
+                ativo=True,
+            ).exists()
+        )
+
 
 @override_settings(
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",

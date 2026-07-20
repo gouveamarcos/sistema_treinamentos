@@ -9,6 +9,7 @@
             <h1>{{ curso.nome }}</h1>
             <p>{{ curso.produto.nome }} - organize etapas, questoes e alternativas.</p>
         </div>
+        <a class="botao-secundario botao-auto" href="{% url 'curso_detalhe' curso.id %}">Fazer curso</a>
     </section>
 
     <form id="nova-etapa" class="card-formulario formulario-operacional" method="post" action="{% url 'criar_etapa_operacional' curso.id %}">

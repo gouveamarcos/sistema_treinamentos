@@ -90,7 +90,8 @@
                             {% endif %}
                         </td>
                         <td class="acoes-tabela">
-                            <a href="{% url 'conteudo_curso_operacional' curso.id %}">Conteudo</a>
+                            <a href="{% url 'curso_detalhe' curso.id %}">Fazer curso</a>
+                            <a href="{% url 'conteudo_curso_operacional' curso.id %}">Montar conteúdo</a>
                             <a href="{% url 'editar_curso_operacional' curso.id %}">Editar</a>
                             <form method="post" action="{% url 'alternar_curso_operacional' curso.id %}">
                                 {% csrf_token %}

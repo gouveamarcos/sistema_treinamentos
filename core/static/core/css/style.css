@@ -52,7 +52,7 @@ a { color: inherit; }
 .produto-cor-1 { background: var(--verde); }.produto-cor-2 { background: var(--laranja); }.produto-cor-3 { background: var(--rosa); }.produto-cor-4 { background: var(--grafite); }
 .seta { font-size: 25px; color: var(--verde); }
 .voltar { display: inline-block; margin-bottom: 24px; color: var(--muted); font-size: 14px; font-weight: 600; text-decoration: none; }
-.cabecalho-pagina { padding-bottom: 30px; border-bottom: 1px solid var(--borda); }
+.cabecalho-pagina { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-bottom: 30px; border-bottom: 1px solid var(--borda); }
 .lista-cursos { display: grid; gap: 18px; margin-top: 28px; }
 .curso-card { display: flex; align-items: center; justify-content: space-between; gap: 30px; padding: 28px; border: 1px solid var(--borda); border-radius: 18px; background: var(--branco); box-shadow: 0 5px 18px rgba(25,35,38,.04); }
 .curso-conteudo { flex: 1; }
@@ -194,7 +194,7 @@ a { color: inherit; }
 
 @media (max-width: 850px) {
     .usuario { display: none; }.hero { padding: 34px; }.hero-badge { display: none; }.produtos { grid-template-columns: 1fr; }
-    .curso-card { align-items: stretch; flex-direction: column; }.botao-auto { width: 100%; }
+    .curso-card { align-items: stretch; flex-direction: column; }.cabecalho-pagina { align-items: start; flex-direction: column; }.botao-auto { width: 100%; }
     .auth-layout, .validacao-grid, .certificado-dados, .cards-resumo, .grade-formulario, .grade-gerencial { grid-template-columns: 1fr; }.auth-apresentacao { display: none; }
     .filtros-relatorio, .formulario-inline { align-items: stretch; grid-template-columns: 1fr; flex-direction: column; }.filtros-relatorio label { min-width: 0; }
     .curso-layout { grid-template-columns: 1fr; }.trilha { padding: 28px 22px; border-right: 0; border-bottom: 1px solid var(--borda); }.etapas-menu { max-height: 310px; overflow: auto; }.aula { padding: 30px 20px; }.aula-card { padding: 26px; }

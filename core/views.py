@@ -257,6 +257,68 @@ def _tecnico_logado(request):
         return None
 
 
+def _usuario_pode_testar_cursos(user, empresa):
+    if not usuario_pode_gerenciar_catalogo(user):
+        return False
+    return empresas_do_usuario(user).filter(pk=empresa.pk).exists()
+
+
+def _tecnico_teste_interno(user, empresa):
+    nome = user.get_full_name() or user.username or f"Usuario {user.pk}"
+    tecnico, _ = Tecnico.objects.get_or_create(
+        matricula=f"TESTE-{user.pk}-{empresa.pk}",
+        defaults={
+            "empresa": empresa,
+            "nome": f"Teste interno - {nome}",
+            "email": f"teste-{user.pk}-{empresa.pk}@academia.local",
+            "equipe": "Teste interno da plataforma",
+            "regiao": "Ambiente de testes",
+            "ativo": True,
+        },
+    )
+    campos_atualizar = []
+    if tecnico.empresa_id != empresa.pk:
+        tecnico.empresa = empresa
+        campos_atualizar.append("empresa")
+    if not tecnico.ativo:
+        tecnico.ativo = True
+        campos_atualizar.append("ativo")
+    if campos_atualizar:
+        tecnico.save(update_fields=campos_atualizar)
+    return tecnico
+
+
+def _tecnico_para_produto(request, produto):
+    tecnico = _tecnico_logado(request)
+    if tecnico and tecnico.empresa_id == produto.empresa_id:
+        return tecnico
+    if _usuario_pode_testar_cursos(request.user, produto.empresa):
+        tecnico = _tecnico_teste_interno(request.user, produto.empresa)
+        for curso in produto.cursos.filter(ativo=True):
+            CursoLiberado.objects.get_or_create(
+                tecnico=tecnico,
+                curso=curso,
+                defaults={"obrigatorio": False, "ativo": True},
+            )
+        return tecnico
+    return None
+
+
+def _tecnico_para_curso(request, curso):
+    tecnico = _tecnico_logado(request)
+    if tecnico and tecnico.empresa_id == curso.produto.empresa_id:
+        return tecnico
+    if _usuario_pode_testar_cursos(request.user, curso.produto.empresa):
+        tecnico = _tecnico_teste_interno(request.user, curso.produto.empresa)
+        CursoLiberado.objects.get_or_create(
+            tecnico=tecnico,
+            curso=curso,
+            defaults={"obrigatorio": False, "ativo": True},
+        )
+        return tecnico
+    return None
+
+
 def _curso_liberado(tecnico, curso):
     return CursoLiberado.objects.filter(
         tecnico=tecnico, curso=curso, curso__ativo=True, ativo=True
@@ -1965,19 +2027,21 @@ def certificado_imprimir(request, codigo):
 
 @login_required
 def cursos_por_produto(request, produto_id):
-    tecnico = _tecnico_logado(request)
+    produto = get_object_or_404(
+        Produto.objects.select_related("empresa"),
+        id=produto_id,
+        ativo=True,
+    )
+    tecnico = _tecnico_para_produto(request, produto)
     if not tecnico:
         messages.error(
             request,
             "Seu usuário não está vinculado a um técnico. Procure o administrador.",
         )
         return redirect("home")
-    produto = get_object_or_404(
-        Produto,
-        id=produto_id,
-        ativo=True,
-        empresa=tecnico.empresa,
-    )
+    if tecnico.empresa_id != produto.empresa_id:
+        messages.error(request, "Este produto não está liberado para o seu perfil.")
+        return redirect("home")
 
     hoje = timezone.localdate()
     liberacoes = CursoLiberado.objects.filter(
@@ -2028,9 +2092,11 @@ def cursos_por_produto(request, produto_id):
 @login_required
 def curso_detalhe(request, curso_id, etapa_id=None):
     curso = get_object_or_404(
-        Curso.objects.select_related("produto"), id=curso_id, ativo=True
+        Curso.objects.select_related("produto", "produto__empresa"),
+        id=curso_id,
+        ativo=True,
     )
-    tecnico = _tecnico_logado(request)
+    tecnico = _tecnico_para_curso(request, curso)
     if not tecnico or not _curso_liberado(tecnico, curso):
         messages.error(request, "Este curso não está liberado para o seu perfil.")
         return redirect("home")
