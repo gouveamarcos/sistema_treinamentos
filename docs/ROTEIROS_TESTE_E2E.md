@@ -1,8 +1,10 @@
-# Roteiro de Teste Ponta a Ponta
+# Roteiro De Teste Ponta A Ponta
 
-Este roteiro serve para testar a plataforma inteira, do começo ao fim, como uma pessoa comum usaria.
+Este roteiro foi escrito para uma pessoa que vai testar a plataforma pela primeira vez, em uma máquina nova, sem conhecer o projeto.
 
-Use um teste por vez. Ao terminar cada item, marque:
+A ideia é seguir na ordem. Não pule etapas, porque os testes finais dependem dos cadastros feitos no começo.
+
+Para cada teste, anote:
 
 ```text
 Status: Aprovado / Reprovado / Bloqueado
@@ -10,45 +12,147 @@ Observação:
 Print ou evidência:
 ```
 
-## Antes De Começar
+## 1. Preparar O Projeto Pela Primeira Vez
 
-1. Abra o terminal do projeto.
-2. Ative o ambiente virtual, se ainda não estiver ativo.
-3. Rode o servidor:
+### Teste 1.1: Abrir A Pasta Do Projeto
+
+Perfil: pessoa responsável pelo teste.
+
+Passos:
+
+1. Abra o **PowerShell**.
+2. Entre na pasta onde o projeto foi instalado.
+
+Exemplo:
+
+```powershell
+D:
+cd .\Projetos\sistema_treinamentos\
+```
+
+Resultado esperado:
+
+- O terminal deve ficar dentro da pasta do projeto.
+- A pasta deve ter arquivos como `manage.py`, `requirements.txt`, `core` e `treinamentos`.
+
+### Teste 1.2: Criar O Ambiente Virtual
+
+Faça este passo somente se ainda não existir a pasta `venv`.
+
+Passos:
+
+1. No PowerShell, rode:
+
+```powershell
+python -m venv venv
+```
+
+2. Ative o ambiente virtual:
+
+```powershell
+.\venv\Scripts\activate
+```
+
+Resultado esperado:
+
+- O terminal deve mostrar `(venv)` no começo da linha.
+
+### Teste 1.3: Instalar As Dependências
+
+Passos:
+
+1. Com o ambiente virtual ativo, rode:
+
+```powershell
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+Resultado esperado:
+
+- O comando termina sem erro.
+- O Django e as demais bibliotecas são instalados.
+
+### Teste 1.4: Preparar O Banco De Dados
+
+Passos:
+
+1. Rode:
+
+```powershell
+python .\manage.py migrate
+```
+
+Resultado esperado:
+
+- O sistema cria ou atualiza o banco de dados.
+- Deve aparecer uma lista de migrações aplicadas ou a mensagem de que não há migrações pendentes.
+
+### Teste 1.5: Criar O Primeiro Administrador
+
+Passos:
+
+1. Rode:
+
+```powershell
+python .\manage.py redefinir_admin --username admin --email admin@teste.com
+```
+
+2. Digite uma senha segura quando o terminal pedir.
+3. Confirme a senha.
+
+Resultado esperado:
+
+- Deve aparecer a mensagem:
+
+```text
+Administrador 'admin' criado com sucesso.
+```
+
+ou:
+
+```text
+Administrador 'admin' redefinido com sucesso.
+```
+
+Guarde estes dados:
+
+```text
+Usuário: admin
+Senha: a senha que você escolheu
+```
+
+### Teste 1.6: Iniciar O Sistema
+
+Passos:
+
+1. Rode:
 
 ```powershell
 python .\manage.py runserver
 ```
 
-4. Abra o navegador em:
+2. Deixe esse terminal aberto.
+3. Abra o navegador em:
 
 ```text
 http://127.0.0.1:8000/
 ```
 
-5. Se aparecer uma tela de login, tudo bem.
+Resultado esperado:
 
-## Dados De Teste
+- O navegador deve abrir a plataforma.
+- Se aparecer tela de login, está correto.
 
-Durante os testes, use nomes fáceis de reconhecer:
-
-```text
-Empresa principal: Cliente Teste A
-Empresa de comparação: Sem Parar
-Produto da Cliente Teste A: Produto Teste Cliente A
-Curso da Cliente Teste A: Curso Teste Cliente A
-Técnico da Cliente Teste A: Técnico Teste A1
-Responsável operacional: Responsável Operacional A
-Editor de cursos: Editor Cursos A
-```
-
-## Teste 1: Verificar Se O Sistema Está No Ar
-
-Perfil: qualquer pessoa, sem login.
+### Teste 1.7: Conferir Se O Sistema Está Saudável
 
 Passos:
 
-1. Acesse `http://127.0.0.1:8000/saude/`.
+1. No navegador, acesse:
+
+```text
+http://127.0.0.1:8000/saude/
+```
 
 Resultado esperado:
 
@@ -58,71 +162,51 @@ Resultado esperado:
 {"status": "ok", "database": "ok"}
 ```
 
-## Teste 2: Entrar Como Superadmin
+## 2. Entrar Como Superadmin
+
+### Teste 2.1: Login Do Administrador
 
 Perfil: superadmin.
 
 Passos:
 
-1. Acesse `http://127.0.0.1:8000/login/`.
-2. Entre com o usuário administrador.
-3. Depois do login, acesse `http://127.0.0.1:8000/`.
+1. Acesse:
+
+```text
+http://127.0.0.1:8000/login/
+```
+
+2. Entre com:
+
+```text
+Usuário: admin
+Senha: senha escolhida no Teste 1.5
+```
+
+3. Depois do login, acesse:
+
+```text
+http://127.0.0.1:8000/
+```
 
 Resultado esperado:
 
-- Deve abrir a página **Painel do superadmin**.
-- Essa página deve mostrar um resumo geral da plataforma.
-- Essa página deve listar as empresas.
-- Não deve aparecer o menu operacional completo no topo.
-- Deve existir o botão **Acessar painel da empresa** em cada empresa ativa.
+- Deve aparecer a página **Painel do superadmin**.
+- Essa página deve mostrar um resumo geral.
+- Ainda não deve aparecer o menu operacional completo no topo.
+- Deve existir o botão **Gerenciar empresas**.
 
-## Teste 3: Acessar O Painel De Uma Empresa
+## 3. Criar A Primeira Empresa
 
-Perfil: superadmin.
-
-Passos:
-
-1. Na página inicial do superadmin, encontre a empresa `Cliente Teste A`.
-2. Clique em **Acessar painel da empresa**.
-
-Resultado esperado:
-
-- Deve abrir o painel da `Cliente Teste A`.
-- O topo deve mostrar que você está operando a `Cliente Teste A`.
-- Agora sim deve aparecer o menu operacional completo.
-- O menu deve permitir acessar:
-  - Empresas;
-  - Técnicos;
-  - Relatórios;
-  - Histórico;
-  - Liberar cursos;
-  - Responsáveis;
-  - Produtos;
-  - Cursos.
-
-## Teste 4: Voltar Para A Home Do Superadmin
+### Teste 3.1: Cadastrar Cliente Teste A
 
 Perfil: superadmin.
 
 Passos:
 
-1. Enquanto estiver no painel da empresa, acesse `http://127.0.0.1:8000/`.
+1. No **Painel do superadmin**, clique em **Gerenciar empresas**.
 
-Resultado esperado:
-
-- Deve voltar para o **Painel do superadmin**.
-- Não deve abrir automaticamente o painel da última empresa acessada.
-- A lista de empresas deve aparecer novamente.
-
-## Teste 5: Criar Ou Conferir A Empresa Cliente Teste A
-
-Perfil: superadmin.
-
-Passos:
-
-1. Acesse o painel do superadmin.
-2. Se a empresa `Cliente Teste A` não existir, clique no menu de empresas ou acesse `http://127.0.0.1:8000/empresas/`.
-3. Cadastre a empresa:
+2. Cadastre:
 
 ```text
 Nome: Cliente Teste A
@@ -133,20 +217,95 @@ Telefone: (11) 99999-0000
 Ativa: marcado
 ```
 
+3. Clique em **Criar empresa**.
+
 Resultado esperado:
 
-- A empresa aparece na lista.
-- A empresa fica com status **Ativa**.
-- Ao clicar em **Acessar painel da empresa**, abre o painel dela.
+- Deve aparecer mensagem de sucesso.
+- A empresa `Cliente Teste A` deve aparecer na tabela.
+- O status deve ser **Ativa**.
 
-## Teste 6: Cadastrar Produto Da Empresa
+### Teste 3.2: Cadastrar Empresa Sem Parar
+
+Este teste ajuda a confirmar que uma empresa não vê dados da outra.
+
+Passos:
+
+1. Na mesma tela de empresas, cadastre:
+
+```text
+Nome: Sem Parar
+Documento: deixe vazio ou preencha um documento de teste
+Responsável: Administrador
+E-mail: admin@semparar.test
+Telefone: deixe vazio
+Ativa: marcado
+```
+
+2. Clique em **Criar empresa**.
+
+Resultado esperado:
+
+- A empresa `Sem Parar` deve aparecer na tabela.
+- Ela deve ficar ativa.
+
+## 4. Acessar O Painel Da Empresa
+
+### Teste 4.1: Entrar No Painel Da Cliente Teste A
+
+Perfil: superadmin.
+
+Passos:
+
+1. Acesse:
+
+```text
+http://127.0.0.1:8000/
+```
+
+2. Encontre `Cliente Teste A`.
+3. Clique em **Acessar painel da empresa**.
+
+Resultado esperado:
+
+- Deve abrir o painel da `Cliente Teste A`.
+- O topo deve mostrar que você está operando a `Cliente Teste A`.
+- Agora deve aparecer o menu completo da empresa:
+  - Empresas;
+  - Técnicos;
+  - Relatórios;
+  - Histórico;
+  - Liberar cursos;
+  - Responsáveis;
+  - Produtos;
+  - Cursos.
+
+### Teste 4.2: Voltar Para A Home Do Superadmin
+
+Passos:
+
+1. Enquanto estiver no painel da empresa, acesse:
+
+```text
+http://127.0.0.1:8000/
+```
+
+Resultado esperado:
+
+- Deve voltar para o **Painel do superadmin**.
+- A lista de empresas deve aparecer.
+- O menu operacional completo não deve aparecer nessa home.
+
+## 5. Criar Produto E Curso Da Cliente Teste A
+
+### Teste 5.1: Criar Produto
 
 Perfil: superadmin dentro do painel da `Cliente Teste A`.
 
 Passos:
 
-1. Primeiro entre no painel da `Cliente Teste A`.
-2. Clique em **Produtos** no menu superior.
+1. Entre no painel da `Cliente Teste A`.
+2. Clique em **Produtos**.
 3. Cadastre:
 
 ```text
@@ -160,10 +319,10 @@ Ativo: marcado
 Resultado esperado:
 
 - Deve aparecer mensagem de sucesso.
-- O produto deve aparecer na tabela da tela.
-- Esse produto pertence somente à `Cliente Teste A`.
+- O produto deve aparecer na tabela.
+- Esse produto pertence à `Cliente Teste A`.
 
-## Teste 7: Cadastrar Curso Da Empresa
+### Teste 5.2: Criar Curso
 
 Perfil: superadmin dentro do painel da `Cliente Teste A`.
 
@@ -188,57 +347,125 @@ Resultado esperado:
 
 - Deve aparecer mensagem de sucesso.
 - O curso aparece na tabela.
-- O curso fica ligado ao produto da `Cliente Teste A`.
+- O curso está ligado ao produto da `Cliente Teste A`.
 - Não deve existir campo para escolher várias empresas no curso.
 
-## Teste 8: Criar Conteúdo Do Curso
+## 6. Criar Conteúdo Do Curso
+
+### Teste 6.1: Abrir O Construtor Do Curso
 
 Perfil: superadmin dentro do painel da `Cliente Teste A`.
 
 Passos:
 
-1. Na tabela de cursos, clique em **Conteúdo** no `Curso Teste Cliente A`.
-2. Crie uma etapa de texto:
+1. Clique em **Cursos**.
+2. Na linha `Curso Teste Cliente A`, clique em **Conteúdo**.
+
+Resultado esperado:
+
+- Deve abrir a tela de conteúdo do curso.
+- A tela deve permitir criar etapas.
+
+### Teste 6.2: Criar Etapa De Texto
+
+Passos:
+
+1. Cadastre uma etapa:
 
 ```text
 Título: Introdução
+Descrição: Primeira etapa do curso.
 Tipo: Conteúdo em texto
 Ordem: 1
-Conteúdo: Texto simples de introdução.
+Conteúdo: Texto simples de introdução ao curso.
 Ativo: marcado
 ```
 
-3. Crie uma etapa de vídeo:
+2. Salve.
+
+Resultado esperado:
+
+- A etapa aparece na lista.
+- A ordem exibida é `1`.
+
+### Teste 6.3: Criar Etapa De Vídeo
+
+Passos:
+
+1. Cadastre uma etapa:
 
 ```text
 Título: Videoaula
+Descrição: Aula em vídeo.
 Tipo: Vídeo
 Ordem: 2
 Video URL: https://www.youtube.com/embed/ID_DO_VIDEO
 Ativo: marcado
 ```
 
-4. Crie uma etapa de prova:
+2. Salve.
+
+Resultado esperado:
+
+- A etapa aparece na lista.
+- A ordem exibida é `2`.
+
+Observação:
+
+- O link precisa estar no formato `https://www.youtube.com/embed/...`.
+- Link comum do YouTube pode não funcionar como vídeo incorporado.
+
+### Teste 6.4: Criar Prova Final
+
+Passos:
+
+1. Cadastre uma etapa:
 
 ```text
 Título: Prova final
+Descrição: Avaliação final do curso.
 Tipo: Prova final
 Ordem: 3
 Ativo: marcado
 ```
 
-5. Na prova, crie pelo menos uma questão.
-6. Cadastre alternativas.
-7. Marque uma alternativa como correta.
+2. Salve.
 
 Resultado esperado:
 
-- As etapas aparecem em ordem.
-- A etapa de vídeo salva o link.
-- A prova mostra questão e alternativas.
-- Existe uma alternativa correta.
+- A prova aparece na lista.
+- A ordem exibida é `3`.
 
-## Teste 9: Cadastrar Técnico Da Empresa
+### Teste 6.5: Criar Questão E Alternativas
+
+Passos:
+
+1. Na etapa **Prova final**, crie uma questão:
+
+```text
+Enunciado: Qual é a resposta correta deste teste?
+Ordem: 1
+```
+
+2. Crie pelo menos três alternativas:
+
+```text
+Alternativa 1: Resposta errada
+Alternativa 2: Resposta correta
+Alternativa 3: Outra resposta errada
+```
+
+3. Marque somente a alternativa `Resposta correta` como correta.
+
+Resultado esperado:
+
+- A questão aparece dentro da prova.
+- As alternativas aparecem.
+- Apenas uma alternativa fica marcada como correta.
+
+## 7. Cadastrar Técnico
+
+### Teste 7.1: Criar Técnico Da Cliente Teste A
 
 Perfil: superadmin dentro do painel da `Cliente Teste A`.
 
@@ -262,11 +489,13 @@ Ativo: marcado
 
 Resultado esperado:
 
+- Deve aparecer mensagem de sucesso.
 - O técnico aparece na lista.
 - Ele pertence à `Cliente Teste A`.
-- Deve aparecer mensagem de sucesso.
 
-## Teste 10: Criar Responsável Operacional
+## 8. Cadastrar Responsável Operacional
+
+### Teste 8.1: Criar Responsável Da Cliente Teste A
 
 Perfil: superadmin dentro do painel da `Cliente Teste A`.
 
@@ -287,92 +516,122 @@ Responsável ativo: marcado
 
 Resultado esperado:
 
-- O responsável aparece na tabela.
-- O acesso aparece como **Convite pendente**, se ele ainda não definiu senha.
 - Deve aparecer mensagem de sucesso.
-- O terminal pode mostrar o e-mail de convite, se o envio estiver configurado para console.
+- O responsável aparece na tabela.
+- O acesso pode aparecer como **Convite pendente**.
+- O terminal pode mostrar o e-mail de convite, caso o sistema esteja configurado para mostrar e-mails no console.
 
-## Teste 11: Testar Convite E Primeiro Acesso Do Responsável
+### Teste 8.2: Criar Senha Do Responsável
 
 Perfil: responsável operacional.
 
 Passos:
 
 1. Copie o link de convite exibido no terminal ou recebido por e-mail.
-2. Abra em janela anônima ou outro navegador.
-3. Defina a senha.
-4. Faça login com o e-mail do responsável.
+2. Abra o link em janela anônima ou em outro navegador.
+3. Defina uma senha.
+4. Faça login usando:
+
+```text
+Usuário/e-mail: operacional.a@teste.com
+Senha: senha criada no convite
+```
 
 Resultado esperado:
 
-- O responsável consegue criar senha.
-- Depois consegue fazer login.
-- Ele entra no painel da empresa dele.
-- Ele não deve ver cursos/produtos de outras empresas.
+- O responsável consegue criar a senha.
+- Depois consegue entrar no sistema.
+- Ele deve operar a `Cliente Teste A`.
 
-## Teste 12: Conferir Menu Do Responsável Operacional
+## 9. Testar Permissões Do Responsável
 
-Perfil: responsável operacional da `Cliente Teste A`.
+### Teste 9.1: Conferir Menu Do Responsável
+
+Perfil: responsável operacional.
 
 Passos:
 
-1. Faça login como responsável operacional.
+1. Faça login como `operacional.a@teste.com`.
 2. Observe a página inicial e o menu.
 
 Resultado esperado:
 
-- Deve conseguir acessar:
-  - Técnicos;
-  - Relatórios;
-  - Histórico;
-  - Liberar cursos;
-  - Responsáveis, se permitido pelo papel atual.
-- Não deve conseguir acessar:
-  - Produtos;
-  - Cursos.
+- O responsável deve conseguir acessar telas operacionais da empresa.
+- Ele não deve ter acesso ao catálogo de produtos e cursos.
 
-## Teste 13: Liberar Curso Para Técnico
+### Teste 9.2: Tentar Acessar Catálogo Sem Permissão
+
+Passos:
+
+1. Ainda logado como responsável, tente abrir:
+
+```text
+http://127.0.0.1:8000/catalogo/produtos/
+http://127.0.0.1:8000/catalogo/cursos/
+```
+
+Resultado esperado:
+
+- O sistema deve bloquear o acesso.
+- Dados de produtos e cursos não devem aparecer.
+
+## 10. Liberar Curso Para Técnico
+
+### Teste 10.1: Fazer Liberação Manual
 
 Perfil: superadmin ou responsável operacional dentro da `Cliente Teste A`.
 
 Passos:
 
-1. Clique em **Liberar cursos**.
-2. Em empresa, escolha `Cliente Teste A`.
-3. Em curso, escolha `Curso Teste Cliente A`.
-4. Selecione o técnico `Técnico Teste A1`.
-5. Marque **Curso obrigatório**.
-6. Clique para liberar.
+1. Entre no painel da `Cliente Teste A`.
+2. Clique em **Liberar cursos**.
+3. Selecione:
+
+```text
+Empresa: Cliente Teste A
+Curso: Curso Teste Cliente A
+Técnico: Técnico Teste A1
+Curso obrigatório: marcado
+```
+
+4. Clique para liberar.
 
 Resultado esperado:
 
 - Deve aparecer mensagem de sucesso.
-- A liberação deve contar como criada.
-- O técnico passa a enxergar o curso ao entrar na plataforma.
+- A liberação deve ser criada.
+- Se repetir o mesmo processo, o sistema não deve criar duplicidade.
 
-## Teste 14: Garantir Que Cursos De Outra Empresa Não Aparecem
+### Teste 10.2: Conferir Que Curso De Outra Empresa Não Aparece
 
 Perfil: responsável operacional da `Cliente Teste A`.
 
 Passos:
 
 1. Acesse **Liberar cursos**.
-2. Observe a lista de cursos.
+2. Veja a lista de cursos disponíveis.
 
 Resultado esperado:
 
-- Deve aparecer somente curso ligado à `Cliente Teste A`.
+- Deve aparecer somente curso da `Cliente Teste A`.
 - Cursos da `Sem Parar` não devem aparecer.
 - Produtos da `Sem Parar` não devem aparecer.
 
-## Teste 15: Criar Acesso Do Técnico
+## 11. Criar Acesso Do Técnico
+
+### Teste 11.1: Primeiro Acesso Do Técnico
 
 Perfil: técnico.
 
 Passos:
 
 1. Saia do sistema.
-2. Acesse `http://127.0.0.1:8000/primeiro-acesso/`.
+2. Acesse:
+
+```text
+http://127.0.0.1:8000/primeiro-acesso/
+```
+
 3. Informe:
 
 ```text
@@ -386,16 +645,18 @@ Senha: escolha uma senha segura
 
 Resultado esperado:
 
-- O técnico consegue criar acesso.
+- O técnico consegue criar o acesso.
 - Ao entrar, ele vê o produto/curso liberado.
 
-## Teste 16: Técnico Inicia O Curso
+## 12. Técnico Faz O Curso
+
+### Teste 12.1: Abrir O Curso
 
 Perfil: técnico.
 
 Passos:
 
-1. Faça login como `Técnico Teste A1`.
+1. Faça login como `tecnico.a1@teste.com`.
 2. Clique no produto liberado.
 3. Clique no curso.
 4. Abra a primeira etapa.
@@ -404,11 +665,9 @@ Resultado esperado:
 
 - O curso abre.
 - A primeira etapa aparece.
-- Etapas futuras não devem poder ser feitas fora de ordem.
+- Etapas futuras ficam bloqueadas até a conclusão das anteriores.
 
-## Teste 17: Técnico Conclui Etapa De Texto
-
-Perfil: técnico.
+### Teste 12.2: Concluir Etapa De Texto
 
 Passos:
 
@@ -420,9 +679,7 @@ Resultado esperado:
 - A etapa fica concluída.
 - A próxima etapa fica disponível.
 
-## Teste 18: Técnico Assiste Videoaula
-
-Perfil: técnico.
+### Teste 12.3: Assistir Videoaula
 
 Passos:
 
@@ -435,84 +692,88 @@ Resultado esperado:
 
 - O vídeo aparece na tela.
 - A etapa pode ser concluída.
-- A prova final fica disponível depois disso.
+- A prova final fica disponível.
 
-## Teste 19: Técnico Faz A Prova E É Aprovado
-
-Perfil: técnico.
+### Teste 12.4: Fazer A Prova Final
 
 Passos:
 
 1. Abra a prova final.
-2. Responda marcando a alternativa correta.
+2. Marque a alternativa correta.
 3. Envie a prova.
 
 Resultado esperado:
 
 - O sistema calcula a nota.
-- Como a nota mínima é 70, o técnico deve ser aprovado se respondeu corretamente.
+- O técnico é aprovado.
 - O curso fica concluído.
 - O certificado é gerado.
 
-## Teste 20: Conferir Certificado
+## 13. Certificado
+
+### Teste 13.1: Conferir Certificado
 
 Perfil: técnico.
 
 Passos:
 
 1. Após concluir o curso, abra o certificado.
-2. Confira os dados:
+2. Confira:
    - nome do técnico;
    - empresa;
    - curso;
    - data;
    - código do certificado.
-3. Anote o código.
+3. Anote o código do certificado.
 
 Resultado esperado:
 
 - O certificado aparece corretamente.
-- O código deve começar com `CERT-`.
-- A impressão ou visualização deve estar legível.
+- O código começa com `CERT-`.
+- A tela de impressão é legível.
 
-## Teste 21: Validar Certificado Sem Login
+### Teste 13.2: Validar Certificado Sem Login
 
-Perfil: usuário público.
+Perfil: público, sem login.
 
 Passos:
 
 1. Saia do sistema.
-2. Acesse `http://127.0.0.1:8000/certificados/validar/`.
+2. Acesse:
+
+```text
+http://127.0.0.1:8000/certificados/validar/
+```
+
 3. Digite o código do certificado.
 4. Clique em validar.
 
 Resultado esperado:
 
 - O sistema mostra que o certificado existe.
-- Deve aparecer o nome do técnico, empresa, curso e situação.
+- Deve aparecer o técnico, empresa, curso e situação do certificado.
 
-## Teste 22: Validar Certificado Inexistente
-
-Perfil: usuário público.
+### Teste 13.3: Validar Código Inexistente
 
 Passos:
 
-1. Acesse `http://127.0.0.1:8000/certificados/validar/`.
-2. Digite:
+1. Na tela de validação, digite:
 
 ```text
 CERT-INEXISTE
 ```
 
-3. Clique em validar.
+2. Clique em validar.
 
 Resultado esperado:
 
 - O sistema informa que o certificado não foi encontrado.
 
-## Teste 23: Relatório Da Empresa
+## 14. Relatórios E Histórico
 
-Perfil: superadmin ou responsável operacional dentro da `Cliente Teste A`.
+### Teste 14.1: Conferir Relatório Da Empresa
+
+Perfil: superadmin ou responsável dentro da `Cliente Teste A`.
 
 Passos:
 
@@ -523,40 +784,46 @@ Passos:
 
 Resultado esperado:
 
-- O relatório mostra os treinamentos da `Cliente Teste A`.
-- O técnico aprovado aparece como em dia, se concluiu o curso.
-- O CSV deve baixar ou abrir com os dados filtrados da empresa.
-- Dados da `Sem Parar` não devem aparecer quando estiver operando `Cliente Teste A`.
+- O relatório mostra dados da `Cliente Teste A`.
+- O técnico aprovado aparece como em dia.
+- O CSV deve respeitar a empresa em operação.
 
-## Teste 24: Histórico Da Empresa
+### Teste 14.2: Conferir Histórico
 
-Perfil: superadmin ou responsável operacional dentro da `Cliente Teste A`.
+Perfil: superadmin ou responsável dentro da `Cliente Teste A`.
 
 Passos:
 
 1. Clique em **Histórico**.
 2. Procure eventos de:
+   - criação de empresa;
    - criação de produto;
    - criação de curso;
    - criação de técnico;
-   - liberação de curso;
-   - conclusão/certificado, se aparecer no histórico atual.
+   - liberação de curso.
 
 Resultado esperado:
 
-- O histórico mostra ações realizadas na `Cliente Teste A`.
-- Não deve misturar ações de outra empresa no painel dessa empresa.
+- O histórico mostra ações da `Cliente Teste A`.
+- Não deve misturar ações de outra empresa quando você estiver operando `Cliente Teste A`.
 
-## Teste 25: Recuperação De Senha
+## 15. Recuperação De Senha
+
+### Teste 15.1: Redefinir Senha De Um Usuário
 
 Perfil: responsável ou técnico.
 
 Passos:
 
 1. Saia do sistema.
-2. Acesse `http://127.0.0.1:8000/senha/esqueci/`.
-3. Informe o e-mail cadastrado.
-4. Clique para enviar link.
+2. Acesse:
+
+```text
+http://127.0.0.1:8000/senha/esqueci/
+```
+
+3. Informe um e-mail cadastrado.
+4. Clique para enviar o link.
 5. Pegue o link no e-mail ou no terminal.
 6. Abra o link.
 7. Defina uma nova senha.
@@ -568,45 +835,113 @@ Resultado esperado:
 - A nova senha funciona.
 - A senha antiga não deve mais funcionar.
 
-## Teste 26: Bloqueios De Permissão
+## 16. Importações Por CSV
 
-Execute estes testes com cuidado. O objetivo é confirmar que um perfil não acessa o que não deveria.
+### Teste 16.1: Importar Técnicos
 
-### Responsável operacional tentando acessar catálogo
+Perfil: superadmin dentro da `Cliente Teste A`.
 
 Passos:
 
-1. Faça login como responsável operacional.
-2. Tente acessar:
+1. Entre no painel da `Cliente Teste A`.
+2. Clique em **Técnicos**.
+3. Use a importação CSV.
+4. Crie um arquivo `.csv` com este conteúdo:
+
+```csv
+nome,email,matricula,telefone,equipe,regiao,ativo
+Técnico Teste A2,tecnico.a2@teste.com,TEC-A2,11999999999,Campo,Sudeste,sim
+```
+
+5. Importe o arquivo.
+
+Resultado esperado:
+
+- O técnico `Técnico Teste A2` aparece na lista.
+- Ele pertence à `Cliente Teste A`.
+
+### Teste 16.2: Importar Liberações
+
+Perfil: superadmin dentro da `Cliente Teste A`.
+
+Passos:
+
+1. Clique em **Liberar cursos**.
+2. Use a importação de liberações.
+3. Crie um arquivo `.csv` com:
+
+```csv
+matricula,email,obrigatorio
+TEC-A1,,sim
+TEC-A2,,sim
+```
+
+4. Importe o arquivo.
+
+Resultado esperado:
+
+- Os técnicos recebem a liberação.
+- O sistema não cria duplicidade se a liberação já existir.
+- Deve aparecer uma mensagem informando criados, reativados ou existentes.
+
+## 17. Testar Separação Entre Empresas
+
+### Teste 17.1: Criar Produto E Curso Na Sem Parar
+
+Perfil: superadmin.
+
+Passos:
+
+1. Acesse:
 
 ```text
-http://127.0.0.1:8000/catalogo/produtos/
-http://127.0.0.1:8000/catalogo/cursos/
+http://127.0.0.1:8000/
+```
+
+2. Clique em **Acessar painel da empresa** na empresa `Sem Parar`.
+3. Clique em **Produtos**.
+4. Crie:
+
+```text
+Nome: Produto Sem Parar
+Descrição: Produto exclusivo da Sem Parar.
+Ativo: marcado
+```
+
+5. Clique em **Cursos**.
+6. Crie:
+
+```text
+Produto: Produto Sem Parar
+Nome: Curso Sem Parar
+Descrição: Curso exclusivo da Sem Parar.
+Validade meses: 12
+Nota mínima: 70
+Ativo: marcado
 ```
 
 Resultado esperado:
 
-- O sistema deve bloquear o acesso.
+- Produto e curso aparecem dentro da `Sem Parar`.
 
-### Técnico tentando acessar telas administrativas
+### Teste 17.2: Confirmar Que Cliente Teste A Não Vê Curso Da Sem Parar
+
+Perfil: superadmin ou responsável dentro da `Cliente Teste A`.
 
 Passos:
 
-1. Faça login como técnico.
-2. Tente acessar:
-
-```text
-http://127.0.0.1:8000/tecnicos/
-http://127.0.0.1:8000/liberacoes/lote/
-http://127.0.0.1:8000/relatorios/treinamentos/
-```
+1. Entre no painel da `Cliente Teste A`.
+2. Clique em **Liberar cursos**.
+3. Abra a lista de cursos.
 
 Resultado esperado:
 
-- O sistema deve bloquear ou redirecionar para login.
-- Dados administrativos não devem aparecer.
+- `Curso Sem Parar` não aparece.
+- Deve aparecer apenas curso da `Cliente Teste A`.
 
-### Usuário sem login tentando acessar telas internas
+## 18. Bloqueios De Segurança
+
+### Teste 18.1: Usuário Sem Login
 
 Passos:
 
@@ -622,83 +957,45 @@ http://127.0.0.1:8000/relatorios/treinamentos/
 Resultado esperado:
 
 - O sistema deve pedir login.
+- Dados internos não devem aparecer.
 
-## Teste 27: Importar Técnicos Por CSV
+### Teste 18.2: Técnico Tentando Acessar Administração
 
-Perfil: superadmin dentro da `Cliente Teste A`.
+Perfil: técnico.
 
 Passos:
 
-1. Entre no painel da `Cliente Teste A`.
-2. Clique em **Técnicos**.
-3. Use a área de importação CSV.
-4. Importe um arquivo com este conteúdo:
+1. Faça login como técnico.
+2. Tente acessar:
 
-```csv
-nome,email,matricula,telefone,equipe,regiao,ativo
-Técnico Teste A2,tecnico.a2@teste.com,TEC-A2,11999999999,Campo,Sudeste,sim
+```text
+http://127.0.0.1:8000/tecnicos/
+http://127.0.0.1:8000/liberacoes/lote/
+http://127.0.0.1:8000/admin/
 ```
 
 Resultado esperado:
 
-- O técnico `Técnico Teste A2` aparece na lista.
-- Ele pertence à `Cliente Teste A`.
-- Deve aparecer mensagem de sucesso.
+- O sistema deve bloquear ou pedir login administrativo.
+- Dados administrativos não devem aparecer.
 
-## Teste 28: Importar Liberações Por CSV
+## 19. Encerrar Sessão
 
-Perfil: superadmin dentro da `Cliente Teste A`.
-
-Passos:
-
-1. Entre no painel da `Cliente Teste A`.
-2. Clique em **Liberar cursos**.
-3. Use a importação de liberações.
-4. Importe:
-
-```csv
-matricula,email,obrigatorio
-TEC-A1,,sim
-TEC-A2,,sim
-```
-
-Resultado esperado:
-
-- Os técnicos informados recebem a liberação.
-- Se algum já tinha a liberação, o sistema não cria duplicidade.
-- Deve aparecer uma mensagem informando criados, reativados ou existentes.
-
-## Teste 29: Testar Empresa Sem Parar Separadamente
-
-Perfil: superadmin.
-
-Passos:
-
-1. Acesse `http://127.0.0.1:8000/`.
-2. Clique em **Acessar painel da empresa** na empresa `Sem Parar`.
-3. Clique em **Produtos**.
-4. Clique em **Cursos**.
-
-Resultado esperado:
-
-- Produtos e cursos da `Sem Parar` aparecem dentro da `Sem Parar`.
-- Esses produtos/cursos não aparecem quando você opera `Cliente Teste A`.
-
-## Teste 30: Encerramento Da Sessão
+### Teste 19.1: Logout
 
 Perfil: qualquer usuário logado.
 
 Passos:
 
 1. Clique em **Sair**.
-2. Tente voltar para uma tela interna usando o botão voltar do navegador.
+2. Tente voltar para uma tela interna pelo botão voltar do navegador.
 
 Resultado esperado:
 
 - O usuário sai do sistema.
 - Telas internas devem pedir login novamente.
 
-## Modelo Para Registrar Problemas
+## 20. Modelo Para Registrar Problemas
 
 Use este modelo sempre que algo não funcionar:
 
@@ -713,17 +1010,19 @@ Print:
 Gravidade: baixa / média / alta / crítica
 ```
 
-## Critério Para Considerar O Teste Aprovado
+## 21. Critério Para Aprovar O Teste
 
-A plataforma pode ser considerada aprovada quando:
+Considere o teste aprovado quando:
 
-- superadmin tem uma home própria;
+- o projeto inicia em uma máquina nova;
+- o banco é criado com `migrate`;
+- o superadmin consegue entrar;
+- o superadmin tem uma home própria;
 - cada empresa tem seu próprio painel;
 - produtos e cursos ficam dentro da empresa correta;
 - responsável operacional não vê catálogo de outra empresa;
-- técnico consegue acessar, fazer curso, prova e certificado;
+- técnico consegue criar acesso, fazer curso, prova e certificado;
 - certificado pode ser validado sem login;
 - relatórios e histórico respeitam a empresa em operação;
 - perfis sem permissão são bloqueados;
-- e-mails essenciais funcionam no ambiente configurado.
-
+- recuperação de senha funciona no ambiente configurado.

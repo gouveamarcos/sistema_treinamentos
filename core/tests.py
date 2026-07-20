@@ -656,6 +656,8 @@ class ExperienciaResponsavelTest(TestCase):
 
         self.assertEqual(resposta.status_code, 200)
         self.assertContains(resposta, "Painel do superadmin")
+        self.assertContains(resposta, "Gerenciar empresas")
+        self.assertContains(resposta, reverse("empresas_operacionais"))
         self.assertContains(resposta, "Acessar painel da empresa")
         self.assertNotContains(resposta, reverse("tecnicos_operacionais"))
         self.assertNotContains(resposta, reverse("liberar_curso_lote"))
