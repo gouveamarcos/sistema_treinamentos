@@ -131,6 +131,10 @@
                                     {% if tecnico.ativo %}Desativar{% else %}Ativar{% endif %}
                                 </button>
                             </form>
+                            <form method="post" action="{% url 'excluir_tecnico_operacional' tecnico.id %}" onsubmit="return confirm('Tem certeza que deseja excluir o técnico {{ tecnico.nome|escapejs }}? Esta ação apagará liberações, progresso e certificados vinculados.');">
+                                {% csrf_token %}
+                                <button class="link-button link-perigo" type="submit">Excluir</button>
+                            </form>
                         </td>
                     </tr>
                 {% empty %}

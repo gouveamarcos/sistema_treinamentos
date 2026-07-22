@@ -95,6 +95,10 @@
                                     {% if item.ativo %}Desativar{% else %}Ativar{% endif %}
                                 </button>
                             </form>
+                            <form method="post" action="{% url 'excluir_responsavel_empresa' item.id %}" onsubmit="return confirm('Tem certeza que deseja excluir este responsável? Esta ação não pode ser desfeita.');">
+                                {% csrf_token %}
+                                <button class="link-button link-perigo" type="submit">Excluir</button>
+                            </form>
                         </td>
                     </tr>
                 {% empty %}

@@ -651,6 +651,22 @@ class GestaoResponsaveisEmpresaTest(TestCase):
             self.responsavel_a.groups.filter(name__icontains="operacional").exists()
         )
 
+    def test_exclui_responsavel_e_remove_grupo(self):
+        self.client.force_login(self.superadmin)
+
+        resposta = self.client.post(
+            reverse("excluir_responsavel_empresa", args=(self.vinculo_a.id,)),
+            follow=True,
+        )
+        self.responsavel_a.refresh_from_db()
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(ResponsavelEmpresa.objects.filter(pk=self.vinculo_a.id).exists())
+        self.assertFalse(
+            self.responsavel_a.groups.filter(name__icontains="operacional").exists()
+        )
+        self.assertContains(resposta, "excluido com sucesso")
+
     def test_reenvia_convite_para_responsavel(self):
         self.client.force_login(self.superadmin)
 
@@ -1091,12 +1107,15 @@ class CadastroOperacionalTest(TestCase):
 
         self.assertEqual(resposta.status_code, 200)
         self.assertFalse(Empresa.objects.filter(pk=empresa.id).exists())
-        self.assertContains(resposta, "Empresa Cliente Sem Vinculos excluida com sucesso.")
+        self.assertContains(
+            resposta,
+            "Empresa Cliente Sem Vinculos excluida com todos os dados vinculados.",
+        )
         self.assertTrue(
             EventoAuditoria.objects.filter(
                 alvo_tipo="Empresa",
                 alvo_repr="Cliente Sem Vinculos",
-                detalhes__contains="Empresa excluida",
+                detalhes__contains="Empresa excluido",
             ).exists()
         )
 
@@ -1111,7 +1130,25 @@ class CadastroOperacionalTest(TestCase):
         self.assertEqual(resposta.status_code, 403)
         self.assertTrue(Empresa.objects.filter(pk=empresa.id).exists())
 
-    def test_empresa_com_vinculos_nao_e_excluida(self):
+    def test_superadmin_exclui_empresa_com_vinculos(self):
+        produto = Produto.objects.create(empresa=self.empresa_a, nome="Produto Teste")
+        curso = Curso.objects.create(produto=produto, nome="Curso Teste")
+        CursoLiberado.objects.create(tecnico=self.tecnico_a, curso=curso)
+        progresso = ProgressoCurso.objects.create(
+            tecnico=self.tecnico_a,
+            curso=curso,
+            status=ProgressoCurso.Status.EM_ANDAMENTO,
+        )
+        ProgressoEtapa.objects.create(
+            progresso=progresso,
+            etapa=EtapaCurso.objects.create(
+                curso=curso,
+                titulo="Aula",
+                tipo=EtapaCurso.Tipo.TEXTO,
+                ordem=1,
+            ),
+        )
+        ConclusaoTreinamento.objects.create(tecnico=self.tecnico_a, curso=curso)
         self.client.force_login(self.superadmin)
 
         resposta = self.client.post(
@@ -1120,8 +1157,11 @@ class CadastroOperacionalTest(TestCase):
         )
 
         self.assertEqual(resposta.status_code, 200)
-        self.assertTrue(Empresa.objects.filter(pk=self.empresa_a.id).exists())
-        self.assertContains(resposta, "nao pode ser excluida")
+        self.assertFalse(Empresa.objects.filter(pk=self.empresa_a.id).exists())
+        self.assertFalse(Tecnico.objects.filter(pk=self.tecnico_a.id).exists())
+        self.assertFalse(Produto.objects.filter(pk=produto.id).exists())
+        self.assertFalse(Curso.objects.filter(pk=curso.id).exists())
+        self.assertContains(resposta, "excluida com todos os dados vinculados")
 
     def test_responsavel_edita_empresa_do_proprio_escopo(self):
         self.client.force_login(self.responsavel_a)
@@ -1227,6 +1267,24 @@ class CadastroOperacionalTest(TestCase):
         self.tecnico_a.refresh_from_db()
         self.assertEqual(resposta.status_code, 200)
         self.assertFalse(self.tecnico_a.ativo)
+
+    def test_responsavel_exclui_tecnico_do_proprio_escopo(self):
+        produto = Produto.objects.create(empresa=self.empresa_a, nome="Produto Tecnico")
+        curso = Curso.objects.create(produto=produto, nome="Curso Tecnico")
+        CursoLiberado.objects.create(tecnico=self.tecnico_a, curso=curso)
+        ConclusaoTreinamento.objects.create(tecnico=self.tecnico_a, curso=curso)
+        self.client.force_login(self.responsavel_a)
+
+        resposta = self.client.post(
+            reverse("excluir_tecnico_operacional", args=(self.tecnico_a.id,)),
+            follow=True,
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(Tecnico.objects.filter(pk=self.tecnico_a.id).exists())
+        self.assertFalse(CursoLiberado.objects.filter(curso=curso).exists())
+        self.assertFalse(ConclusaoTreinamento.objects.filter(curso=curso).exists())
+        self.assertContains(resposta, "Tecnico Tecnico Cadastro A excluido com sucesso.")
 
     def test_superadmin_importa_tecnicos_por_csv(self):
         self.client.force_login(self.superadmin)
@@ -1533,6 +1591,51 @@ class CatalogoOperacionalTest(TestCase):
         self.curso.refresh_from_db()
 
         self.assertFalse(self.curso.ativo)
+
+    def test_editor_exclui_curso_com_dependencias(self):
+        tecnico = Tecnico.objects.create(
+            empresa=self.empresa,
+            nome="Tecnico Curso",
+            email="tecnico.curso@exemplo.com",
+            matricula="TEC-CURSO",
+        )
+        etapa = EtapaCurso.objects.create(
+            curso=self.curso,
+            titulo="Etapa",
+            tipo=EtapaCurso.Tipo.PROVA,
+            ordem=1,
+        )
+        questao = Questao.objects.create(etapa=etapa, enunciado="Pergunta")
+        Alternativa.objects.create(questao=questao, texto="Resposta", correta=True)
+        CursoLiberado.objects.create(tecnico=tecnico, curso=self.curso)
+        ConclusaoTreinamento.objects.create(tecnico=tecnico, curso=self.curso)
+        self.client.force_login(self.editor)
+
+        resposta = self.client.post(
+            reverse("excluir_curso_operacional", args=(self.curso.id,)),
+            follow=True,
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(Curso.objects.filter(pk=self.curso.id).exists())
+        self.assertFalse(EtapaCurso.objects.filter(pk=etapa.id).exists())
+        self.assertFalse(CursoLiberado.objects.filter(tecnico=tecnico).exists())
+        self.assertFalse(ConclusaoTreinamento.objects.filter(tecnico=tecnico).exists())
+        self.assertContains(resposta, "Curso Curso Catalogo excluido com sucesso.")
+
+    def test_editor_exclui_produto_com_cursos(self):
+        Curso.objects.create(produto=self.produto, nome="Curso Filho")
+        self.client.force_login(self.editor)
+
+        resposta = self.client.post(
+            reverse("excluir_produto_operacional", args=(self.produto.id,)),
+            follow=True,
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(Produto.objects.filter(pk=self.produto.id).exists())
+        self.assertFalse(Curso.objects.filter(nome="Curso Filho").exists())
+        self.assertContains(resposta, "Produto Produto Catalogo excluido com sucesso.")
 
     def test_registra_auditoria_ao_criar_produto_e_curso(self):
         self.client.force_login(self.editor)

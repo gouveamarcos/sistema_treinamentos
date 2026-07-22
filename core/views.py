@@ -12,7 +12,6 @@ from django.core.exceptions import PermissionDenied
 from django.db import connection
 from django.db import transaction
 from django.db.models import Q
-from django.db.models.deletion import ProtectedError
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -393,6 +392,48 @@ def _cursos_contexto(request):
     if empresa is None:
         return Curso.objects.none()
     return Curso.objects.filter(produto__empresa=empresa)
+
+
+def _registrar_exclusao(request, alvo_tipo, alvo_id, alvo_repr, empresa=None):
+    EventoAuditoria.objects.create(
+        usuario=request.user,
+        empresa=empresa,
+        acao=EventoAuditoria.Acao.EDICAO,
+        alvo_tipo=alvo_tipo,
+        alvo_id=alvo_id,
+        alvo_repr=str(alvo_repr)[:255],
+        detalhes=f"{alvo_tipo} excluido pela tela operacional.",
+    )
+
+
+def _excluir_curso_com_dependencias(curso):
+    ConclusaoTreinamento.objects.filter(curso=curso).delete()
+    CursoLiberado.objects.filter(curso=curso).delete()
+    ProgressoCurso.objects.filter(curso=curso).delete()
+    curso.delete()
+
+
+def _excluir_produto_com_dependencias(produto):
+    for curso in produto.cursos.all():
+        _excluir_curso_com_dependencias(curso)
+    produto.delete()
+
+
+def _excluir_tecnico_com_dependencias(tecnico):
+    ConclusaoTreinamento.objects.filter(tecnico=tecnico).delete()
+    CursoLiberado.objects.filter(tecnico=tecnico).delete()
+    ProgressoCurso.objects.filter(tecnico=tecnico).delete()
+    tecnico.delete()
+
+
+def _excluir_empresa_com_dependencias(empresa):
+    ResponsavelEmpresa.objects.filter(empresa=empresa).delete()
+    for produto in empresa.produtos.all():
+        _excluir_produto_com_dependencias(produto)
+    for tecnico in empresa.tecnicos.all():
+        _excluir_tecnico_com_dependencias(tecnico)
+    EventoAuditoria.objects.filter(empresa=empresa).delete()
+    empresa.delete()
 
 
 def _valor_booleano_csv(valor):
@@ -1228,6 +1269,23 @@ def alternar_responsavel_empresa(request, responsavel_id):
 
 @staff_member_required
 @require_POST
+def excluir_responsavel_empresa(request, responsavel_id):
+    _exigir_operador_empresas(request)
+    responsabilidade = get_object_or_404(
+        _responsaveis_visiveis(request),
+        pk=responsavel_id,
+    )
+    empresa = responsabilidade.empresa
+    nome = responsabilidade.usuario.get_full_name() or responsabilidade.usuario.email
+    alvo_id = responsabilidade.id
+    responsabilidade.delete()
+    _registrar_exclusao(request, "ResponsavelEmpresa", alvo_id, nome, empresa=empresa)
+    messages.success(request, f"Responsavel {nome} excluido com sucesso.")
+    return redirect("responsaveis_empresas")
+
+
+@staff_member_required
+@require_POST
 def reenviar_convite_responsavel(request, responsavel_id):
     _exigir_operador_empresas(request)
     responsabilidade = get_object_or_404(
@@ -1359,28 +1417,12 @@ def excluir_empresa_operacional(request, empresa_id):
         raise PermissionDenied
     empresa = get_object_or_404(Empresa, pk=empresa_id)
     nome = empresa.nome
-    try:
-        empresa.delete()
-    except ProtectedError:
-        messages.error(
-            request,
-            (
-                f"A empresa {nome} nao pode ser excluida porque possui "
-                "produtos, tecnicos, liberacoes ou certificados vinculados. "
-                "Desative a empresa ou remova os vinculos antes de excluir."
-            ),
-        )
-    else:
-        EventoAuditoria.objects.create(
-            usuario=request.user,
-            empresa=None,
-            acao=EventoAuditoria.Acao.EDICAO,
-            alvo_tipo="Empresa",
-            alvo_id=empresa_id,
-            alvo_repr=nome,
-            detalhes="Empresa excluida pela tela operacional.",
-        )
-        messages.success(request, f"Empresa {nome} excluida com sucesso.")
+    with transaction.atomic():
+        _excluir_empresa_com_dependencias(empresa)
+        _registrar_exclusao(request, "Empresa", empresa_id, nome)
+    if request.session.get(EMPRESA_CONTEXTO_SESSION_KEY) == empresa_id:
+        request.session.pop(EMPRESA_CONTEXTO_SESSION_KEY, None)
+    messages.success(request, f"Empresa {nome} excluida com todos os dados vinculados.")
     return redirect("empresas_operacionais")
 
 
@@ -1552,6 +1594,21 @@ def alternar_tecnico_operacional(request, tecnico_id):
 
 
 @staff_member_required
+@require_POST
+def excluir_tecnico_operacional(request, tecnico_id):
+    _exigir_operador_empresas(request)
+    tecnico = get_object_or_404(_tecnicos_visiveis(request), pk=tecnico_id)
+    empresa = tecnico.empresa
+    nome = tecnico.nome
+    alvo_id = tecnico.id
+    with transaction.atomic():
+        _excluir_tecnico_com_dependencias(tecnico)
+        _registrar_exclusao(request, "Tecnico", alvo_id, nome, empresa=empresa)
+    messages.success(request, f"Tecnico {nome} excluido com sucesso.")
+    return redirect("tecnicos_operacionais")
+
+
+@staff_member_required
 def produtos_operacionais(request):
     _exigir_editor_catalogo(request)
     empresa = _empresa_contexto_obrigatoria(request)
@@ -1640,6 +1697,24 @@ def alternar_produto_operacional(request, produto_id):
     )
     status = "ativado" if produto.ativo else "desativado"
     messages.success(request, f"Produto {status} com sucesso.")
+    return redirect("produtos_operacionais")
+
+
+@staff_member_required
+@require_POST
+def excluir_produto_operacional(request, produto_id):
+    _exigir_editor_catalogo(request)
+    empresa = _empresa_contexto_obrigatoria(request)
+    if empresa is None:
+        return redirect("empresas_operacionais")
+
+    produto = get_object_or_404(_produtos_contexto(request), pk=produto_id)
+    nome = produto.nome
+    alvo_id = produto.id
+    with transaction.atomic():
+        _excluir_produto_com_dependencias(produto)
+        _registrar_exclusao(request, "Produto", alvo_id, nome, empresa=empresa)
+    messages.success(request, f"Produto {nome} excluido com sucesso.")
     return redirect("produtos_operacionais")
 
 
@@ -1734,6 +1809,24 @@ def alternar_curso_operacional(request, curso_id):
     )
     status = "ativado" if curso.ativo else "desativado"
     messages.success(request, f"Curso {status} com sucesso.")
+    return redirect("cursos_operacionais")
+
+
+@staff_member_required
+@require_POST
+def excluir_curso_operacional(request, curso_id):
+    _exigir_editor_catalogo(request)
+    empresa = _empresa_contexto_obrigatoria(request)
+    if empresa is None:
+        return redirect("empresas_operacionais")
+
+    curso = get_object_or_404(_cursos_contexto(request), pk=curso_id)
+    nome = curso.nome
+    alvo_id = curso.id
+    with transaction.atomic():
+        _excluir_curso_com_dependencias(curso)
+        _registrar_exclusao(request, "Curso", alvo_id, nome, empresa=empresa)
+    messages.success(request, f"Curso {nome} excluido com sucesso.")
     return redirect("cursos_operacionais")
 
 

@@ -135,6 +135,11 @@ urlpatterns = [
         name="alternar_tecnico_operacional",
     ),
     path(
+        "tecnicos/<int:tecnico_id>/excluir/",
+        views.excluir_tecnico_operacional,
+        name="excluir_tecnico_operacional",
+    ),
+    path(
         "catalogo/produtos/",
         views.produtos_operacionais,
         name="produtos_operacionais",
@@ -150,6 +155,11 @@ urlpatterns = [
         name="alternar_produto_operacional",
     ),
     path(
+        "catalogo/produtos/<int:produto_id>/excluir/",
+        views.excluir_produto_operacional,
+        name="excluir_produto_operacional",
+    ),
+    path(
         "catalogo/cursos/",
         views.cursos_operacionais,
         name="cursos_operacionais",
@@ -163,6 +173,11 @@ urlpatterns = [
         "catalogo/cursos/<int:curso_id>/alternar/",
         views.alternar_curso_operacional,
         name="alternar_curso_operacional",
+    ),
+    path(
+        "catalogo/cursos/<int:curso_id>/excluir/",
+        views.excluir_curso_operacional,
+        name="excluir_curso_operacional",
     ),
     path(
         "catalogo/cursos/<int:curso_id>/conteudo/",
@@ -228,6 +243,11 @@ urlpatterns = [
         "responsaveis/<int:responsavel_id>/alternar/",
         views.alternar_responsavel_empresa,
         name="alternar_responsavel_empresa",
+    ),
+    path(
+        "responsaveis/<int:responsavel_id>/excluir/",
+        views.excluir_responsavel_empresa,
+        name="excluir_responsavel_empresa",
     ),
     path(
         "responsaveis/<int:responsavel_id>/convite/",
