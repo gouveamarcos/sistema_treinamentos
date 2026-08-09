@@ -572,6 +572,33 @@ class GestaoResponsaveisEmpresaTest(TestCase):
         self.assertIn("/senha/redefinir/", mail.outbox[0].body)
         self.assertNotIn("nao esperava este convite", mail.outbox[0].body)
 
+    def test_superadmin_cadastra_responsavel_para_todas_empresas(self):
+        self.client.force_login(self.superadmin)
+
+        resposta = self.client.post(
+            reverse("responsaveis_empresas"),
+            {
+                "empresa": self.empresa_a.id,
+                "nome": "Editor Multiempresa",
+                "email": "editor.multi@exemplo.com",
+                "papel": ResponsavelEmpresa.Papel.EDITOR_CURSOS,
+                "ativo": "on",
+                "todas_empresas": "on",
+            },
+            follow=True,
+        )
+
+        usuario = User.objects.get(email="editor.multi@exemplo.com")
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(
+            ResponsavelEmpresa.objects.filter(
+                usuario=usuario,
+                papel=ResponsavelEmpresa.Papel.EDITOR_CURSOS,
+            ).count(),
+            Empresa.objects.filter(ativa=True).count(),
+        )
+        self.assertContains(resposta, "em 3 empresas")
+
     def test_responsavel_enxerga_apenas_vinculos_da_propria_empresa(self):
         self.client.force_login(self.responsavel_a)
 
@@ -1221,6 +1248,42 @@ class CadastroOperacionalTest(TestCase):
                 email="tecnico.novo@exemplo.com",
             ).exists()
         )
+
+    def test_superadmin_cadastra_tecnico_para_todas_empresas(self):
+        self.client.force_login(self.superadmin)
+
+        resposta = self.client.post(
+            reverse("tecnicos_operacionais"),
+            {
+                "empresa": self.empresa_a.id,
+                "nome": "Tecnico Multiempresa",
+                "email": "tecnico.multi@exemplo.com",
+                "matricula": "CAD-MULTI",
+                "telefone": "11777777777",
+                "equipe": "Campo",
+                "regiao": "Sudeste",
+                "ativo": "on",
+                "todas_empresas": "on",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTrue(
+            Tecnico.objects.filter(
+                empresa=self.empresa_a,
+                email="tecnico.multi@exemplo.com",
+                matricula="CAD-MULTI",
+            ).exists()
+        )
+        self.assertTrue(
+            Tecnico.objects.filter(
+                empresa=self.empresa_b,
+                email=f"tecnico.multi+empresa-{self.empresa_b.id}@exemplo.com",
+                matricula=f"CAD-MULTI-E{self.empresa_b.id}",
+            ).exists()
+        )
+        self.assertContains(resposta, "em 3 empresas")
 
     def test_responsavel_cria_tecnico_apenas_no_proprio_escopo(self):
         self.client.force_login(self.responsavel_a)

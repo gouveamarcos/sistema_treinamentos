@@ -70,6 +70,72 @@ def _redirect_conteudo_curso(curso_id, anchor=""):
     return HttpResponseRedirect(url)
 
 
+def _email_tecnico_por_empresa(email, empresa):
+    local, separador, dominio = email.partition("@")
+    if not separador:
+        return email
+    return f"{local}+empresa-{empresa.id}@{dominio}"
+
+
+def _matricula_tecnico_por_empresa(matricula, empresa):
+    sufixo = f"-E{empresa.id}"
+    limite_base = max(1, 50 - len(sufixo))
+    return f"{matricula[:limite_base]}{sufixo}"
+
+
+def _replicar_responsavel_para_todas_empresas(responsabilidade):
+    empresas = Empresa.objects.filter(ativa=True).exclude(
+        pk=responsabilidade.empresa_id
+    )
+    total = 1
+    for empresa in empresas:
+        vinculo, criado = ResponsavelEmpresa.objects.get_or_create(
+            empresa=empresa,
+            usuario=responsabilidade.usuario,
+            papel=responsabilidade.papel,
+            defaults={"ativo": responsabilidade.ativo},
+        )
+        if not criado and vinculo.ativo != responsabilidade.ativo:
+            vinculo.ativo = responsabilidade.ativo
+            vinculo.save(update_fields=["ativo"])
+        total += 1
+    return total
+
+
+def _replicar_tecnico_para_todas_empresas(tecnico):
+    empresas = Empresa.objects.filter(ativa=True).exclude(pk=tecnico.empresa_id)
+    total = 1
+    for empresa in empresas:
+        email = _email_tecnico_por_empresa(tecnico.email, empresa)
+        matricula = _matricula_tecnico_por_empresa(tecnico.matricula, empresa)
+        tecnico_empresa = Tecnico.objects.filter(
+            Q(email__iexact=email) | Q(matricula=matricula)
+        ).first()
+        if tecnico_empresa:
+            tecnico_empresa.empresa = empresa
+            tecnico_empresa.nome = tecnico.nome
+            tecnico_empresa.email = email
+            tecnico_empresa.matricula = matricula
+            tecnico_empresa.telefone = tecnico.telefone
+            tecnico_empresa.equipe = tecnico.equipe
+            tecnico_empresa.regiao = tecnico.regiao
+            tecnico_empresa.ativo = tecnico.ativo
+            tecnico_empresa.save()
+        else:
+            Tecnico.objects.create(
+                empresa=empresa,
+                nome=tecnico.nome,
+                email=email,
+                matricula=matricula,
+                telefone=tecnico.telefone,
+                equipe=tecnico.equipe,
+                regiao=tecnico.regiao,
+                ativo=tecnico.ativo,
+            )
+        total += 1
+    return total
+
+
 def saude(request):
     try:
         with connection.cursor() as cursor:
@@ -1162,7 +1228,13 @@ def responsaveis_empresas(request):
             empresa_contexto=empresa_contexto,
         )
         if form.is_valid():
-            responsabilidade = form.save()
+            with transaction.atomic():
+                responsabilidade = form.save()
+                total_empresas = 1
+                if form.cleaned_data.get("todas_empresas") and request.user.is_superuser:
+                    total_empresas = _replicar_responsavel_para_todas_empresas(
+                        responsabilidade
+                    )
             enviar_convite_responsavel(
                 request,
                 responsabilidade.usuario,
@@ -1182,7 +1254,13 @@ def responsaveis_empresas(request):
                 request,
                 (
                     f"Responsavel {responsabilidade.usuario.email} salvo com "
-                    "sucesso. O convite de acesso foi enviado por e-mail."
+                    "sucesso"
+                    + (
+                        f" em {total_empresas} empresas"
+                        if total_empresas > 1
+                        else ""
+                    )
+                    + ". O convite de acesso foi enviado por e-mail."
                 ),
             )
             return redirect("responsaveis_empresas")
@@ -1443,7 +1521,11 @@ def tecnicos_operacionais(request):
             empresa_contexto=empresa_contexto,
         )
         if form.is_valid():
-            tecnico = form.save()
+            with transaction.atomic():
+                tecnico = form.save()
+                total_empresas = 1
+                if form.cleaned_data.get("todas_empresas") and request.user.is_superuser:
+                    total_empresas = _replicar_tecnico_para_todas_empresas(tecnico)
             registrar_evento(
                 request.user,
                 EventoAuditoria.Acao.CADASTRO,
@@ -1451,7 +1533,15 @@ def tecnicos_operacionais(request):
                 empresa=tecnico.empresa,
                 detalhes="Tecnico salvo pela tela operacional.",
             )
-            messages.success(request, f"Tecnico {tecnico.nome} salvo com sucesso.")
+            mensagem = f"Tecnico {tecnico.nome} salvo com sucesso"
+            if total_empresas > 1:
+                mensagem += (
+                    f" em {total_empresas} empresas. Nas demais empresas, "
+                    "e-mail e matricula receberam identificacao por empresa."
+                )
+            else:
+                mensagem += "."
+            messages.success(request, mensagem)
             return redirect("tecnicos_operacionais")
     else:
         form = TecnicoForm(

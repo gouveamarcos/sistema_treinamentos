@@ -54,6 +54,10 @@
             {% for erro in form.regiao.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
         </div>
         <label class="check-operacional">{{ form.ativo }} {{ form.ativo.label }}</label>
+        {% if form.todas_empresas %}
+            <label class="check-operacional">{{ form.todas_empresas }} {{ form.todas_empresas.label }}</label>
+            <small class="texto-ajuda">{{ form.todas_empresas.help_text }}</small>
+        {% endif %}
         <button class="botao-principal botao-auto" type="submit">Salvar tecnico</button>
     </form>
 

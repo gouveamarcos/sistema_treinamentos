@@ -174,7 +174,17 @@ class ResponsavelEmpresaForm(forms.Form):
         **kwargs,
     ):
         self.instance = instance
+        self.usuario = usuario
         super().__init__(*args, **kwargs)
+        if usuario and usuario.is_superuser and instance is None:
+            self.fields["todas_empresas"] = forms.BooleanField(
+                label="Cadastrar para todas as empresas ativas",
+                required=False,
+                help_text=(
+                    "Use esta opcao quando a mesma pessoa deve atuar em todas "
+                    "as empresas cadastradas."
+                ),
+            )
         empresas = (
             Empresa.objects.filter(ativa=True)
             if usuario is None
@@ -314,6 +324,16 @@ class TecnicoForm(forms.ModelForm):
 
     def __init__(self, *args, usuario=None, empresa_contexto=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.usuario = usuario
+        if usuario and usuario.is_superuser and self.instance.pk is None:
+            self.fields["todas_empresas"] = forms.BooleanField(
+                label="Cadastrar para todas as empresas ativas",
+                required=False,
+                help_text=(
+                    "A plataforma replicara este tecnico nas demais empresas "
+                    "ativas com e-mail e matricula identificados por empresa."
+                ),
+            )
         empresas = (
             Empresa.objects.filter(ativa=True)
             if usuario is None
