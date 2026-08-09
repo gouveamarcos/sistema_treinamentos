@@ -189,7 +189,10 @@
                         <span class="produto-icone produto-cor-{{ forloop.counter }}">0{{ forloop.counter }}</span>
                         <div>
                             <h3>{{ produto.nome }}</h3>
-                            <p>{{ produto.descricao|default:"Treinamentos técnicos, procedimentos e certificações." }}</p>
+                            <p>
+                                <strong>Empresa: {{ produto.empresa.nome }}</strong><br>
+                                {{ produto.descricao|default:"Treinamentos técnicos, procedimentos e certificações." }}
+                            </p>
                         </div>
                         <span class="seta">></span>
                     </a>

@@ -7,6 +7,7 @@
         <div>
             <span class="eyebrow">Produto</span>
             <h1>{{ produto.nome }}</h1>
+            <p><strong>Empresa: {{ produto.empresa.nome }}</strong></p>
             <p>{{ produto.descricao|default:"Conteúdos e certificações obrigatórias para atuação técnica." }}</p>
         </div>
     </section>

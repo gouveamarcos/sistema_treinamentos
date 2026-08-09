@@ -48,8 +48,9 @@ a { color: inherit; }
 .produto-card:hover { transform: translateY(-3px); border-color: #a9d9d6; box-shadow: var(--sombra); }
 .produto-card h3 { margin: 0 0 7px; font-size: 20px; }
 .produto-card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.produto-card p strong { color: var(--texto); font-weight: 800; }
 .produto-icone { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 15px; color: white; font-weight: 800; }
-.produto-cor-1 { background: var(--verde); }.produto-cor-2 { background: var(--laranja); }.produto-cor-3 { background: var(--rosa); }.produto-cor-4 { background: var(--grafite); }
+.produto-cor-1, .produto-cor-5 { background: var(--verde); }.produto-cor-2, .produto-cor-6 { background: var(--laranja); }.produto-cor-3, .produto-cor-7 { background: var(--rosa); }.produto-cor-4, .produto-cor-8 { background: var(--grafite); }
 .seta { font-size: 25px; color: var(--verde); }
 .voltar { display: inline-block; margin-bottom: 24px; color: var(--muted); font-size: 14px; font-weight: 600; text-decoration: none; }
 .cabecalho-pagina { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-bottom: 30px; border-bottom: 1px solid var(--borda); }

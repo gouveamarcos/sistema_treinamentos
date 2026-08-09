@@ -819,7 +819,7 @@ def home(request):
         cursos__ativo=True,
         cursos__liberacoes__tecnico__usuario=request.user,
         cursos__liberacoes__ativo=True,
-    ).distinct().order_by("nome")
+    ).select_related("empresa").distinct().order_by("empresa__nome", "nome")
     return render(request, "core/home.html", {"produtos": produtos})
 
 
