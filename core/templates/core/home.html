@@ -186,7 +186,7 @@
             <div class="produtos">
                 {% for produto in produtos %}
                     <a href="{% url 'cursos_por_produto' produto.id %}" class="produto-card">
-                        <span class="produto-icone produto-cor-{{ forloop.counter }}">0{{ forloop.counter }}</span>
+                        <span class="produto-icone produto-cor-{% cycle '1' '2' '3' '4' %}">{{ forloop.counter|stringformat:"02d" }}</span>
                         <div>
                             <h3>{{ produto.nome }}</h3>
                             <p>
