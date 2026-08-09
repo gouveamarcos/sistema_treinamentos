@@ -265,6 +265,25 @@ class FluxoCursoTest(TestCase):
 
         self.assertContains(resposta, conclusao.codigo_certificado)
 
+    def test_mesmo_usuario_tecnico_acessa_curso_de_outra_empresa(self):
+        empresa_b = Empresa.objects.create(nome="Empresa B")
+        tecnico_b = Tecnico.objects.create(
+            empresa=empresa_b,
+            usuario=self.usuario,
+            nome=self.tecnico.nome,
+            email="tecnico+empresa-b@exemplo.com",
+            matricula="TEC001-B",
+        )
+        produto_b = Produto.objects.create(nome="Produto B", empresa=empresa_b)
+        curso_b = Curso.objects.create(nome="Curso Empresa B", produto=produto_b)
+        CursoLiberado.objects.create(tecnico=tecnico_b, curso=curso_b)
+
+        resposta = self.client.get(reverse("cursos_por_produto", args=(produto_b.id,)))
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, curso_b.nome)
+        self.assertEqual(resposta.context["tecnico"], tecnico_b)
+
     def test_superadmin_pode_fazer_curso_com_tecnico_interno(self):
         superadmin = User.objects.create_user(
             username="superadmin-teste-curso",
@@ -372,6 +391,44 @@ class RecuperacaoSenhaTest(TestCase):
 
         self.assertRedirects(resposta, reverse("password_reset_done"))
         self.assertEqual(len(mail.outbox), 0)
+
+
+class PrimeiroAcessoTecnicoMultiempresaTest(TestCase):
+    def test_primeiro_acesso_vincula_tecnicos_equivalentes_ao_mesmo_usuario(self):
+        empresa_a = Empresa.objects.create(nome="Empresa A")
+        empresa_b = Empresa.objects.create(nome="Empresa B")
+        tecnico_a = Tecnico.objects.create(
+            empresa=empresa_a,
+            nome="Tecnico Multiempresa",
+            email="multi@exemplo.com",
+            matricula="MULTI-001",
+        )
+        tecnico_b = Tecnico.objects.create(
+            empresa=empresa_b,
+            nome="Tecnico Multiempresa",
+            email="multi+empresa-2@exemplo.com",
+            matricula="MULTI-001-E2",
+        )
+
+        resposta = self.client.post(
+            reverse("primeiro_acesso"),
+            {
+                "email": tecnico_a.email,
+                "matricula": tecnico_a.matricula,
+                "senha": "SenhaTecnico123!",
+                "confirmar_senha": "SenhaTecnico123!",
+            },
+            follow=True,
+        )
+
+        tecnico_a.refresh_from_db()
+        tecnico_b.refresh_from_db()
+        self.assertEqual(resposta.status_code, 200)
+        self.assertIsNotNone(tecnico_a.usuario)
+        self.assertEqual(tecnico_b.usuario, tecnico_a.usuario)
+        self.assertTrue(
+            self.client.login(username=tecnico_a.email, password="SenhaTecnico123!")
+        )
 
 
 class CargaDemonstracaoTest(TestCase):

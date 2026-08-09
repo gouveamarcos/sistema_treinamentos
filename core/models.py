@@ -189,12 +189,12 @@ class Tecnico(models.Model):
         on_delete=models.PROTECT,
         related_name="tecnicos",
     )
-    usuario = models.OneToOneField(
+    usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         blank=True,
         null=True,
-        related_name="tecnico",
+        related_name="tecnicos",
     )
     nome = models.CharField(max_length=150)
     email = models.EmailField(unique=True)

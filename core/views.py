@@ -120,10 +120,12 @@ def _replicar_tecnico_para_todas_empresas(tecnico):
             tecnico_empresa.equipe = tecnico.equipe
             tecnico_empresa.regiao = tecnico.regiao
             tecnico_empresa.ativo = tecnico.ativo
+            tecnico_empresa.usuario = tecnico.usuario
             tecnico_empresa.save()
         else:
             Tecnico.objects.create(
                 empresa=empresa,
+                usuario=tecnico.usuario,
                 nome=tecnico.nome,
                 email=email,
                 matricula=matricula,
@@ -316,11 +318,49 @@ def _buscar_conclusao_por_codigo(codigo):
     return conclusao, codigo_normalizado
 
 
-def _tecnico_logado(request):
-    try:
-        return request.user.tecnico
-    except Tecnico.DoesNotExist:
-        return None
+def _tecnico_logado(request, empresa=None):
+    tecnicos = request.user.tecnicos.filter(ativo=True).select_related("empresa")
+    if empresa is not None:
+        tecnicos = tecnicos.filter(empresa=empresa)
+    return tecnicos.order_by("empresa__nome", "nome").first()
+
+
+def _dados_tecnico_multiempresa(tecnico):
+    local, separador, dominio = tecnico.email.partition("@")
+    if "+empresa-" in local:
+        local = local.split("+empresa-", 1)[0]
+    email_base = f"{local}{separador}{dominio}" if separador else tecnico.email
+
+    matricula_base = tecnico.matricula
+    if "-E" in matricula_base:
+        possivel_base, sufixo = matricula_base.rsplit("-E", 1)
+        if sufixo.isdigit():
+            matricula_base = possivel_base
+
+    return email_base.lower(), matricula_base
+
+
+def _vincular_tecnicos_equivalentes(usuario, tecnico):
+    email_base, matricula_base = _dados_tecnico_multiempresa(tecnico)
+    local, separador, dominio = email_base.partition("@")
+    tecnicos = Tecnico.objects.filter(nome=tecnico.nome, ativo=True)
+    if separador:
+        tecnicos = tecnicos.filter(
+            Q(email__iexact=email_base)
+            | (
+                Q(email__istartswith=f"{local}+empresa-")
+                & Q(email__iendswith=f"@{dominio}")
+            )
+            | Q(matricula=matricula_base)
+            | Q(matricula__startswith=f"{matricula_base}-E")
+        )
+    else:
+        tecnicos = tecnicos.filter(
+            Q(email__iexact=email_base)
+            | Q(matricula=matricula_base)
+            | Q(matricula__startswith=f"{matricula_base}-E")
+        )
+    tecnicos.update(usuario=usuario)
 
 
 def _usuario_pode_testar_cursos(user, empresa):
@@ -355,8 +395,8 @@ def _tecnico_teste_interno(user, empresa):
 
 
 def _tecnico_para_produto(request, produto):
-    tecnico = _tecnico_logado(request)
-    if tecnico and tecnico.empresa_id == produto.empresa_id:
+    tecnico = _tecnico_logado(request, produto.empresa)
+    if tecnico:
         return tecnico
     if _usuario_pode_testar_cursos(request.user, produto.empresa):
         tecnico = _tecnico_teste_interno(request.user, produto.empresa)
@@ -371,8 +411,8 @@ def _tecnico_para_produto(request, produto):
 
 
 def _tecnico_para_curso(request, curso):
-    tecnico = _tecnico_logado(request)
-    if tecnico and tecnico.empresa_id == curso.produto.empresa_id:
+    tecnico = _tecnico_logado(request, curso.produto.empresa)
+    if tecnico:
         return tecnico
     if _usuario_pode_testar_cursos(request.user, curso.produto.empresa):
         tecnico = _tecnico_teste_interno(request.user, curso.produto.empresa)
@@ -898,6 +938,7 @@ def primeiro_acesso(request):
             )
             tecnico.usuario = usuario
             tecnico.save(update_fields=["usuario"])
+            _vincular_tecnicos_equivalentes(usuario, tecnico)
             messages.success(request, "Usuário criado. Agora faça seu login.")
             return redirect("login")
     else:
