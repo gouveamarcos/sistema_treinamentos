@@ -1,6 +1,7 @@
 from datetime import timedelta
 from io import StringIO
 import os
+from pathlib import Path
 import re
 import shutil
 import tempfile
@@ -454,6 +455,67 @@ class CargaDemonstracaoTest(TestCase):
         tecnico = Tecnico.objects.get(email="tecnico.demo@semparar.com.br")
         self.assertEqual(tecnico.empresa.nome, "Sem Parar")
         self.assertEqual(Empresa.objects.count(), 1)
+
+
+class DadosTesteSLTCommandTest(TestCase):
+    def test_cria_base_slt_multiempresa(self):
+        saida = StringIO()
+        with tempfile.TemporaryDirectory() as tempdir:
+            with override_settings(MEDIA_ROOT=tempdir):
+                call_command("criar_dados_teste_slt", reset_curso=True, stdout=saida)
+                call_command("criar_dados_teste_slt", stdout=StringIO())
+
+                empresas = Empresa.objects.filter(
+                    nome__in=[
+                        "Concessionaria",
+                        "Condominio",
+                        "Dtive",
+                        "Estacione",
+                        "Abastece",
+                    ]
+                )
+                self.assertEqual(empresas.count(), 5)
+                self.assertEqual(Produto.objects.filter(nome="SLT").count(), 5)
+                self.assertEqual(
+                    Curso.objects.filter(
+                        nome="Boas praticas de atendimento - SLT"
+                    ).count(),
+                    5,
+                )
+                self.assertEqual(Tecnico.objects.filter(nome="Tecnico_teste").count(), 5)
+
+                tecnico_usuario = User.objects.get(username="Tecnico_teste")
+                self.assertEqual(
+                    Tecnico.objects.filter(usuario=tecnico_usuario).count(),
+                    5,
+                )
+                self.assertEqual(
+                    CursoLiberado.objects.filter(
+                        tecnico__nome="Tecnico_teste",
+                        curso__nome="Boas praticas de atendimento - SLT",
+                        ativo=True,
+                    ).count(),
+                    5,
+                )
+                self.assertEqual(
+                    ResponsavelEmpresa.objects.filter(
+                        usuario__username="Responsavel_teste",
+                        papel=ResponsavelEmpresa.Papel.OPERACIONAL,
+                    ).count(),
+                    5,
+                )
+                self.assertEqual(
+                    ResponsavelEmpresa.objects.filter(
+                        usuario__username="Editor_teste",
+                        papel=ResponsavelEmpresa.Papel.EDITOR_CURSOS,
+                    ).count(),
+                    5,
+                )
+                self.assertTrue(
+                    Path(tempdir, "cursos/pdfs/boas_praticas_atendimento_slt.pdf").exists()
+                )
+
+        self.assertIn("Base de teste SLT criada/atualizada.", saida.getvalue())
 
 
 class RedefinirAdminTest(TestCase):
