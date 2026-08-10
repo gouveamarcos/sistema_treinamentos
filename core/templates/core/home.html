@@ -204,6 +204,72 @@
                 {% endfor %}
             </div>
         </section>
+
+        <section class="chat-tecnico" data-chat-tecnico>
+            <button class="chat-tecnico-botao" type="button" data-chat-toggle aria-expanded="false" aria-controls="chat-tecnico-painel">
+                <span>?</span>
+                Tirar dúvida
+            </button>
+            <div class="chat-tecnico-painel" id="chat-tecnico-painel" hidden>
+                <div class="chat-tecnico-topo">
+                    <div>
+                        <strong>Assistente técnico</strong>
+                        <small>Protótipo para futura integração com IA</small>
+                    </div>
+                    <button type="button" data-chat-close aria-label="Fechar chat">×</button>
+                </div>
+                <div class="chat-tecnico-mensagens" data-chat-messages>
+                    <div class="chat-mensagem chat-mensagem-bot">
+                        Olá! Em breve eu vou ajudar você a tirar dúvidas sobre cursos, procedimentos e atendimentos. Por enquanto, este chat é apenas demonstrativo.
+                    </div>
+                </div>
+                <form class="chat-tecnico-form" data-chat-form>
+                    <input type="text" data-chat-input placeholder="Digite sua dúvida..." autocomplete="off">
+                    <button type="submit">Enviar</button>
+                </form>
+            </div>
+        </section>
+
+        <script>
+            (() => {
+                const chat = document.querySelector("[data-chat-tecnico]");
+                if (!chat) return;
+                const painel = chat.querySelector("#chat-tecnico-painel");
+                const toggle = chat.querySelector("[data-chat-toggle]");
+                const fechar = chat.querySelector("[data-chat-close]");
+                const form = chat.querySelector("[data-chat-form]");
+                const input = chat.querySelector("[data-chat-input]");
+                const mensagens = chat.querySelector("[data-chat-messages]");
+
+                const abrir = () => {
+                    painel.hidden = false;
+                    toggle.setAttribute("aria-expanded", "true");
+                    input.focus();
+                };
+                const fecharChat = () => {
+                    painel.hidden = true;
+                    toggle.setAttribute("aria-expanded", "false");
+                };
+                const adicionarMensagem = (texto, classe) => {
+                    const mensagem = document.createElement("div");
+                    mensagem.className = `chat-mensagem ${classe}`;
+                    mensagem.textContent = texto;
+                    mensagens.appendChild(mensagem);
+                    mensagens.scrollTop = mensagens.scrollHeight;
+                };
+
+                toggle.addEventListener("click", () => painel.hidden ? abrir() : fecharChat());
+                fechar.addEventListener("click", fecharChat);
+                form.addEventListener("submit", (evento) => {
+                    evento.preventDefault();
+                    const texto = input.value.trim();
+                    if (!texto) return;
+                    adicionarMensagem(texto, "chat-mensagem-usuario");
+                    input.value = "";
+                    adicionarMensagem("Recebi sua pergunta. A resposta automática será ativada quando conectarmos este chat à IA.", "chat-mensagem-bot");
+                });
+            })();
+        </script>
     {% endif %}
 </main>
 {% endblock %}

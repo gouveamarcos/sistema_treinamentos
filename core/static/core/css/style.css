@@ -193,6 +193,21 @@ a { color: inherit; }
 .avaliacao legend span { display: inline-grid; place-items: center; width: 27px; height: 27px; margin-right: 9px; border-radius: 50%; color: white; background: var(--grafite); font-size: 12px; }
 .alternativa { display: flex; align-items: flex-start; gap: 10px; margin-top: 10px; padding: 13px; border: 1px solid var(--borda); border-radius: 9px; cursor: pointer; }.alternativa:hover { border-color: var(--verde); background: #f2fbfa; }.alternativa input { margin-top: 2px; accent-color: var(--verde); }
 .estado-vazio { grid-column: 1/-1; padding: 45px; border: 1px dashed #bdc9ca; border-radius: 16px; color: var(--muted); background: var(--branco); text-align: center; }.estado-vazio h3 { color: var(--texto); }
+.chat-tecnico { position: fixed; right: 28px; bottom: 28px; z-index: 30; display: grid; justify-items: end; gap: 12px; }
+.chat-tecnico-botao { display: inline-flex; align-items: center; gap: 10px; padding: 14px 18px; border: 0; border-radius: 999px; color: white; background: var(--verde); box-shadow: 0 14px 35px rgba(0, 124, 117, .28); font: inherit; font-weight: 800; cursor: pointer; }
+.chat-tecnico-botao:hover { background: var(--verde-escuro); }
+.chat-tecnico-botao span { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; color: var(--verde); background: white; }
+.chat-tecnico-painel { width: min(360px, calc(100vw - 32px)); overflow: hidden; border: 1px solid var(--borda); border-radius: 20px; background: white; box-shadow: 0 22px 55px rgba(23, 35, 38, .18); }
+.chat-tecnico-topo { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 18px; color: white; background: linear-gradient(120deg, #17383b, var(--verde)); }
+.chat-tecnico-topo strong, .chat-tecnico-topo small { display: block; }.chat-tecnico-topo small { margin-top: 4px; color: rgba(255,255,255,.78); font-size: 12px; }
+.chat-tecnico-topo button { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid rgba(255,255,255,.28); border-radius: 50%; color: white; background: rgba(255,255,255,.12); font-size: 22px; line-height: 1; cursor: pointer; }
+.chat-tecnico-mensagens { display: grid; gap: 10px; max-height: 290px; min-height: 210px; padding: 16px; overflow: auto; background: #f4f7f7; }
+.chat-mensagem { max-width: 88%; padding: 12px 14px; border-radius: 14px; font-size: 13px; line-height: 1.5; }
+.chat-mensagem-bot { justify-self: start; color: var(--texto); background: white; border: 1px solid var(--borda); }
+.chat-mensagem-usuario { justify-self: end; color: white; background: var(--verde); }
+.chat-tecnico-form { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 14px; border-top: 1px solid var(--borda); }
+.chat-tecnico-form input { min-width: 0; padding: 12px 13px; border: 1px solid #cbd5d6; border-radius: 12px; font: inherit; }
+.chat-tecnico-form button { padding: 0 15px; border: 0; border-radius: 12px; color: white; background: var(--verde); font: inherit; font-weight: 800; cursor: pointer; }
 .rodape { padding: 24px; color: #81888d; font-size: 12px; text-align: center; }
 
 @media (max-width: 850px) {
@@ -212,4 +227,5 @@ a { color: inherit; }
     .topo { height: 68px; padding: 0 18px; }.marca small { display: none; }.menu-topo { gap: 12px; }.container { width: min(100% - 28px, 1180px); margin-top: 25px; }
     .hero { min-height: 250px; padding: 26px; }.hero h1 { font-size: 35px; }.secao-titulo { align-items: start; flex-direction: column; }.produto-card { padding: 18px; }
     .validade { flex-direction: column; gap: 5px; }.card-formulario { padding: 26px; }.auth-layout { width: min(100% - 28px, 1080px); }
+    .chat-tecnico { right: 16px; bottom: 16px; }.chat-tecnico-botao { padding: 13px 15px; }.chat-tecnico-painel { width: calc(100vw - 32px); }
 }
