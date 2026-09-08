@@ -1,0 +1,1 @@
+﻿$t=$null; $e=$null; [System.Management.Automation.Language.Parser]::ParseFile($args[0], [ref]$t, [ref]$e) | Out-Null; if ($e.Count) { $e | ForEach-Object { $_.Message }; exit 1 }

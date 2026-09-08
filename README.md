@@ -39,9 +39,11 @@ Acesse `http://127.0.0.1:8000/`.
 
 ## Manuais
 
-- [Manual do Usuário](docs/MANUAL_USUARIO.md)
-- [Manual do Superadmin](docs/MANUAL_SUPERADMIN.md)
-- [Roteiros de Teste Ponta a Ponta](docs/ROTEIROS_TESTE_E2E.md)
+- [Índice da documentação](docs/README.md)
+- [Manual do Usuário](docs/uso/MANUAL_USUARIO.md)
+- [Manual do Superadmin](docs/uso/MANUAL_SUPERADMIN.md)
+- [Roteiros de Teste Ponta a Ponta](docs/testes/ROTEIROS_TESTE_E2E.md)
+- [Instalação em servidor Windows ou Ubuntu](docs/instalacao/00_LEIA_PRIMEIRO.md)
 
 ## Cadastrar conteúdo
 

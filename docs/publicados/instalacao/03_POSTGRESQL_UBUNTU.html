@@ -1,0 +1,190 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Manual 3 — PostgreSQL no Ubuntu Server</title><style>
+:root{color-scheme:light;--ink:#182b3a;--accent:#005e68;--line:#d5e1e6}
+*{box-sizing:border-box}body{margin:0;background:#edf2f5;color:var(--ink);font:16px/1.65 system-ui,-apple-system,Segoe UI,sans-serif}
+header{background:#103841;color:white;padding:20px max(24px,calc((100vw - 1080px)/2));font-size:13px;letter-spacing:.1em;text-transform:uppercase}
+.toolbar{display:flex;gap:18px;align-items:center;flex-wrap:wrap;max-width:1080px;margin:24px auto;padding:0 24px}
+.toolbar a{font-weight:650}button{font:inherit;border:1px solid var(--accent);border-radius:6px;color:var(--accent);background:white;padding:8px 16px;cursor:pointer}
+main{max-width:1080px;margin:0 auto 48px;background:white;padding:42px 58px;box-shadow:0 4px 24px #173a4710;border:1px solid var(--line)}
+h1{font-size:34px;line-height:1.2;margin:0 0 24px;color:#103841;letter-spacing:-.035em}h2{font-size:23px;line-height:1.3;margin:40px 0 18px;padding-top:20px;border-top:2px solid var(--line);color:var(--accent)}h3{font-size:19px}
+a{color:var(--accent);text-underline-offset:3px;overflow-wrap:anywhere}p,li{overflow-wrap:anywhere}li{margin:7px 0}strong{font-weight:700}
+pre{background:#f1f5f7;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:5px;padding:16px 18px;overflow-x:auto;line-height:1.5}
+code{font-family:Consolas,ui-monospace,monospace;font-size:.88em}p code,li code,td code{background:#eef3f5;padding:1px 4px;border-radius:3px;overflow-wrap:anywhere}
+table{border-collapse:collapse;width:100%;margin:22px 0;font-size:14px;table-layout:fixed}th{background:#103841;color:white;text-align:left}td,th{border:1px solid var(--line);padding:10px 12px;vertical-align:top;overflow-wrap:anywhere}tbody tr:nth-child(even){background:#f5f8f9}
+blockquote{border-left:4px solid #d7a237;margin:20px 0;padding:8px 20px;background:#fff8e8}nav{border:1px solid var(--line);background:#f7fafb;padding:18px 24px;margin:24px 0}nav ol{columns:2;column-gap:32px;font-size:14px;margin-bottom:0}nav li{break-inside:avoid;margin:3px 0}
+footer{font-size:12px;color:#50636e;border-top:1px solid var(--line);margin-top:36px;padding-top:16px}
+@media(max-width:700px){main{padding:24px 18px;margin:0;border:0}h1{font-size:27px}nav ol{columns:1}table{font-size:12px}td,th{padding:7px}.toolbar{margin:12px auto}}
+@media print{@page{size:A4;margin:17mm 15mm}body{background:white;font:10pt/1.45 Arial,sans-serif}header,.toolbar{display:none}main{border:0;box-shadow:none;padding:0;margin:0;max-width:none}h1{font-size:23pt}h2{font-size:15pt;break-after:avoid;margin-top:24px;padding-top:12px}h3{break-after:avoid}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:8.5pt;overflow:visible;break-inside:auto}table{font-size:9pt}tr{break-inside:avoid}thead{display:table-header-group}nav{break-inside:avoid}a{color:inherit}p{orphans:3;widows:3}footer{font-size:8pt}}
+</style></head><body><header>Academia Técnica · Instalação e operação · Setembro 2026</header><div class="toolbar"><a href="index.html">Comece aqui / escolher o sistema</a><button onclick="window.print()">Imprimir ou salvar em PDF</button></div><main><h1>Manual 3 — PostgreSQL no Ubuntu Server</h1><nav aria-label="Sumário"><strong>Neste manual</strong><ol><li><a href="#secao-1">Entrar no servidor</a></li><li><a href="#secao-2">Instalar os pacotes</a></li><li><a href="#secao-3">Abrir o console administrativo do banco</a></li><li><a href="#secao-4">Criar a conta da plataforma e o banco</a></li><li><a href="#secao-5">Conferir a configuração de acesso local</a></li><li><a href="#secao-6">Testar a conta da aplicação</a></li><li><a href="#secao-7">Criar o script de backup</a></li><li><a href="#secao-8">Restaurar em um banco de teste</a></li><li><a href="#secao-9">Agendamento e conservação</a></li><li><a href="#secao-10">Operação e diagnóstico</a></li><li><a href="#secao-11">Lista de entrega</a></li></ol></nav>
+<p>Academia Técnica · Edição de 08/09/2026 · Ubuntu Server <strong>24.04 LTS</strong>, 64 bits.</p>
+<p><strong>Objetivo:</strong> instalar PostgreSQL 16 pelos pacotes do Ubuntu, criar o banco da plataforma e preparar backup e restauração. Banco e aplicação ficarão no mesmo servidor. Leia <a href="00_LEIA_PRIMEIRO.html">Comece aqui</a> e, ao terminar, siga <a href="04_PLATAFORMA_UBUNTU.html">Plataforma no Ubuntu</a>.</p>
+<p>O Ubuntu 24.04 fornece a série 16 em seu repositório. Não adicione repositórios de outra versão do Ubuntu para seguir este manual. <a href="https://packages.ubuntu.com/noble/postgresql-16">Fonte: pacote oficial</a>.</p>
+<h2 id="secao-1">1. Entrar no servidor</h2>
+<p>A TI deve entregar o sistema já instalado e uma conta com permissão <code>sudo</code>. Se estiver no console do servidor, faça login normalmente. Para acessar de um computador Windows pela rede autorizada/VPN, abra PowerShell e execute, trocando usuário e IP:</p>
+<pre><code class="language-powershell">ssh SEU_USUARIO@192.168.10.50
+</code></pre>
+<p>Na primeira conexão, confirme a identidade/fingerprint do servidor com a TI antes de aceitar. Digite a senha. A partir desse momento, os comandos <code>bash</code> deste manual são executados no Ubuntu remoto.</p>
+<p>Confira a versão:</p>
+<pre><code class="language-bash">cat /etc/os-release
+</code></pre>
+<p>O resultado deve informar Ubuntu e <code>VERSION_ID=&quot;24.04&quot;</code>. Se for outra versão, não continue usando caminhos fixos deste roteiro.</p>
+<p>Quando <code>sudo</code> pedir senha, digite a senha de sua conta Ubuntu. Ela não aparece na tela. Isso é diferente de uma senha do PostgreSQL.</p>
+<h2 id="secao-2">2. Instalar os pacotes</h2>
+<pre><code class="language-bash">sudo apt update
+sudo apt install -y postgresql-16 postgresql-client-16
+sudo systemctl enable --now postgresql
+pg_lsclusters
+sudo -u postgres pg_isready
+</code></pre>
+<p>Espere <code>16</code>, cluster <code>main</code>, porta <code>5432</code> e estado <code>online</code>; depois, <code>accepting connections</code>. O serviço geral pode aparecer como <code>active (exited)</code> porque administra os clusters. Para o processo do banco, use:</p>
+<pre><code class="language-bash">sudo systemctl status postgresql@16-main --no-pager
+</code></pre>
+<p>Se outra instância já ocupar 5432, a instalação pode escolher outra porta. Não altere nem exclua a instância anterior. A TI deve resolver antes de continuar. <a href="https://documentation.ubuntu.com/server/how-to/databases/install-postgresql/index.html">Fonte: instalação no Ubuntu</a>.</p>
+<h2 id="secao-3">3. Abrir o console administrativo do banco</h2>
+<pre><code class="language-bash">sudo -u postgres psql
+</code></pre>
+<p>O prompt deve mudar para <code>postgres=#</code>. Você está no programa <code>psql</code>; aqui use os blocos <code>sql</code>, e não comandos de Linux.</p>
+<p>No Ubuntu, a administração local normalmente usa a identidade do usuário Linux <code>postgres</code> (<code>peer</code>). Não é necessário definir senha para o superusuário do banco nem liberar acesso público para administrá-lo localmente.</p>
+<h2 id="secao-4">4. Criar a conta da plataforma e o banco</h2>
+<p>No <code>psql</code>, uma linha por vez:</p>
+<pre><code class="language-sql">CREATE ROLE academia_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
+SET password_encryption = &#39;scram-sha-256&#39;;
+\password academia_app
+</code></pre>
+<p>Digite duas vezes uma senha nova e exclusiva, com pelo menos 32 caracteres aleatórios de letras e números. Guarde-a no cofre da empresa. Esse formato evita dificuldades com caracteres especiais na URL de conexão. Depois:</p>
+<pre><code class="language-sql">CREATE DATABASE sistema_treinamentos OWNER academia_app ENCODING &#39;UTF8&#39; TEMPLATE template0;
+\connect sistema_treinamentos
+GRANT USAGE, CREATE ON SCHEMA public TO academia_app;
+SELECT current_database();
+\q
+</code></pre>
+<p>Espere <code>CREATE ROLE</code>, <code>CREATE DATABASE</code>, <code>GRANT</code> e o nome do banco. Se já existir algum objeto, confirme sua origem antes de continuar. <strong>Não apague um banco para “resolver” a mensagem.</strong> A conta <code>academia_app</code> é dona do banco da plataforma, mas não é superusuária e não pode criar outros bancos.</p>
+<h2 id="secao-5">5. Conferir a configuração de acesso local</h2>
+<pre><code class="language-bash">sudo -u postgres psql -c &#39;SHOW config_file;&#39;
+sudo -u postgres psql -c &#39;SHOW hba_file;&#39;
+sudo -u postgres psql -c &quot;ALTER SYSTEM SET listen_addresses = &#39;localhost&#39;;&quot;
+sudo cp -n /etc/postgresql/16/main/pg_hba.conf /etc/postgresql/16/main/pg_hba.conf.antes-academia
+sudo nano /etc/postgresql/16/main/pg_hba.conf
+</code></pre>
+<p>Se os caminhos exibidos forem diferentes, use os caminhos reais e confirme com a TI por que a instalação difere deste roteiro.</p>
+<p>No editor Nano, procure as regras correspondentes e deixe-as assim. Não substitua o arquivo inteiro nem remova regras de administração:</p>
+<pre><code class="language-text">local   all    postgres                         peer
+local   all    all                              peer
+host    all    all       127.0.0.1/32            scram-sha-256
+host    all    all       ::1/128                 scram-sha-256
+</code></pre>
+<p>Para salvar no Nano: pressione <code>Ctrl + O</code>, Enter e <code>Ctrl + X</code>. Confira se não existe regra anterior permitindo conexões sem senha (<code>trust</code>). O PostgreSQL usa a primeira regra que corresponde à conexão. <a href="https://www.postgresql.org/docs/16/auth-pg-hba-conf.html">Fonte: autenticação</a>.</p>
+<p>Reinicie e confira:</p>
+<pre><code class="language-bash">sudo systemctl restart postgresql@16-main
+sudo -u postgres pg_isready
+sudo ss -ltnp &#39;sport = :5432&#39;
+</code></pre>
+<p>O banco deve escutar em <code>127.0.0.1</code> e/ou <code>::1</code>, não em <code>0.0.0.0</code> ou <code>[::]</code>. Não abra 5432 no firewall para usuários do site.</p>
+<p>Para este roteiro, a aplicação utilizará <code>DB_SSLMODE=disable</code> com <code>127.0.0.1</code>. Isso se refere somente à conexão dentro do servidor; o site terá HTTPS. O Ubuntu pode oferecer SSL no banco por padrão, mas esta instalação não depende de certificado de banco. Banco em outra máquina exige um projeto próprio de rede privada, autenticação e TLS, não coberto pelos comandos locais.</p>
+<h2 id="secao-6">6. Testar a conta da aplicação</h2>
+<pre><code class="language-bash">psql -h 127.0.0.1 -p 5432 -U academia_app -d sistema_treinamentos -W
+</code></pre>
+<p>Digite a senha criada para <code>academia_app</code>. O <code>-h 127.0.0.1</code> é importante: escolhe TCP com senha, em vez de autenticação local por usuário Linux. Dentro do <code>psql</code>:</p>
+<pre><code class="language-sql">SELECT current_database(), current_user;
+BEGIN;
+CREATE TABLE public.teste_instalacao_academia (id integer);
+INSERT INTO public.teste_instalacao_academia VALUES (1);
+SELECT * FROM public.teste_instalacao_academia;
+ROLLBACK;
+\q
+</code></pre>
+<p>Espere o banco correto, o usuário <code>academia_app</code> e o valor <code>1</code>. O <code>ROLLBACK</code> remove a tabela de teste.</p>
+<p>Entregue ao instalador: banco <code>sistema_treinamentos</code>, usuário <code>academia_app</code>, host <code>127.0.0.1</code>, porta <code>5432</code>, senha por canal reservado e SSL <code>disable</code> para esse acesso local.</p>
+<h2 id="secao-7">7. Criar o script de backup</h2>
+<p>O script abaixo roda com <code>sudo</code>/root e usa o usuário local <code>postgres</code>; não precisa colocar a senha do banco em cron ou no script. Ele guarda o banco em formato de restauração e as definições dos usuários separadamente. PDFs são tratados no manual da plataforma.</p>
+<pre><code class="language-bash">sudo install -d -m 700 /var/backups/academia
+sudo nano /usr/local/sbin/backup-postgresql-academia
+</code></pre>
+<p>Cole o conteúdo completo:</p>
+<pre><code class="language-bash">#!/bin/bash
+set -euo pipefail
+umask 077
+destino=&quot;${1:-/var/backups/academia/$(date +%Y%m%d-%H%M%S)}&quot;
+install -d -m 700 &quot;$destino&quot;
+sudo -u postgres /usr/lib/postgresql/16/bin/pg_dump -Fc sistema_treinamentos &gt; &quot;$destino/banco.dump&quot;
+sudo -u postgres /usr/lib/postgresql/16/bin/pg_dumpall --globals-only &gt; &quot;$destino/usuarios.sql&quot;
+/usr/lib/postgresql/16/bin/pg_restore --list &quot;$destino/banco.dump&quot; &gt; &quot;$destino/conteudo-backup.txt&quot;
+sha256sum &quot;$destino/banco.dump&quot; &gt; &quot;$destino/banco.sha256&quot;
+echo &quot;Backup do banco concluido: $destino&quot;
+</code></pre>
+<p>Salve com <code>Ctrl + O</code>, Enter, <code>Ctrl + X</code>; depois:</p>
+<pre><code class="language-bash">sudo chown root:root /usr/local/sbin/backup-postgresql-academia
+sudo chmod 700 /usr/local/sbin/backup-postgresql-academia
+sudo /usr/local/sbin/backup-postgresql-academia
+sudo ls -lh /var/backups/academia
+</code></pre>
+<p>Espere a mensagem de conclusão e uma pasta datada. O <code>set -e</code> faz a execução parar em caso de falha; não considere uma pasta parcial como backup concluído. <code>usuarios.sql</code> contém definições sensíveis e deve ficar restrito, assim como o dump. <a href="https://www.postgresql.org/docs/16/backup-dump.html">Fontes: backup SQL</a> e <a href="https://www.postgresql.org/docs/16/app-pgdump.html">pg_dump</a>.</p>
+<h2 id="secao-8">8. Restaurar em um banco de teste</h2>
+<p>Escolha o caminho de uma pasta datada real no comando abaixo. A restauração é feita em <strong>academia_restauracao</strong>, não no banco em uso.</p>
+<pre><code class="language-bash">sudo -u postgres createdb -O academia_app -T template0 academia_restauracao
+sudo bash -o pipefail -c &#39;cat /var/backups/academia/SUBSTITUA_PASTA_DATADA/banco.dump | sudo -u postgres /usr/lib/postgresql/16/bin/pg_restore --dbname=academia_restauracao --no-owner --role=academia_app --no-privileges --exit-on-error --single-transaction&#39;
+sudo -u postgres psql -d academia_restauracao -c &#39;SELECT count(*) FROM django_migrations;&#39;
+</code></pre>
+<p>A leitura do dump é feita por root para preservar as permissões restritas da pasta de backups. O processo de restauração se conecta como <code>postgres</code> e usa <code>academia_app</code> como papel para criar os objetos.</p>
+<p>Antes da instalação da plataforma, <code>django_migrations</code> ainda não existe. Nesse momento, confira a lista com <code>sudo -u postgres psql -d academia_restauracao -c &#39;\dt&#39;</code> e repita este teste depois de instalar a aplicação. Depois das migrações, espere um número de registros maior que zero.</p>
+<p>Se o banco de teste já existir, escolha outro nome em todos os comandos. Não use <code>--clean</code>, não exclua o banco principal e não restaure por cima de tabelas existentes. Restaurar com <code>--single-transaction</code> e <code>--exit-on-error</code> evita aceitar uma restauração parcial. <a href="https://www.postgresql.org/docs/16/app-pgrestore.html">Fonte: pg_restore</a>.</p>
+<p>Em um servidor novo, recrie o usuário da aplicação pelas seções anteriores. O arquivo <code>usuarios.sql</code> é material para a TI recuperar outros papéis se necessário; não o carregue indiscriminadamente em um servidor que já possui usuários.</p>
+<h2 id="secao-9">9. Agendamento e conservação</h2>
+<p>O manual da plataforma cria um backup diário integrado que chama este script e também salva PDFs e configurações. Use esse agendamento ao concluir os dois manuais, sem criar um segundo backup concorrente. Até lá, execute o backup manualmente após mudanças.</p>
+<p>Defina uma cópia automática criptografada para outro equipamento ou cofre corporativo. Backup somente neste disco não resolve perda do servidor. Sugestão de retenção a ser validada pela TI: 30 diários e 12 mensais. O script não apaga nada; acompanhe espaço livre com <code>df -h</code> e aplique a política de retenção após confirmar a cópia externa.</p>
+<p>Uma vez por mês, restaure em banco separado e guarde o resultado. Antes de atualizar versão principal do PostgreSQL, planeje a migração; não misture diretórios de dados de versões diferentes.</p>
+<h2 id="secao-10">10. Operação e diagnóstico</h2>
+<pre><code class="language-bash">sudo systemctl status postgresql@16-main --no-pager
+sudo journalctl -u postgresql@16-main -n 80 --no-pager
+sudo tail -n 80 /var/log/postgresql/postgresql-16-main.log
+df -h
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Erro</th>
+<th>O que fazer</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Peer authentication failed</code> para academia_app</td>
+<td>Use <code>-h 127.0.0.1 -W</code> e a senha da aplicação.</td>
+</tr>
+<tr>
+<td><code>password authentication failed</code></td>
+<td>Confira a conta e redefina com <code>sudo -u postgres psql</code> e <code>\password academia_app</code>; atualize a aplicação depois.</td>
+</tr>
+<tr>
+<td><code>connection refused</code></td>
+<td>Confira <code>pg_lsclusters</code>, porta e estado do cluster.</td>
+</tr>
+<tr>
+<td><code>permission denied for schema public</code></td>
+<td>No banco correto, como postgres, repita o <code>GRANT</code> da seção 4.</td>
+</tr>
+<tr>
+<td><code>no pg_hba.conf entry</code></td>
+<td>Confira arquivo efetivo e regras locais; não libere a internet inteira.</td>
+</tr>
+<tr>
+<td>Erro ao reiniciar após editar</td>
+<td>Confira o log e restaure o arquivo de configuração salvo, com ajuda da TI.</td>
+</tr>
+<tr>
+<td><code>sudo: ... command not found</code></td>
+<td>Confira instalação dos pacotes e os caminhos da série 16.</td>
+</tr>
+<tr>
+<td>Espaço insuficiente</td>
+<td>Avise a TI; nunca apague arquivos internos de <code>/var/lib/postgresql</code> para liberar espaço.</td>
+</tr>
+</tbody></table>
+<h2 id="secao-11">11. Lista de entrega</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Cluster 16/main online em 5432 e inicialização automática.</li>
+<li><input disabled="" type="checkbox"> Conexão restrita ao próprio servidor.</li>
+<li><input disabled="" type="checkbox"> Banco UTF-8 e conta da plataforma testados.</li>
+<li><input disabled="" type="checkbox"> Senha entregue por canal reservado.</li>
+<li><input disabled="" type="checkbox"> Backup executado e restauração de teste conferida.</li>
+<li><input disabled="" type="checkbox"> Continuação no manual da plataforma combinada.</li>
+</ul>
+<footer>Academia Técnica • Manual de instalação • Edição 08/09/2026. Os comandos devem ser executados pelo instalador no servidor correspondente.</footer></main></body></html>

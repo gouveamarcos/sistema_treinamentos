@@ -1,0 +1,1 @@
+﻿& C:\Academia\venv\Scripts\python.exe C:\Academia\operacao\executar.py shell -c "from django.apps import apps; import json; print(json.dumps({m._meta.label_lower: m.objects.count() for m in apps.get_models() if m._meta.app_label == 'core' or m._meta.label_lower in ('auth.user', 'auth.group')}, indent=2))"

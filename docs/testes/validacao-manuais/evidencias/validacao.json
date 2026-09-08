@@ -1,0 +1,15 @@
+{
+  "validated_blocks": {
+    "text": 7,
+    "powershell": 28,
+    "sql": 7,
+    "json": 1,
+    "python": 3,
+    "xml": 2,
+    "caddyfile": 2,
+    "bash": 37,
+    "ini": 1
+  },
+  "errors": [],
+  "scope": "Syntax and local links only; no installation, database connection, or service operation executed."
+}
