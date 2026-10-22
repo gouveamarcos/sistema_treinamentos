@@ -13,7 +13,7 @@
             <small>Tentativa {{ progresso.tentativa_atual }}</small>
         </div>
         {% if curso.material_pdf %}
-            <a class="botao-secundario material-apoio-link" href="{{ curso.material_pdf.url }}" target="_blank" rel="noopener">Abrir PDF do curso</a>
+            <a class="botao-secundario material-apoio-link" href="{% url 'material_pdf_curso' curso.id %}" target="_blank" rel="noopener">Abrir PDF do curso</a>
         {% endif %}
 
         <nav class="etapas-menu" aria-label="Etapas do curso">

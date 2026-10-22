@@ -1,0 +1,506 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Manual 1 — Instalar no Windows Server</title><style>
+:root{color-scheme:light;--ink:#182b3a;--accent:#005e68;--line:#d5e1e6}
+*{box-sizing:border-box}body{margin:0;background:#edf2f5;color:var(--ink);font:16px/1.65 system-ui,-apple-system,Segoe UI,sans-serif}
+header{background:#103841;color:white;padding:20px max(24px,calc((100vw - 1080px)/2));font-size:13px;letter-spacing:.1em;text-transform:uppercase}
+.toolbar{display:flex;gap:18px;align-items:center;flex-wrap:wrap;max-width:1080px;margin:24px auto;padding:0 24px}
+.toolbar a{font-weight:650}button{font:inherit;border:1px solid var(--accent);border-radius:6px;color:var(--accent);background:white;padding:8px 16px;cursor:pointer}
+main{max-width:1080px;margin:0 auto 48px;background:white;padding:42px 58px;box-shadow:0 4px 24px #173a4710;border:1px solid var(--line)}
+h1{font-size:34px;line-height:1.2;margin:0 0 24px;color:#103841;letter-spacing:-.035em}h2{font-size:23px;line-height:1.3;margin:40px 0 18px;padding-top:20px;border-top:2px solid var(--line);color:var(--accent)}h3{font-size:19px}
+a{color:var(--accent);text-underline-offset:3px;overflow-wrap:anywhere}p,li{overflow-wrap:anywhere}li{margin:7px 0}strong{font-weight:700}
+pre{background:#f1f5f7;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:5px;padding:16px 18px;overflow-x:auto;line-height:1.5}
+code{font-family:Consolas,ui-monospace,monospace;font-size:.88em}p code,li code,td code{background:#eef3f5;padding:1px 4px;border-radius:3px;overflow-wrap:anywhere}
+table{border-collapse:collapse;width:100%;margin:22px 0;font-size:14px;table-layout:fixed}th{background:#103841;color:white;text-align:left}td,th{border:1px solid var(--line);padding:10px 12px;vertical-align:top;overflow-wrap:anywhere}tbody tr:nth-child(even){background:#f5f8f9}
+blockquote{border-left:4px solid #d7a237;margin:20px 0;padding:8px 20px;background:#fff8e8}nav{border:1px solid var(--line);background:#f7fafb;padding:18px 24px;margin:24px 0}nav ol{columns:2;column-gap:32px;font-size:14px;margin-bottom:0}nav li{break-inside:avoid;margin:3px 0}
+footer{font-size:12px;color:#50636e;border-top:1px solid var(--line);margin-top:36px;padding-top:16px}
+@media(max-width:700px){main{padding:24px 18px;margin:0;border:0}h1{font-size:27px}nav ol{columns:1}table{font-size:12px}td,th{padding:7px}.toolbar{margin:12px auto}}
+@media print{@page{size:A4;margin:17mm 15mm}body{background:white;font:10pt/1.45 Arial,sans-serif}header,.toolbar{display:none}main{border:0;box-shadow:none;padding:0;margin:0;max-width:none}h1{font-size:23pt}h2{font-size:15pt;break-after:avoid;margin-top:24px;padding-top:12px}h3{break-after:avoid}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:8.5pt;overflow:visible;break-inside:auto}table{font-size:9pt}tr{break-inside:avoid}thead{display:table-header-group}nav{break-inside:avoid}a{color:inherit}p{orphans:3;widows:3}footer{font-size:8pt}}
+</style></head><body><header>Academia Técnica · Instalação e operação · Outubro 2026</header><div class="toolbar"><a href="index.html">Comece aqui</a><button onclick="window.print()">Imprimir ou salvar em PDF</button></div><main><h1>Manual 1 — Instalar no Windows Server</h1><nav aria-label="Sumário"><strong>Neste manual</strong><ol><li><a href="#secao-1">Visão geral das pastas</a></li><li><a href="#secao-2">Passo 1 — Instalar o Python 3.13</a></li><li><a href="#secao-3">Passo 2 — Criar as pastas e definir permissões</a></li><li><a href="#secao-4">Passo 3 — Copiar o código da plataforma</a></li><li><a href="#secao-5">Passo 4 — Instalar as bibliotecas</a></li><li><a href="#secao-6">Passo 5 — Criar a configuração</a></li><li><a href="#secao-7">Passo 6 — Criar o iniciador</a></li><li><a href="#secao-8">Passo 7 — Preparar o banco de dados</a></li><li><a href="#secao-9">Passo 8 — Criar ou redefinir o administrador</a></li><li><a href="#secao-10">Passo 9 — Preparar os arquivos visuais e conferir</a></li><li><a href="#secao-11">Passo 10 — Baixar o Caddy e o WinSW</a></li><li><a href="#secao-12">Passo 11 — Criar o serviço da plataforma</a></li><li><a href="#secao-13">Passo 12 — Configurar o HTTPS com o Caddy</a></li><li><a href="#secao-14">Passo 13 — Testar o acesso</a></li><li><a href="#secao-15">Passo 14 — Teste completo de funcionamento</a></li><li><a href="#secao-16">Passo 15 — Backup automático</a></li><li><a href="#secao-17">Passo 16 — Lembretes de reciclagem por e-mail (opcional)</a></li><li><a href="#secao-18">Passo 17 — Reiniciar e entregar</a></li><li><a href="#secao-19">Atualizar a plataforma no futuro</a></li><li><a href="#secao-20">Restaurar um backup</a></li><li><a href="#secao-21">Problemas comuns</a></li></ol></nav>
+<p>Academia Técnica · Edição de 22/10/2026 · Windows Server 2022/2025, 64 bits, com interface gráfica.</p>
+<p>Leia antes o <a href="00_LEIA_PRIMEIRO.html">Comece aqui</a> e tenha a ficha preenchida. Tempo estimado: 2 a 3 horas, sem contar as liberações de rede da TI.</p>
+<p><strong>Como executar os comandos:</strong> abra o menu Iniciar, procure <strong>Windows PowerShell</strong>, clique com o botão direito e escolha <strong>Executar como administrador</strong>. Use essa janela para todos os blocos. Não use o Prompt de Comando.</p>
+<h2 id="secao-1">Visão geral das pastas</h2>
+<p>Ao final, o servidor terá esta estrutura:</p>
+<pre><code class="language-text">C:\Academia\
+├── app\          código da plataforma (substituído a cada atualização)
+├── venv\         bibliotecas Python da plataforma
+├── config\       ambiente.json — configurações e senhas (protegido)
+├── operacao\     executar.py e backup.py
+├── dados\        academia.sqlite3 (banco) e media\ (PDFs dos cursos)
+├── backups\      cópias diárias do banco e dos PDFs
+├── servicos\     programas que mantêm o site ligado (WinSW)
+├── caddy\        Caddy (HTTPS) e Caddyfile
+├── caddy-data\   certificados HTTPS
+└── logs\         registros dos serviços
+</code></pre>
+<p>O que é mais importante proteger e copiar no backup: <strong><code>dados</code></strong> e <strong><code>config</code></strong>.</p>
+<h2 id="secao-2">Passo 1 — Instalar o Python 3.13</h2>
+<ol>
+<li>Abra <a href="https://www.python.org/downloads/windows/">python.org/downloads/windows</a>.</li>
+<li>Baixe o <strong>Windows installer (64-bit)</strong> da versão <strong>Python 3.13</strong> mais recente. Não use versões &quot;pre-release&quot;, &quot;embeddable&quot; nem ARM64.</li>
+<li>Execute o instalador e clique em <strong>Customize installation</strong>.</li>
+<li>Na primeira tela, deixe <code>pip</code> marcado e clique em <strong>Next</strong>.</li>
+<li>Na tela seguinte, marque <strong>Install Python 3.13 for all users</strong> e troque o local para <code>C:\Python313</code>. Clique em <strong>Install</strong>.</li>
+<li>Feche e abra de novo o PowerShell como administrador.</li>
+</ol>
+<pre><code class="language-powershell">&amp; C:\Python313\python.exe --version
+</code></pre>
+<p><strong>Resultado esperado:</strong> <code>Python 3.13.x</code>.</p>
+<h2 id="secao-3">Passo 2 — Criar as pastas e definir permissões</h2>
+<pre><code class="language-powershell">New-Item -ItemType Directory -Force -Path C:\Academia\app,C:\Academia\config,C:\Academia\operacao,C:\Academia\dados\media,C:\Academia\backups,C:\Academia\servicos,C:\Academia\caddy,C:\Academia\caddy-data,C:\Academia\logs | Out-Null
+
+# Somente Administradores e SYSTEM têm controle total; o serviço (LocalService) só lê
+icacls C:\Academia /inheritance:r /grant:r &#39;*S-1-5-32-544:(OI)(CI)F&#39; &#39;*S-1-5-18:(OI)(CI)F&#39; &#39;*S-1-5-19:(OI)(CI)RX&#39;
+
+# O serviço precisa gravar no banco, nos PDFs, nos logs e nos certificados
+icacls C:\Academia\dados /grant &#39;*S-1-5-19:(OI)(CI)M&#39;
+icacls C:\Academia\logs /grant &#39;*S-1-5-19:(OI)(CI)M&#39;
+icacls C:\Academia\caddy-data /grant &#39;*S-1-5-19:(OI)(CI)M&#39;
+
+# Backups: só Administradores e SYSTEM
+icacls C:\Academia\backups /inheritance:r /grant:r &#39;*S-1-5-32-544:(OI)(CI)F&#39; &#39;*S-1-5-18:(OI)(CI)F&#39;
+</code></pre>
+<p><strong>Resultado esperado:</strong> cada <code>icacls</code> termina com <code>Successfully processed 1 files</code> (ou <code>Êxito ao processar 1 arquivos</code>).</p>
+<p>Os códigos <code>S-1-5-...</code> representam Administradores, SYSTEM e LocalService e funcionam em Windows de qualquer idioma. LocalService é a conta que vai executar o site.</p>
+<h2 id="secao-4">Passo 3 — Copiar o código da plataforma</h2>
+<p>Copie a pasta do projeto para <code>C:\Academia\app</code> pelo Explorador. O arquivo <code>manage.py</code> precisa ficar <strong>diretamente</strong> em <code>C:\Academia\app</code>.</p>
+<p><strong>Não copie</strong> estas pastas e arquivos, se existirem: <code>venv</code>, <code>.venv</code>, <code>.git</code>, <code>__pycache__</code>, <code>db.sqlite3</code>, <code>media</code>, <code>staticfiles</code>, <code>dist</code>. Os dados atuais, se houver, são levados pelo <a href="02_TRANSFERIR_DADOS.html">Manual 2</a>, no momento indicado no Passo 7.</p>
+<pre><code class="language-powershell">Test-Path C:\Academia\app\manage.py
+Test-Path C:\Academia\app\requirements.txt
+</code></pre>
+<p><strong>Resultado esperado:</strong> <code>True</code> duas vezes.</p>
+<h2 id="secao-5">Passo 4 — Instalar as bibliotecas</h2>
+<pre><code class="language-powershell">&amp; C:\Python313\python.exe -m venv C:\Academia\venv
+&amp; C:\Academia\venv\Scripts\python.exe -m pip install --upgrade pip
+&amp; C:\Academia\venv\Scripts\python.exe -m pip install -r C:\Academia\app\requirements.txt waitress==3.0.2
+&amp; C:\Academia\venv\Scripts\python.exe -m pip check
+</code></pre>
+<p><strong>Resultado esperado:</strong> a última linha é <code>No broken requirements found.</code></p>
+<p>O <code>requirements.txt</code> também instala o Gunicorn, que só funciona em Linux. Ele fica instalado sem uso; no Windows quem executa o site é o <strong>Waitress</strong>.</p>
+<h2 id="secao-6">Passo 5 — Criar a configuração</h2>
+<p>Primeiro gere uma chave secreta e copie o resultado (uma linha longa de letras e números):</p>
+<pre><code class="language-powershell">&amp; C:\Academia\venv\Scripts\python.exe -c &quot;import secrets; print(secrets.token_hex(32))&quot;
+</code></pre>
+<p>Abra o Bloco de Notas no arquivo de configuração:</p>
+<pre><code class="language-powershell">notepad C:\Academia\config\ambiente.json
+</code></pre>
+<p>O Bloco de Notas pergunta se quer criar o arquivo: responda <strong>Sim</strong>. Cole o conteúdo abaixo e troque cada <code>SUBSTITUA_...</code>:</p>
+<pre><code class="language-json">{
+  &quot;DJANGO_DEBUG&quot;: &quot;False&quot;,
+  &quot;DJANGO_SECRET_KEY&quot;: &quot;SUBSTITUA_PELA_CHAVE_GERADA&quot;,
+  &quot;DJANGO_ALLOWED_HOSTS&quot;: &quot;SUBSTITUA_ENDERECO_DO_SITE,127.0.0.1,localhost&quot;,
+  &quot;DJANGO_CSRF_TRUSTED_ORIGINS&quot;: &quot;https://SUBSTITUA_ENDERECO_DO_SITE&quot;,
+
+  &quot;SQLITE_PATH&quot;: &quot;C:/Academia/dados/academia.sqlite3&quot;,
+  &quot;DJANGO_MEDIA_ROOT&quot;: &quot;C:/Academia/dados/media&quot;,
+
+  &quot;USE_X_FORWARDED_PROTO&quot;: &quot;True&quot;,
+  &quot;SECURE_SSL_REDIRECT&quot;: &quot;True&quot;,
+  &quot;SESSION_COOKIE_SECURE&quot;: &quot;True&quot;,
+  &quot;CSRF_COOKIE_SECURE&quot;: &quot;True&quot;,
+  &quot;SECURE_HSTS_SECONDS&quot;: &quot;0&quot;,
+  &quot;SECURE_HSTS_INCLUDE_SUBDOMAINS&quot;: &quot;False&quot;,
+  &quot;SECURE_HSTS_PRELOAD&quot;: &quot;False&quot;,
+
+  &quot;EMAIL_BACKEND&quot;: &quot;django.core.mail.backends.smtp.EmailBackend&quot;,
+  &quot;EMAIL_HOST&quot;: &quot;SUBSTITUA_SERVIDOR_SMTP&quot;,
+  &quot;EMAIL_PORT&quot;: &quot;587&quot;,
+  &quot;EMAIL_HOST_USER&quot;: &quot;SUBSTITUA_USUARIO_SMTP&quot;,
+  &quot;EMAIL_HOST_PASSWORD&quot;: &quot;SUBSTITUA_SENHA_SMTP&quot;,
+  &quot;EMAIL_USE_TLS&quot;: &quot;True&quot;,
+  &quot;DEFAULT_FROM_EMAIL&quot;: &quot;Academia Tecnica &lt;SUBSTITUA_EMAIL_REMETENTE&gt;&quot;
+}
+</code></pre>
+<p>Cuidados:</p>
+<ul>
+<li><code>SUBSTITUA_ENDERECO_DO_SITE</code> é só o nome, sem <code>https://</code> e sem barra no final. Exemplo: <code>treinamentos.suaempresa.com.br</code>. Na linha <code>DJANGO_CSRF_TRUSTED_ORIGINS</code> o <code>https://</code> já está escrito.</li>
+<li>Use barras normais <code>/</code> nos caminhos, como no modelo.</li>
+<li>Se a senha do SMTP tiver <code>&quot;</code> ou <code>\</code>, escreva <code>\&quot;</code> ou <code>\\</code> no lugar.</li>
+<li>O SMTP precisa aceitar usuário e senha com STARTTLS na porta 587. Se a empresa só permitir OAuth ou a porta 465, peça à TI um relay compatível.</li>
+</ul>
+<p>Salve com <strong>Arquivo → Salvar como</strong>, tipo <strong>Todos os arquivos</strong>, nome <code>ambiente.json</code>, codificação <strong>UTF-8</strong>. Confira que o nome não ficou <code>ambiente.json.txt</code>.</p>
+<p>Teste se o arquivo está correto (o comando não mostra as senhas):</p>
+<pre><code class="language-powershell">&amp; C:\Academia\venv\Scripts\python.exe -c &quot;import json; d=json.load(open(r&#39;C:\Academia\config\ambiente.json&#39;, encoding=&#39;utf-8-sig&#39;)); print(&#39;JSON valido&#39;); print(&#39;Falta preencher:&#39;, [k for k,v in d.items() if &#39;SUBSTITUA&#39; in v] or &#39;nada&#39;)&quot;
+</code></pre>
+<p><strong>Resultado esperado:</strong> <code>JSON valido</code> e <code>Falta preencher: nada</code>.</p>
+<h2 id="secao-7">Passo 6 — Criar o iniciador</h2>
+<p>O projeto não lê o <code>ambiente.json</code> sozinho. Este pequeno programa carrega a configuração e depois executa o site ou um comando administrativo.</p>
+<pre><code class="language-powershell">notepad C:\Academia\operacao\executar.py
+</code></pre>
+<p>Responda <strong>Sim</strong> para criar, cole o código abaixo e salve (tipo <strong>Todos os arquivos</strong>, codificação UTF-8):</p>
+<pre><code class="language-python">import json
+import os
+import sys
+from pathlib import Path
+
+APP = Path(r&quot;C:\Academia\app&quot;)
+CONFIG = Path(r&quot;C:\Academia\config\ambiente.json&quot;)
+
+with CONFIG.open(encoding=&quot;utf-8-sig&quot;) as arquivo:
+    valores = json.load(arquivo)
+if not valores.get(&quot;SQLITE_PATH&quot;):
+    raise SystemExit(&quot;Configure SQLITE_PATH em ambiente.json.&quot;)
+if any(&quot;SUBSTITUA&quot; in str(valor) for valor in valores.values()):
+    raise SystemExit(&quot;Preencha todos os campos SUBSTITUA em ambiente.json.&quot;)
+
+for nome, valor in valores.items():
+    os.environ[nome] = str(valor)
+os.environ[&quot;DJANGO_SETTINGS_MODULE&quot;] = &quot;treinamentos.settings&quot;
+os.chdir(APP)
+sys.path.insert(0, str(APP))
+sys.dont_write_bytecode = True
+
+if len(sys.argv) &gt; 1 and sys.argv[1] == &quot;web&quot;:
+    from waitress import serve
+    from treinamentos.wsgi import application
+
+    serve(
+        application,
+        listen=&quot;127.0.0.1:8000&quot;,
+        threads=4,
+        trusted_proxy=&quot;127.0.0.1&quot;,
+        trusted_proxy_headers=&quot;x-forwarded-for x-forwarded-proto x-forwarded-host&quot;,
+    )
+else:
+    from django.core.management import execute_from_command_line
+
+    execute_from_command_line([&quot;manage.py&quot;, *sys.argv[1:]])
+</code></pre>
+<p>A partir daqui, todo comando administrativo da plataforma é executado assim:</p>
+<pre><code class="language-text">&amp; C:\Academia\venv\Scripts\python.exe C:\Academia\operacao\executar.py NOME_DO_COMANDO
+</code></pre>
+<p>Confira se a configuração aponta para o banco certo:</p>
+<pre><code class="language-powershell">&amp; C:\Academia\venv\Scripts\python.exe C:\Academia\operacao\executar.py shell -c &quot;from django.conf import settings; print(settings.DATABASES[&#39;default&#39;][&#39;NAME&#39;]); print(&#39;DEBUG =&#39;, settings.DEBUG)&quot;
+</code></pre>
+<p><strong>Resultado esperado:</strong> <code>C:\Academia\dados\academia.sqlite3</code> (ou com barras <code>/</code>) e <code>DEBUG = False</code>.</p>
+<h2 id="secao-8">Passo 7 — Preparar o banco de dados</h2>
+<p>Escolha <strong>um</strong> dos caminhos:</p>
+<h3>Caminho A — Começar com o banco vazio</h3>
+<pre><code class="language-powershell">&amp; C:\Academia\venv\Scripts\python.exe C:\Academia\operacao\executar.py migrate --noinput
+</code></pre>
+<p><strong>Resultado esperado:</strong> várias linhas <code>Applying ... OK</code>, terminando sem erro. O arquivo <code>C:\Academia\dados\academia.sqlite3</code> passa a existir.</p>
+<h3>Caminho B — Trazer os dados atuais</h3>
+<p>Siga agora o <a href="02_TRANSFERIR_DADOS.html">Manual 2 — Trazer os dados atuais</a> e volte para o Passo 8 ao terminar.</p>
+<h2 id="secao-9">Passo 8 — Criar ou redefinir o administrador</h2>
+<p>Este comando cria o administrador do site, ou troca a senha dele se já existir (por exemplo, quando os dados foram trazidos e ninguém lembra a senha):</p>
+<pre><code class="language-powershell">&amp; C:\Academia\venv\Scripts\python.exe C:\Academia\operacao\executar.py redefinir_admin --username admin --email SUBSTITUA_EMAIL_DO_ADMIN
+</code></pre>
+<p>O comando pede a senha duas vezes; ela não aparece enquanto você digita. Use pelo menos 8 caracteres e não use só números nem senhas comuns.</p>
+<p><strong>Resultado esperado:</strong> <code>Administrador &#39;admin&#39; criado com sucesso.</code> (ou <code>redefinido</code>). Se a senha for recusada, o comando explica o motivo e <strong>nada é alterado</strong>; basta rodar de novo.</p>
+<h2 id="secao-10">Passo 9 — Preparar os arquivos visuais e conferir</h2>
+<pre><code class="language-powershell">&amp; C:\Academia\venv\Scripts\python.exe C:\Academia\operacao\executar.py collectstatic --noinput
+&amp; C:\Academia\venv\Scripts\python.exe C:\Academia\operacao\executar.py check --deploy
+</code></pre>
+<p><strong>Resultado esperado:</strong> o primeiro mostra <code>... static files copied to &#39;C:\Academia\app\staticfiles&#39;</code>. O segundo pode mostrar avisos sobre <strong>HSTS</strong> (<code>security.W004</code>, <code>W005</code>, <code>W021</code>); eles são esperados neste momento e serão tratados no Passo 13. Qualquer outro aviso deve ser resolvido antes de seguir.</p>
+<h2 id="secao-11">Passo 10 — Baixar o Caddy e o WinSW</h2>
+<ol>
+<li>Baixe o Caddy em <a href="https://caddyserver.com/download">caddyserver.com/download</a>: plataforma <strong>Windows amd64</strong>, sem plugins. Salve como <code>C:\Academia\caddy\caddy.exe</code>.</li>
+<li>Baixe o WinSW 2.12.0 em <a href="https://github.com/winsw/winsw/releases/tag/v2.12.0">github.com/winsw/winsw/releases/tag/v2.12.0</a>: arquivo <code>WinSW-x64.exe</code>. Use a versão 2.x; os modelos abaixo não servem para a versão 3.</li>
+<li>Em <code>C:\Academia\servicos</code>, faça <strong>duas cópias</strong> do <code>WinSW-x64.exe</code>: uma chamada <code>AcademiaWeb.exe</code> e outra <code>AcademiaProxy.exe</code>.</li>
+<li>Se o Windows mostrar a opção <strong>Desbloquear</strong> nas Propriedades dos arquivos baixados, marque-a.</li>
+</ol>
+<pre><code class="language-powershell">&amp; C:\Academia\caddy\caddy.exe version
+Test-Path C:\Academia\servicos\AcademiaWeb.exe, C:\Academia\servicos\AcademiaProxy.exe
+</code></pre>
+<p><strong>Resultado esperado:</strong> a versão do Caddy e <code>True</code> duas vezes.</p>
+<h2 id="secao-12">Passo 11 — Criar o serviço da plataforma</h2>
+<p>Um <strong>serviço</strong> é um programa que o Windows mantém ligado, mesmo sem ninguém conectado, e que volta sozinho depois de reiniciar o servidor.</p>
+<pre><code class="language-powershell">notepad C:\Academia\servicos\AcademiaWeb.xml
+</code></pre>
+<p>Cole e salve (tipo <strong>Todos os arquivos</strong>):</p>
+<pre><code class="language-xml">&lt;service&gt;
+  &lt;id&gt;AcademiaWeb&lt;/id&gt;
+  &lt;name&gt;Academia Tecnica - Aplicacao&lt;/name&gt;
+  &lt;description&gt;Plataforma Academia Tecnica (Waitress em 127.0.0.1:8000)&lt;/description&gt;
+  &lt;executable&gt;C:\Academia\venv\Scripts\python.exe&lt;/executable&gt;
+  &lt;arguments&gt;-u C:\Academia\operacao\executar.py web&lt;/arguments&gt;
+  &lt;workingdirectory&gt;C:\Academia\app&lt;/workingdirectory&gt;
+  &lt;startmode&gt;Automatic&lt;/startmode&gt;
+  &lt;serviceaccount&gt;
+    &lt;domain&gt;NT AUTHORITY&lt;/domain&gt;
+    &lt;user&gt;LocalService&lt;/user&gt;
+  &lt;/serviceaccount&gt;
+  &lt;logpath&gt;C:\Academia\logs&lt;/logpath&gt;
+  &lt;log mode=&quot;roll&quot; /&gt;
+  &lt;onfailure action=&quot;restart&quot; delay=&quot;10 sec&quot; /&gt;
+  &lt;stoptimeout&gt;30 sec&lt;/stoptimeout&gt;
+&lt;/service&gt;
+</code></pre>
+<p>Instale, inicie e teste:</p>
+<pre><code class="language-powershell">&amp; C:\Academia\servicos\AcademiaWeb.exe install
+Start-Service AcademiaWeb
+Get-Service AcademiaWeb
+curl.exe -s -H &quot;X-Forwarded-Proto: https&quot; http://127.0.0.1:8000/saude/
+</code></pre>
+<p><strong>Resultado esperado:</strong> <code>Running</code> e <code>{&quot;status&quot;: &quot;ok&quot;, &quot;database&quot;: &quot;ok&quot;}</code>.</p>
+<p>Se não funcionar, abra o arquivo mais recente em <code>C:\Academia\logs</code> que começa com <code>AcademiaWeb</code> para ver o erro.</p>
+<h2 id="secao-13">Passo 12 — Configurar o HTTPS com o Caddy</h2>
+<pre><code class="language-powershell">notepad C:\Academia\caddy\Caddyfile
+</code></pre>
+<p>Salve como <strong>Todos os arquivos</strong>, nome <code>Caddyfile</code> (sem extensão). Cole, trocando o e-mail e o endereço do site:</p>
+<pre><code class="language-caddyfile">{
+    email SUBSTITUA_EMAIL_DA_TI
+    storage file_system {
+        root C:/Academia/caddy-data
+    }
+}
+
+SUBSTITUA_ENDERECO_DO_SITE {
+    encode zstd gzip
+    header X-Content-Type-Options nosniff
+
+    handle_path /static/* {
+        root * C:/Academia/app/staticfiles
+        file_server
+    }
+
+    handle {
+        reverse_proxy 127.0.0.1:8000 {
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    log {
+        output file C:/Academia/logs/caddy-acessos.log {
+            roll_size 10MiB
+            roll_keep 10
+        }
+    }
+}
+</code></pre>
+<p>Não há regra para <code>/media/</code>: os PDFs dos cursos são entregues pela própria plataforma, <strong>somente para quem está logado e tem acesso ao curso</strong>. Não aponte o Caddy para <code>C:\Academia\dados</code>.</p>
+<p>Valide o arquivo:</p>
+<pre><code class="language-powershell">&amp; C:\Academia\caddy\caddy.exe validate --config C:\Academia\caddy\Caddyfile --adapter caddyfile
+</code></pre>
+<p><strong>Resultado esperado:</strong> <code>Valid configuration</code>.</p>
+<p>Agora crie o serviço do Caddy:</p>
+<pre><code class="language-powershell">notepad C:\Academia\servicos\AcademiaProxy.xml
+</code></pre>
+<pre><code class="language-xml">&lt;service&gt;
+  &lt;id&gt;AcademiaProxy&lt;/id&gt;
+  &lt;name&gt;Academia Tecnica - HTTPS&lt;/name&gt;
+  &lt;description&gt;Caddy: HTTPS da Academia Tecnica&lt;/description&gt;
+  &lt;executable&gt;C:\Academia\caddy\caddy.exe&lt;/executable&gt;
+  &lt;arguments&gt;run --config C:\Academia\caddy\Caddyfile --adapter caddyfile&lt;/arguments&gt;
+  &lt;workingdirectory&gt;C:\Academia\caddy&lt;/workingdirectory&gt;
+  &lt;startmode&gt;Automatic&lt;/startmode&gt;
+  &lt;serviceaccount&gt;
+    &lt;domain&gt;NT AUTHORITY&lt;/domain&gt;
+    &lt;user&gt;LocalService&lt;/user&gt;
+  &lt;/serviceaccount&gt;
+  &lt;logpath&gt;C:\Academia\logs&lt;/logpath&gt;
+  &lt;log mode=&quot;roll&quot; /&gt;
+  &lt;onfailure action=&quot;restart&quot; delay=&quot;10 sec&quot; /&gt;
+  &lt;stoptimeout&gt;30 sec&lt;/stoptimeout&gt;
+&lt;/service&gt;
+</code></pre>
+<p>Instale, libere as portas no firewall do Windows e inicie:</p>
+<pre><code class="language-powershell">&amp; C:\Academia\servicos\AcademiaProxy.exe install
+New-NetFirewallRule -DisplayName &#39;Academia HTTP&#39; -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow
+New-NetFirewallRule -DisplayName &#39;Academia HTTPS&#39; -Direction Inbound -Protocol TCP -LocalPort 443 -Action Allow
+Start-Service AcademiaProxy
+Get-Service AcademiaWeb, AcademiaProxy
+</code></pre>
+<p><strong>Resultado esperado:</strong> os dois serviços em <code>Running</code>.</p>
+<p>O Caddy obtém o certificado HTTPS sozinho, desde que o DNS e o encaminhamento das portas 80/443 estejam prontos.</p>
+<h2 id="secao-14">Passo 13 — Testar o acesso</h2>
+<ol>
+<li>Em outro computador, abra <code>https://SEU_ENDERECO/saude/</code>. Deve aparecer <code>{&quot;status&quot;: &quot;ok&quot;, &quot;database&quot;: &quot;ok&quot;}</code> e o navegador não deve dar aviso de certificado.</li>
+<li>Repita num celular com o Wi-Fi desligado (acesso de fora da empresa).</li>
+<li>Abra a página inicial e confira se o visual (cores, logo) aparece.</li>
+</ol>
+<p>Com o HTTPS funcionando, ative o HSTS: no <code>ambiente.json</code>, troque <code>&quot;SECURE_HSTS_SECONDS&quot;: &quot;0&quot;</code> por <code>&quot;SECURE_HSTS_SECONDS&quot;: &quot;31536000&quot;</code> e reinicie:</p>
+<pre><code class="language-powershell">Restart-Service AcademiaWeb
+</code></pre>
+<p><strong>Nunca</strong> ligue <code>DJANGO_DEBUG</code> em produção para investigar um problema; use os logs.</p>
+<h2 id="secao-15">Passo 14 — Teste completo de funcionamento</h2>
+<ol>
+<li>Entre em <code>https://SEU_ENDERECO/admin/</code> com o administrador do Passo 8.</li>
+<li>Cadastre uma empresa, um produto e um curso de teste com um PDF, uma etapa de conteúdo e uma prova.</li>
+<li>Cadastre um técnico de teste com um e-mail real e libere o curso para ele.</li>
+<li>Numa janela anônima, faça o <strong>Primeiro acesso</strong> como esse técnico. Ele deve receber um e-mail com link <code>https://</code>; use o link para criar a senha e entre.</li>
+<li>Abra o PDF do curso. Copie o endereço do PDF, abra outra janela anônima (sem login) e cole: deve ir para a tela de login.</li>
+<li>Conclua o curso e a prova. Confira o certificado e a validação pública pelo código.</li>
+<li>Saia e use <strong>Esqueci minha senha</strong> com o técnico. O e-mail deve chegar com link <code>https://</code>.</li>
+<li>Cadastre um responsável de teste e confira se o convite por e-mail chega.</li>
+<li>Ao final, desative os cadastros de teste.</li>
+</ol>
+<h2 id="secao-16">Passo 15 — Backup automático</h2>
+<p>O backup copia o banco com segurança <strong>sem desligar o site</strong>, junto com os PDFs e a configuração, e mantém as últimas 14 cópias.</p>
+<pre><code class="language-powershell">notepad C:\Academia\operacao\backup.py
+</code></pre>
+<p>Cole e salve (tipo <strong>Todos os arquivos</strong>, UTF-8):</p>
+<pre><code class="language-python">import shutil
+import sqlite3
+import sys
+from datetime import datetime
+from pathlib import Path
+
+DADOS = Path(r&quot;C:\Academia\dados&quot;)
+CONFIG = Path(r&quot;C:\Academia\config\ambiente.json&quot;)
+BACKUPS = Path(r&quot;C:\Academia\backups&quot;)
+MANTER = 14
+
+destino = BACKUPS / datetime.now().strftime(&quot;%Y%m%d-%H%M%S&quot;)
+destino.mkdir(parents=True)
+
+# Copia consistente do banco, mesmo com o site em uso
+origem = sqlite3.connect(DADOS / &quot;academia.sqlite3&quot;)
+copia = sqlite3.connect(destino / &quot;academia.sqlite3&quot;)
+origem.backup(copia)
+resultado = copia.execute(&quot;PRAGMA integrity_check&quot;).fetchone()[0]
+copia.close()
+origem.close()
+if resultado != &quot;ok&quot;:
+    sys.exit(f&quot;Copia do banco com problema: {resultado}&quot;)
+
+if (DADOS / &quot;media&quot;).exists():
+    shutil.copytree(DADOS / &quot;media&quot;, destino / &quot;media&quot;)
+shutil.copy2(CONFIG, destino / &quot;ambiente.json&quot;)
+(destino / &quot;CONCLUIDO.txt&quot;).write_text(&quot;Backup concluido\n&quot;, encoding=&quot;utf-8&quot;)
+
+antigos = sorted(p for p in BACKUPS.iterdir() if (p / &quot;CONCLUIDO.txt&quot;).exists())
+for pasta in antigos[:-MANTER]:
+    shutil.rmtree(pasta)
+
+print(f&quot;Backup concluido em {destino}&quot;)
+</code></pre>
+<p>Teste:</p>
+<pre><code class="language-powershell">&amp; C:\Academia\venv\Scripts\python.exe C:\Academia\operacao\backup.py
+</code></pre>
+<p><strong>Resultado esperado:</strong> <code>Backup concluido em C:\Academia\backups\AAAAMMDD-HHMMSS</code>, e a pasta contém <code>academia.sqlite3</code>, <code>media</code>, <code>ambiente.json</code> e <code>CONCLUIDO.txt</code>.</p>
+<p>Agende para rodar todo dia:</p>
+<ol>
+<li>Abra o <strong>Agendador de Tarefas</strong> e clique em <strong>Criar Tarefa</strong> (não &quot;Criar Tarefa Básica&quot;).</li>
+<li><strong>Geral:</strong> nome <code>Academia - Backup</code>. Em <strong>Alterar Usuário ou Grupo</strong>, digite <code>SYSTEM</code>. Marque <strong>Executar com privilégios mais altos</strong>.</li>
+<li><strong>Disparadores → Novo:</strong> diariamente, às 02:00 (ou outro horário combinado).</li>
+<li><strong>Ações → Novo:</strong> Programa <code>C:\Academia\venv\Scripts\python.exe</code>; Argumentos <code>C:\Academia\operacao\backup.py</code>; Iniciar em <code>C:\Academia\operacao</code>.</li>
+<li><strong>Configurações:</strong> marque <strong>Executar a tarefa assim que possível após uma inicialização agendada ter sido perdida</strong>. Em &quot;Se a tarefa já estiver em execução&quot;, escolha <strong>Não iniciar uma nova instância</strong>.</li>
+<li>Salve, clique com o botão direito na tarefa e escolha <strong>Executar</strong>. Confira <strong>Resultado da última execução: (0x0)</strong> e uma pasta nova em <code>C:\Academia\backups</code>.</li>
+</ol>
+<p><strong>Importante:</strong> o backup dentro do próprio servidor não protege contra perda do servidor. A TI deve copiar diariamente a pasta <code>C:\Academia\backups</code> para o destino externo da ficha. A pasta contém dados pessoais e senhas: mantenha o destino protegido.</p>
+<blockquote>
+<p><strong>Nunca copie o arquivo <code>academia.sqlite3</code> com o Explorador enquanto o site está ligado.</strong> A cópia pode sair corrompida. Use sempre o <code>backup.py</code> ou pare o serviço <code>AcademiaWeb</code> antes.</p>
+</blockquote>
+<h2 id="secao-17">Passo 16 — Lembretes de reciclagem por e-mail (opcional)</h2>
+<p>A plataforma pode avisar os técnicos sobre certificados vencidos ou perto de vencer. Só ative depois de validar o e-mail no Passo 14 e com o aval do responsável.</p>
+<p>Crie outra tarefa no Agendador, como no Passo 15, com:</p>
+<ul>
+<li>Nome <code>Academia - Lembretes</code>, usuário <code>SYSTEM</code>, diariamente às 08:00.</li>
+<li>Programa <code>C:\Academia\venv\Scripts\python.exe</code>; Argumentos <code>C:\Academia\operacao\executar.py enviar_lembretes_reciclagem</code>; Iniciar em <code>C:\Academia\app</code>.</li>
+</ul>
+<p>O comando envia e-mails reais a cada execução.</p>
+<h2 id="secao-18">Passo 17 — Reiniciar e entregar</h2>
+<p>Reinicie o servidor numa janela combinada. Sem abrir nada manualmente, confira:</p>
+<pre><code class="language-powershell">Get-Service AcademiaWeb, AcademiaProxy
+</code></pre>
+<p>Os dois devem estar <code>Running</code>, e o site deve abrir de fora da empresa. Refaça o login e abra um PDF.</p>
+<p>Registre: data, versão do projeto entregue, endereço do site, local dos backups externos, quem instalou e o contato de suporte.</p>
+<h2 id="secao-19">Atualizar a plataforma no futuro</h2>
+<ol>
+<li>Rode o backup: <code>&amp; C:\Academia\venv\Scripts\python.exe C:\Academia\operacao\backup.py</code>.</li>
+<li>Pare o site: <code>Stop-Service AcademiaWeb</code>.</li>
+<li>Renomeie <code>C:\Academia\app</code> para <code>C:\Academia\app-anterior</code> e copie a nova versão para <code>C:\Academia\app</code> (mesmas exclusões do Passo 3). Os dados ficam em <code>C:\Academia\dados</code> e não são afetados.</li>
+<li>Reaplique a permissão de leitura: <code>icacls C:\Academia\app /grant &#39;*S-1-5-19:(OI)(CI)RX&#39; /T</code>.</li>
+<li>Rode:</li>
+</ol>
+<pre><code class="language-powershell">&amp; C:\Academia\venv\Scripts\python.exe -m pip install -r C:\Academia\app\requirements.txt waitress==3.0.2
+&amp; C:\Academia\venv\Scripts\python.exe C:\Academia\operacao\executar.py migrate --noinput
+&amp; C:\Academia\venv\Scripts\python.exe C:\Academia\operacao\executar.py collectstatic --noinput
+Start-Service AcademiaWeb
+</code></pre>
+<ol start="6">
+<li>Teste login, um curso e um PDF. Se algo der errado, pare o serviço, volte a pasta <code>app-anterior</code> e restaure o banco do backup (veja abaixo).</li>
+</ol>
+<h2 id="secao-20">Restaurar um backup</h2>
+<ol>
+<li>Pare o site: <code>Stop-Service AcademiaWeb</code>.</li>
+<li>Renomeie <code>C:\Academia\dados</code> para <code>C:\Academia\dados-com-problema</code> (não apague).</li>
+<li>Crie de novo <code>C:\Academia\dados</code> e copie para dentro dela o <code>academia.sqlite3</code> e a pasta <code>media</code> do backup escolhido.</li>
+<li>Reaplique a permissão: <code>icacls C:\Academia\dados /grant &#39;*S-1-5-19:(OI)(CI)M&#39; /T</code>.</li>
+<li>Inicie: <code>Start-Service AcademiaWeb</code> e confira <code>/saude/</code>, login e um PDF.</li>
+</ol>
+<p>Teste a restauração pelo menos uma vez, de preferência numa máquina separada, para garantir que os backups funcionam.</p>
+<h2 id="secao-21">Problemas comuns</h2>
+<p>Comandos úteis:</p>
+<pre><code class="language-powershell">Get-Service AcademiaWeb, AcademiaProxy
+Get-ChildItem C:\Academia\logs | Sort-Object LastWriteTime -Descending | Select-Object -First 5
+curl.exe -s -H &quot;X-Forwarded-Proto: https&quot; http://127.0.0.1:8000/saude/
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>O que acontece</th>
+<th>O que conferir</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Serviço não inicia</td>
+<td>Log <code>AcademiaWeb</code> mais recente em <code>C:\Academia\logs</code>; nome do <code>.exe</code> igual ao do <code>.xml</code>; caminho do Python.</td>
+</tr>
+<tr>
+<td>Funciona no PowerShell mas não como serviço</td>
+<td>Permissões do Passo 2, principalmente em <code>C:\Academia\dados</code>.</td>
+</tr>
+<tr>
+<td><code>ImproperlyConfigured: Defina DJANGO_SECRET_KEY</code></td>
+<td>Chave secreta ausente no <code>ambiente.json</code>.</td>
+</tr>
+<tr>
+<td><code>JSONDecodeError</code></td>
+<td>Vírgulas, aspas ou codificação do <code>ambiente.json</code>; rode o teste do Passo 5.</td>
+</tr>
+<tr>
+<td><code>database is locked</code> frequente</td>
+<td>Uso simultâneo acima do que o SQLite suporta; avise o responsável pela plataforma.</td>
+</tr>
+<tr>
+<td><code>attempt to write a readonly database</code></td>
+<td>O serviço não consegue gravar em <code>C:\Academia\dados</code>; refaça o <code>icacls</code> do Passo 2.</td>
+</tr>
+<tr>
+<td>Erro 502</td>
+<td><code>AcademiaWeb</code> parado; teste o <code>/saude/</code> local.</td>
+</tr>
+<tr>
+<td>Erro 400</td>
+<td>Endereço do site ausente em <code>DJANGO_ALLOWED_HOSTS</code>.</td>
+</tr>
+<tr>
+<td>Erro 403 CSRF ao entrar</td>
+<td><code>DJANGO_CSRF_TRUSTED_ORIGINS</code> deve ser exatamente <code>https://</code> + endereço.</td>
+</tr>
+<tr>
+<td>Página redirecionando sem parar</td>
+<td>Cabeçalho <code>X-Forwarded-Proto</code> no Caddyfile e <code>trusted_proxy</code> no <code>executar.py</code>.</td>
+</tr>
+<tr>
+<td>Site sem cores/visual</td>
+<td>Rode <code>collectstatic</code> de novo; confira o caminho <code>/static/*</code> no Caddyfile.</td>
+</tr>
+<tr>
+<td>PDF não abre (404)</td>
+<td>O arquivo existe em <code>C:\Academia\dados\media\cursos\pdfs</code>?</td>
+</tr>
+<tr>
+<td>HTTPS não é emitido</td>
+<td>DNS, encaminhamento das portas 80/443, relógio do servidor; veja o log do <code>AcademiaProxy</code>.</td>
+</tr>
+<tr>
+<td>Funciona só dentro da empresa</td>
+<td>DNS público, firewall, NAT ou CGNAT (TI).</td>
+</tr>
+<tr>
+<td>Funciona só fora da empresa</td>
+<td>Falta DNS interno ou retorno de NAT (TI).</td>
+</tr>
+<tr>
+<td>E-mail não chega</td>
+<td>Servidor, porta 587, usuário/senha SMTP, remetente autorizado, caixa de spam.</td>
+</tr>
+<tr>
+<td>Esqueci a senha do administrador</td>
+<td>Rode o comando do Passo 8 de novo.</td>
+</tr>
+</tbody></table>
+<p>Ao pedir suporte, envie os logs, mas <strong>nunca</strong> envie o <code>ambiente.json</code> nem o banco.</p>
+<footer>Academia Técnica • Manual de instalação • Edição 22/10/2026. Os comandos devem ser executados pelo instalador no servidor correspondente.</footer></main></body></html>

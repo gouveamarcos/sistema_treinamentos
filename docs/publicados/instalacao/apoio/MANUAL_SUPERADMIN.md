@@ -63,6 +63,16 @@ Em automações seguras, também é possível usar:
 
 Evite deixar senhas registradas em histórico de terminal.
 
+No servidor Windows instalado pelo manual, o mesmo comando é executado pelo
+iniciador da plataforma:
+
+```powershell
+& C:\Academia\venv\Scripts\python.exe C:\Academia\operacao\executar.py redefinir_admin --username admin --email seu.email@empresa.com
+```
+
+Se a senha for recusada (curta, comum ou só com números), o comando informa o
+motivo e não cria nem altera nenhum usuário.
+
 ## 4. Estrutura operacional recomendada
 
 Antes de cadastrar cursos, siga esta ordem:
@@ -118,7 +128,9 @@ Campos principais:
 - região;
 - status ativo/inativo.
 
-O e-mail e a matrícula são usados no primeiro acesso do técnico.
+O e-mail e a matrícula são usados no primeiro acesso do técnico. Ao pedir o
+primeiro acesso, o técnico recebe nesse e-mail um link para criar a senha, por
+isso o e-mail cadastrado precisa ser válido e de uso pessoal do técnico.
 
 ### Importar técnicos por CSV
 
@@ -436,47 +448,32 @@ Resposta esperada:
 
 Se o banco estiver indisponível, retorna erro HTTP 503.
 
-## 20. Produção e PostgreSQL
+## 20. Produção
 
-Para produção, configure no ambiente:
+A instalação em servidor está descrita passo a passo em
+`docs/instalacao/00_LEIA_PRIMEIRO.md` e
+`docs/instalacao/01_INSTALAR_WINDOWS_SERVER.md`.
 
-```text
-DJANGO_DEBUG=False
-DJANGO_SECRET_KEY=uma-chave-longa-e-secreta
-DJANGO_ALLOWED_HOSTS=treinamentos.suaempresa.com.br
-DJANGO_CSRF_TRUSTED_ORIGINS=https://treinamentos.suaempresa.com.br
-DATABASE_URL=postgres://usuario:senha@host:5432/sistema_treinamentos
-```
+O banco de dados é um arquivo SQLite (no servidor,
+`C:\Academia\dados\academia.sqlite3`), e os PDFs dos cursos ficam em
+`C:\Academia\dados\media`. A configuração fica em
+`C:\Academia\config\ambiente.json`.
 
-Depois execute:
-
-```bash
-python manage.py migrate --noinput
-python manage.py collectstatic --noinput
-python manage.py check --deploy
-```
-
-Consulte também:
-
-```text
-deploy/PRODUCTION.md
-```
+Os PDFs dos cursos só abrem para usuários logados: técnicos com o curso
+liberado, responsáveis da empresa do curso e o superadmin.
 
 ## 21. Backup e restauração
 
-Para exportar dados:
+No servidor, o script `C:\Academia\operacao\backup.py` roda todos os dias
+pelo Agendador de Tarefas. Ele copia o banco com segurança, mesmo com o site
+em uso, junto com os PDFs e a configuração, e guarda as últimas 14 cópias em
+`C:\Academia\backups`.
 
-```bash
-python manage.py dumpdata --exclude auth.permission --exclude contenttypes --indent 2 > backup.json
-```
+Confira periodicamente se as pastas de backup estão sendo criadas e se a TI
+está copiando essa pasta para fora do servidor. O passo a passo de restauração
+está no manual de instalação.
 
-Para restaurar:
-
-```bash
-python manage.py loaddata backup.json
-```
-
-Em produção com PostgreSQL, prefira também backups nativos do provedor.
+Nunca copie o arquivo do banco com o site ligado: a cópia pode sair corrompida.
 
 ## 22. Boas práticas de administração
 
@@ -499,11 +496,10 @@ Antes de considerar o ambiente pronto:
 - `DJANGO_SECRET_KEY` forte;
 - domínio em `DJANGO_ALLOWED_HOSTS`;
 - origem HTTPS em `DJANGO_CSRF_TRUSTED_ORIGINS`;
-- PostgreSQL configurado;
+- banco SQLite em `C:\Academia\dados` e backup diário agendado;
 - SMTP testado;
-- `python manage.py migrate --noinput` executado;
-- `python manage.py collectstatic --noinput` executado;
-- `python manage.py check --deploy` sem alertas;
+- `migrate` e `collectstatic` executados;
+- `check --deploy` sem alertas além do HSTS ainda não ativado;
 - superadmin criado ou redefinido;
 - `/saude/` respondendo;
 - primeiro curso testado do início ao certificado.

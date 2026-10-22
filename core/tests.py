@@ -13,6 +13,7 @@ from django.conf import settings
 from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import RequestFactory
 from django.test import TestCase
 from django.test import override_settings
@@ -78,6 +79,42 @@ class ConfiguracaoSegurancaTest(TestCase):
         self.assertEqual(config["PORT"], "5432")
         self.assertEqual(config["CONN_MAX_AGE"], 120)
         self.assertEqual(config["OPTIONS"]["sslmode"], "require")
+
+    def test_sqlite_path_define_arquivo_do_banco(self):
+        with patch.dict(
+            os.environ,
+            {"SQLITE_PATH": "C:/Academia/dados/academia.sqlite3", "DATABASE_URL": ""},
+        ):
+            config = database_config()
+
+        self.assertEqual(config["ENGINE"], "django.db.backends.sqlite3")
+        self.assertEqual(config["NAME"], Path("C:/Academia/dados/academia.sqlite3"))
+        self.assertEqual(config["OPTIONS"]["transaction_mode"], "IMMEDIATE")
+        self.assertIn("journal_mode=WAL", config["OPTIONS"]["init_command"])
+
+    def test_database_url_sqlite_aceita_caminho_do_windows(self):
+        with patch.dict(
+            os.environ,
+            {
+                "SQLITE_PATH": "",
+                "DATABASE_URL": "sqlite:///C:/Academia/dados/academia.sqlite3",
+            },
+        ):
+            config = database_config()
+
+        self.assertEqual(config["NAME"], "C:/Academia/dados/academia.sqlite3")
+
+    def test_database_url_sqlite_mantem_caminho_absoluto_no_linux(self):
+        with patch.dict(
+            os.environ,
+            {
+                "SQLITE_PATH": "",
+                "DATABASE_URL": "sqlite:////var/lib/academia/academia.sqlite3",
+            },
+        ):
+            config = database_config()
+
+        self.assertEqual(config["NAME"], "//var/lib/academia/academia.sqlite3")
 
 
 class SaudeTest(TestCase):
@@ -394,6 +431,98 @@ class RecuperacaoSenhaTest(TestCase):
         self.assertEqual(len(mail.outbox), 0)
 
 
+class PrimeiroAcessoTecnicoTest(TestCase):
+    def setUp(self):
+        self.empresa = Empresa.objects.create(nome="Empresa Acesso")
+        self.tecnico = Tecnico.objects.create(
+            empresa=self.empresa,
+            nome="Tecnico Novo",
+            email="novo@exemplo.com",
+            matricula="NOVO-001",
+        )
+
+    def _pedir_link(self, email, matricula):
+        return self.client.post(
+            reverse("primeiro_acesso"),
+            {"email": email, "matricula": matricula},
+            follow=True,
+        )
+
+    def _definir_senha_pelo_email(self, senha):
+        caminho = re.search(
+            r"/senha/redefinir/[^\s]+/[^\s]+/", mail.outbox[-1].body
+        ).group(0)
+        resposta_link = self.client.get(caminho)
+        return self.client.post(
+            resposta_link.url,
+            {"new_password1": senha, "new_password2": senha},
+        )
+
+    def test_envia_link_e_tecnico_define_senha_pelo_email(self):
+        resposta = self._pedir_link("novo@exemplo.com", "NOVO-001")
+
+        self.assertRedirects(resposta, reverse("login"))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["novo@exemplo.com"])
+        self.tecnico.refresh_from_db()
+        self.assertIsNotNone(self.tecnico.usuario)
+        self.assertFalse(self.tecnico.usuario.has_usable_password())
+
+        resposta_senha = self._definir_senha_pelo_email("SenhaTecnico123!")
+
+        self.assertRedirects(resposta_senha, reverse("password_reset_complete"))
+        self.assertTrue(
+            self.client.login(username="novo@exemplo.com", password="SenhaTecnico123!")
+        )
+
+    def test_matricula_errada_nao_envia_email_nem_revela_cadastro(self):
+        resposta_errada = self._pedir_link("novo@exemplo.com", "OUTRA")
+        mensagem_errada = [str(m) for m in resposta_errada.context["messages"]]
+        resposta_certa = self._pedir_link("novo@exemplo.com", "NOVO-001")
+        mensagem_certa = [str(m) for m in resposta_certa.context["messages"]]
+
+        self.assertEqual(mensagem_errada, mensagem_certa)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_tecnico_inativo_nao_recebe_link(self):
+        self.tecnico.ativo = False
+        self.tecnico.save()
+
+        self._pedir_link("novo@exemplo.com", "NOVO-001")
+
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertFalse(User.objects.filter(username="novo@exemplo.com").exists())
+
+    def test_novo_pedido_reenvia_link_enquanto_senha_nao_foi_criada(self):
+        self._pedir_link("novo@exemplo.com", "NOVO-001")
+        self._pedir_link("novo@exemplo.com", "NOVO-001")
+
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertEqual(User.objects.filter(username="novo@exemplo.com").count(), 1)
+
+    def test_tecnico_com_senha_criada_nao_recebe_novo_link(self):
+        self._pedir_link("novo@exemplo.com", "NOVO-001")
+        self._definir_senha_pelo_email("SenhaTecnico123!")
+
+        self._pedir_link("novo@exemplo.com", "NOVO-001")
+
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_link_usado_nao_funciona_de_novo(self):
+        self._pedir_link("novo@exemplo.com", "NOVO-001")
+        self._definir_senha_pelo_email("SenhaTecnico123!")
+
+        caminho = re.search(
+            r"/senha/redefinir/[^\s]+/[^\s]+/", mail.outbox[-1].body
+        ).group(0)
+        resposta = self.client.get(caminho, follow=True)
+
+        self.assertFalse(resposta.context["validlink"])
+        self.assertContains(resposta, "Link inválido ou expirado")
+        usuario = User.objects.get(username="novo@exemplo.com")
+        self.assertTrue(usuario.check_password("SenhaTecnico123!"))
+
+
 class PrimeiroAcessoTecnicoMultiempresaTest(TestCase):
     def test_primeiro_acesso_vincula_tecnicos_equivalentes_ao_mesmo_usuario(self):
         empresa_a = Empresa.objects.create(nome="Empresa A")
@@ -413,12 +542,7 @@ class PrimeiroAcessoTecnicoMultiempresaTest(TestCase):
 
         resposta = self.client.post(
             reverse("primeiro_acesso"),
-            {
-                "email": tecnico_a.email,
-                "matricula": tecnico_a.matricula,
-                "senha": "SenhaTecnico123!",
-                "confirmar_senha": "SenhaTecnico123!",
-            },
+            {"email": tecnico_a.email, "matricula": tecnico_a.matricula},
             follow=True,
         )
 
@@ -427,9 +551,7 @@ class PrimeiroAcessoTecnicoMultiempresaTest(TestCase):
         self.assertEqual(resposta.status_code, 200)
         self.assertIsNotNone(tecnico_a.usuario)
         self.assertEqual(tecnico_b.usuario, tecnico_a.usuario)
-        self.assertTrue(
-            self.client.login(username=tecnico_a.email, password="SenhaTecnico123!")
-        )
+        self.assertEqual(len(mail.outbox), 1)
 
 
 class CargaDemonstracaoTest(TestCase):
@@ -562,6 +684,40 @@ class RedefinirAdminTest(TestCase):
         self.assertTrue(usuario.is_staff)
         self.assertTrue(usuario.is_superuser)
         self.assertTrue(usuario.check_password("NovaSenhaAdmin123!"))
+
+    def test_senha_recusada_nao_cria_administrador(self):
+        with self.assertRaises(CommandError):
+            call_command(
+                "redefinir_admin",
+                username="novoadmin",
+                password="123",
+                noinput=True,
+                stdout=StringIO(),
+            )
+
+        self.assertFalse(User.objects.filter(username="novoadmin").exists())
+
+    def test_senha_recusada_nao_altera_administrador_existente(self):
+        User.objects.create_user(
+            username="admin",
+            email="admin@exemplo.com",
+            password="SenhaAntiga123!",
+        )
+
+        with self.assertRaises(CommandError):
+            call_command(
+                "redefinir_admin",
+                username="admin",
+                email="outro@exemplo.com",
+                password="123",
+                noinput=True,
+                stdout=StringIO(),
+            )
+
+        usuario = User.objects.get(username="admin")
+        self.assertEqual(usuario.email, "admin@exemplo.com")
+        self.assertFalse(usuario.is_superuser)
+        self.assertTrue(usuario.check_password("SenhaAntiga123!"))
 
 
 class ResponsavelEmpresaTest(TestCase):
@@ -2994,3 +3150,117 @@ class EscopoEmpresaTest(TestCase):
 
         self.assertIn(self.tecnico_a, admin_tecnico.get_queryset(request))
         self.assertIn(self.tecnico_b, admin_tecnico.get_queryset(request))
+
+
+class MaterialPdfCursoTest(TestCase):
+    def setUp(self):
+        media_root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, media_root, ignore_errors=True)
+        configuracao = override_settings(MEDIA_ROOT=media_root)
+        configuracao.enable()
+        self.addCleanup(configuracao.disable)
+
+        self.empresa = Empresa.objects.create(nome="Empresa PDF")
+        self.outra_empresa = Empresa.objects.create(nome="Outra Empresa")
+        produto = Produto.objects.create(nome="Produto PDF", empresa=self.empresa)
+        self.curso = Curso.objects.create(nome="Curso com material", produto=produto)
+        self.curso.material_pdf.save(
+            "manual.pdf",
+            SimpleUploadedFile("manual.pdf", b"%PDF-1.4\nconteudo\n%%EOF"),
+        )
+        self.url = reverse("material_pdf_curso", args=[self.curso.id])
+
+    def _tecnico(self, matricula, empresa=None, liberado=True):
+        usuario = User.objects.create_user(
+            username=f"{matricula}@exemplo.com", password="SenhaForte123!"
+        )
+        tecnico = Tecnico.objects.create(
+            empresa=empresa or self.empresa,
+            usuario=usuario,
+            nome=f"Tecnico {matricula}",
+            email=f"{matricula}@exemplo.com",
+            matricula=matricula,
+        )
+        if liberado:
+            CursoLiberado.objects.create(tecnico=tecnico, curso=self.curso)
+        return usuario
+
+    def test_visitante_sem_login_e_redirecionado(self):
+        resposta = self.client.get(self.url)
+
+        self.assertEqual(resposta.status_code, 302)
+        self.assertIn(settings.LOGIN_URL, resposta["Location"])
+
+    def test_tecnico_com_curso_liberado_baixa_pdf(self):
+        self.client.force_login(self._tecnico("PDF001"))
+
+        resposta = self.client.get(self.url)
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(resposta["Content-Type"], "application/pdf")
+        self.assertEqual(b"".join(resposta.streaming_content)[:8], b"%PDF-1.4")
+        resposta.close()
+
+    def test_tecnico_sem_curso_liberado_nao_baixa_pdf(self):
+        self.client.force_login(self._tecnico("PDF002", liberado=False))
+
+        resposta = self.client.get(self.url)
+
+        self.assertEqual(resposta.status_code, 403)
+
+    def test_tecnico_de_outra_empresa_nao_baixa_pdf(self):
+        self.client.force_login(
+            self._tecnico("PDF003", empresa=self.outra_empresa, liberado=False)
+        )
+
+        resposta = self.client.get(self.url)
+
+        self.assertEqual(resposta.status_code, 403)
+
+    def test_responsavel_da_empresa_baixa_pdf(self):
+        usuario = User.objects.create_user(
+            username="editor.pdf@exemplo.com", password="SenhaForte123!"
+        )
+        ResponsavelEmpresa.objects.create(
+            empresa=self.empresa,
+            usuario=usuario,
+            papel=ResponsavelEmpresa.Papel.EDITOR_CURSOS,
+        )
+        self.client.force_login(usuario)
+
+        resposta = self.client.get(self.url)
+
+        self.assertEqual(resposta.status_code, 200)
+        resposta.close()
+
+    def test_responsavel_de_outra_empresa_nao_baixa_pdf(self):
+        usuario = User.objects.create_user(
+            username="outro.editor@exemplo.com", password="SenhaForte123!"
+        )
+        ResponsavelEmpresa.objects.create(
+            empresa=self.outra_empresa,
+            usuario=usuario,
+            papel=ResponsavelEmpresa.Papel.EDITOR_CURSOS,
+        )
+        self.client.force_login(usuario)
+
+        resposta = self.client.get(self.url)
+
+        self.assertEqual(resposta.status_code, 403)
+
+    def test_curso_sem_pdf_retorna_404(self):
+        self.curso.material_pdf.delete()
+        User.objects.create_superuser(username="root", password="SenhaForte123!")
+        self.client.login(username="root", password="SenhaForte123!")
+
+        resposta = self.client.get(self.url)
+
+        self.assertEqual(resposta.status_code, 404)
+
+    def test_pagina_do_curso_usa_link_protegido(self):
+        self.client.force_login(self._tecnico("PDF004"))
+
+        resposta = self.client.get(reverse("curso_detalhe", args=[self.curso.id]))
+
+        self.assertContains(resposta, self.url)
+        self.assertNotContains(resposta, "/media/")

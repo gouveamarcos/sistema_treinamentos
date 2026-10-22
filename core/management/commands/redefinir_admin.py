@@ -48,32 +48,25 @@ class Command(BaseCommand):
             )
 
         User = get_user_model()
-        usuario, criado = User.objects.get_or_create(
-            username=username,
-            defaults={
-                "email": email,
-                "is_staff": True,
-                "is_superuser": True,
-                "is_active": True,
-            },
-        )
+        usuario = User.objects.filter(username=username).first()
+        criado = usuario is None
+        if criado:
+            usuario = User(username=username, email=email)
 
+        # Valida a senha antes de gravar qualquer coisa: se ela for recusada,
+        # nenhum usuario e criado ou alterado.
         try:
             validate_password(password, usuario)
         except ValidationError as erro:
             raise CommandError(" ".join(erro.messages)) from erro
 
-        campos_atualizados = ["password", "is_staff", "is_superuser", "is_active"]
         usuario.set_password(password)
         usuario.is_staff = True
         usuario.is_superuser = True
         usuario.is_active = True
-
-        if email and usuario.email != email:
+        if email:
             usuario.email = email
-            campos_atualizados.append("email")
-
-        usuario.save(update_fields=campos_atualizados)
+        usuario.save()
 
         acao = "criado" if criado else "redefinido"
         self.stdout.write(

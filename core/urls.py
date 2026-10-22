@@ -261,6 +261,11 @@ urlpatterns = [
     ),
     path("cursos/<int:curso_id>/", views.curso_detalhe, name="curso_detalhe"),
     path(
+        "cursos/<int:curso_id>/material.pdf",
+        views.material_pdf_curso,
+        name="material_pdf_curso",
+    ),
+    path(
         "cursos/<int:curso_id>/etapas/<int:etapa_id>/",
         views.curso_detalhe,
         name="curso_etapa",

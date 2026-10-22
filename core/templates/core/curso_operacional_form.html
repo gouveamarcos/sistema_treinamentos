@@ -51,7 +51,7 @@
             {{ form.material_pdf.label_tag }}
             {{ form.material_pdf }}
             {% if curso.material_pdf %}
-                <small class="texto-ajuda">PDF atual: <a href="{{ curso.material_pdf.url }}" target="_blank" rel="noopener">abrir arquivo</a></small>
+                <small class="texto-ajuda">PDF atual: <a href="{% url 'material_pdf_curso' curso.id %}" target="_blank" rel="noopener">abrir arquivo</a></small>
             {% endif %}
             {% for erro in form.material_pdf.errors %}<small class="erro-campo">{{ erro }}</small>{% endfor %}
         </div>

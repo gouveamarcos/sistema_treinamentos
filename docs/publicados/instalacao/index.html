@@ -14,169 +14,123 @@ blockquote{border-left:4px solid #d7a237;margin:20px 0;padding:8px 20px;backgrou
 footer{font-size:12px;color:#50636e;border-top:1px solid var(--line);margin-top:36px;padding-top:16px}
 @media(max-width:700px){main{padding:24px 18px;margin:0;border:0}h1{font-size:27px}nav ol{columns:1}table{font-size:12px}td,th{padding:7px}.toolbar{margin:12px auto}}
 @media print{@page{size:A4;margin:17mm 15mm}body{background:white;font:10pt/1.45 Arial,sans-serif}header,.toolbar{display:none}main{border:0;box-shadow:none;padding:0;margin:0;max-width:none}h1{font-size:23pt}h2{font-size:15pt;break-after:avoid;margin-top:24px;padding-top:12px}h3{break-after:avoid}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:8.5pt;overflow:visible;break-inside:auto}table{font-size:9pt}tr{break-inside:avoid}thead{display:table-header-group}nav{break-inside:avoid}a{color:inherit}p{orphans:3;widows:3}footer{font-size:8pt}}
-</style></head><body><header>Academia Técnica · Instalação e operação · Setembro 2026</header><div class="toolbar"><a href="index.html">Comece aqui / escolher o sistema</a><button onclick="window.print()">Imprimir ou salvar em PDF</button></div><main><h1>Instalação da Academia Técnica — comece aqui</h1><nav aria-label="Sumário"><strong>Neste manual</strong><ol><li><a href="#secao-1">O que será montado</a></li><li><a href="#secao-2">O que pedir à TI antes de começar</a></li><li><a href="#secao-3">Preparar o acesso pela internet</a></li><li><a href="#secao-4">Como ler e executar os manuais</a></li><li><a href="#secao-5">Dados existentes e comandos de demonstração</a></li><li><a href="#secao-6">Entrega e aceite</a></li><li><a href="#secao-7">Fontes e manutenção do pacote</a></li></ol></nav>
-<p>Edição: 8 de setembro de 2026 · Público: equipe que receberá e instalará a plataforma.</p>
-<p>Este pacote contém quatro manuais. Escolha <strong>somente o par correspondente ao sistema do servidor</strong>. Não execute os quatro no mesmo computador.</p>
-<p>Para usar o pacote ZIP: clique com o botão direito → <strong>Extrair tudo</strong> e abra <code>index.html</code> na pasta extraída. As páginas funcionam sem internet para leitura; downloads dos programas e links dos fornecedores exigem conexão. Use o botão <strong>Imprimir ou salvar em PDF</strong>, escolha a impressora ou o destino <strong>Salvar como PDF</strong> e papel A4. Para copiar comandos, prefira o texto da página HTML; linhas longas podem quebrar visualmente no PDF. Os arquivos <code>.md</code> são as versões de texto editáveis.</p>
+</style></head><body><header>Academia Técnica · Instalação e operação · Outubro 2026</header><div class="toolbar"><a href="index.html">Comece aqui</a><button onclick="window.print()">Imprimir ou salvar em PDF</button></div><main><h1>Instalação da Academia Técnica — comece aqui</h1><nav aria-label="Sumário"><strong>Neste manual</strong><ol><li><a href="#secao-1">O que você vai montar</a></li><li><a href="#secao-2">Os manuais</a></li><li><a href="#secao-3">Servidor necessário</a></li><li><a href="#secao-4">Ficha para preencher antes de começar</a></li><li><a href="#secao-5">O que a TI precisa liberar na rede</a></li><li><a href="#secao-6">Como ler os manuais</a></li><li><a href="#secao-7">Quando a instalação está pronta</a></li></ol></nav>
+<p>Edição: 22/10/2026 · Para: equipe que vai instalar a plataforma num <strong>Windows Server</strong>.</p>
+<h2 id="secao-1">O que você vai montar</h2>
+<p>Tudo fica num único servidor Windows. Os usuários só acessam o site pelo navegador; ninguém instala nada no próprio computador.</p>
+<pre><code class="language-text">Navegador do usuário
+      |  https://treinamentos.suaempresa.com.br  (porta 443)
+      v
+Caddy ............ recebe o acesso, cuida do HTTPS e entrega CSS/vídeos
+      |
+Waitress ......... executa a aplicação (Django) em 127.0.0.1:8000
+      |
+SQLite ........... um único arquivo com todos os dados:
+                   C:\Academia\dados\academia.sqlite3
+</code></pre>
+<p>O banco de dados é <strong>SQLite</strong>: não há servidor de banco para instalar, configurar ou proteger com senha. O banco é um arquivo, e os PDFs dos cursos ficam numa pasta ao lado dele. Fazer backup é copiar esses dois itens do jeito certo (o manual já traz o script).</p>
+<h2 id="secao-2">Os manuais</h2>
+<p>Siga nesta ordem:</p>
 <table>
 <thead>
 <tr>
-<th>Servidor</th>
-<th>Primeiro: banco de dados</th>
-<th>Depois: plataforma</th>
+<th>Ordem</th>
+<th>Manual</th>
+<th>Quando usar</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>Windows Server 2022 ou 2025, com interface gráfica, 64 bits</td>
-<td><a href="01_POSTGRESQL_WINDOWS.html">PostgreSQL no Windows</a></td>
-<td><a href="02_PLATAFORMA_WINDOWS.html">Plataforma no Windows</a></td>
+<td>1</td>
+<td><a href="01_INSTALAR_WINDOWS_SERVER.html">Instalar no Windows Server</a></td>
+<td>Sempre</td>
 </tr>
 <tr>
-<td>Ubuntu Server 24.04 LTS, 64 bits</td>
-<td><a href="03_POSTGRESQL_UBUNTU.html">PostgreSQL no Ubuntu</a></td>
-<td><a href="04_PLATAFORMA_UBUNTU.html">Plataforma no Ubuntu</a></td>
+<td>2</td>
+<td><a href="02_TRANSFERIR_DADOS.html">Trazer os dados atuais</a></td>
+<td>Somente se houver cadastros, cursos e certificados que precisam ser mantidos. O manual 1 avisa em que momento fazer isso.</td>
 </tr>
 </tbody></table>
-<p>Linux tem várias distribuições. Os comandos deste pacote são para <strong>Ubuntu 24.04</strong>, não para Debian, Red Hat, Rocky, CentOS ou qualquer Linux indistintamente. Windows Server Core, sem área de trabalho, também não é o cenário deste roteiro. Se o servidor tiver outro sistema, entregue este pacote à TI para adaptar ou disponibilizar uma máquina virtual com um dos sistemas acima.</p>
-<h2 id="secao-1">1. O que será montado</h2>
-<pre><code class="language-text">Computador/celular do usuário
-           |
-     Internet — HTTPS, porta 443
-           |
-Firewall/roteador da empresa
-           |
-Servidor da plataforma
-  Caddy: recebe o acesso e fornece HTTPS, CSS, vídeos locais e PDFs
-       |
-  Waitress (Windows) ou Gunicorn (Ubuntu): executa o Django
-       |
-  PostgreSQL: guarda usuários, cursos, respostas e certificados
-</code></pre>
-<p>O cenário principal é <strong>uma máquina dedicada ou máquina virtual</strong>, com aplicação e banco juntos. Os usuários acessam apenas o site. Não instalam Python, PostgreSQL ou a plataforma nas próprias máquinas.</p>
-<p>O sistema operacional deve estar instalado, atualizado e com rede funcionando. Este pacote não ensina a formatar o servidor. Não reutilize estes passos às cegas em servidor que já hospeda outros sistemas: portas, bancos e configurações podem estar em uso.</p>
-<h2 id="secao-2">2. O que pedir à TI antes de começar</h2>
-<p>Preencha e entregue a ficha abaixo ao instalador. Os valores de exemplo não são os dados reais da empresa.</p>
+<p>Depois da instalação, entregue aos responsáveis o <a href="apoio/MANUAL_USUARIO.html">Manual do usuário</a> e o <a href="apoio/MANUAL_SUPERADMIN.html">Manual do superadmin</a>.</p>
+<h2 id="secao-3">Servidor necessário</h2>
+<ul>
+<li><strong>Windows Server 2022 ou 2025</strong>, 64 bits, com interface gráfica (não use Server Core).</li>
+<li>Ponto de partida: 2 CPUs, 4 GB de RAM e 40 GB livres em SSD. Aumente o disco conforme o volume de PDFs e de backups.</li>
+<li>O servidor não deve hospedar outro site nas portas 80 e 443. Se hospedar, a TI precisa adaptar o Caddy ao proxy existente.</li>
+</ul>
+<blockquote>
+<p><strong>Limite do SQLite:</strong> ele grava uma coisa por vez. Para uma plataforma de treinamento com dezenas de pessoas usando ao mesmo tempo, isso é suficiente. Se a empresa planeja centenas de técnicos fazendo prova no mesmo minuto, avise o responsável pela plataforma antes de instalar.</p>
+</blockquote>
+<h2 id="secao-4">Ficha para preencher antes de começar</h2>
+<p>Peça estes dados à TI. Não escreva senhas nesta ficha; elas devem ser entregues por um canal reservado.</p>
 <table>
 <thead>
 <tr>
 <th>Informação</th>
-<th>Exemplo ou orientação</th>
+<th>Exemplo</th>
 <th>Valor real</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>Sistema e versão</td>
-<td>Windows Server 2022/2025 ou Ubuntu 24.04</td>
+<td>Endereço do site</td>
+<td><code>treinamentos.suaempresa.com.br</code></td>
 <td>__________________</td>
 </tr>
 <tr>
-<td>Nome do servidor</td>
-<td>SRV-ACADEMIA</td>
+<td>IP interno fixo do servidor</td>
+<td><code>192.168.10.50</code></td>
 <td>__________________</td>
 </tr>
 <tr>
-<td>IP fixo na rede interna</td>
-<td>192.168.10.50</td>
+<td>Servidor SMTP, porta e usuário</td>
+<td><code>smtp.suaempresa.com.br</code>, 587</td>
 <td>__________________</td>
 </tr>
 <tr>
-<td>Endereço público do site</td>
-<td>treinamentos.suaempresa.com.br</td>
+<td>E-mail remetente autorizado</td>
+<td><code>treinamentos@suaempresa.com.br</code></td>
 <td>__________________</td>
 </tr>
 <tr>
-<td>IP público de entrada</td>
-<td>Informado pelo responsável pela internet</td>
+<td>E-mail da TI (para o certificado HTTPS)</td>
+<td><code>ti@suaempresa.com.br</code></td>
 <td>__________________</td>
 </tr>
 <tr>
-<td>Responsável por DNS/firewall</td>
-<td>Nome e contato</td>
+<td>Onde guardar a cópia externa dos backups</td>
+<td>NAS, cofre corporativo</td>
 <td>__________________</td>
 </tr>
 <tr>
-<td>Conta administrativa do servidor</td>
-<td>Guardar senha no cofre da empresa</td>
-<td>__________________</td>
-</tr>
-<tr>
-<td>SMTP: servidor, porta e usuário</td>
-<td>SMTP autenticado com STARTTLS na porta 587</td>
-<td>__________________</td>
-</tr>
-<tr>
-<td>Remetente autorizado</td>
-<td><a href="mailto:treinamentos@suaempresa.com.br">treinamentos@suaempresa.com.br</a></td>
-<td>__________________</td>
-</tr>
-<tr>
-<td>Destino de backup fora do servidor</td>
-<td>Cofre corporativo/NAS/serviço de backup</td>
-<td>__________________</td>
-</tr>
-<tr>
-<td>Iniciar vazio ou trazer dados existentes?</td>
-<td>Decisão do proprietário da plataforma</td>
-<td>__________________</td>
-</tr>
-<tr>
-<td>Janela de manutenção</td>
-<td>Exemplo: diariamente às 02h00</td>
-<td>__________________</td>
-</tr>
-<tr>
-<td>Responsável por monitoramento</td>
-<td>Nome e contato</td>
+<td>Começar vazio ou trazer os dados atuais?</td>
+<td>Decisão do responsável</td>
 <td>__________________</td>
 </tr>
 </tbody></table>
-<p>Não preencha senhas neste documento. Elas devem ser entregues por um canal reservado.</p>
-<p>Como ponto de partida de planejamento, reserve 2 a 4 CPUs virtuais, 8 GB de RAM e 80 GB de SSD, ajustando armazenamento ao volume de PDFs, vídeos e backups. Isso é uma estimativa inicial, <strong>não uma capacidade validada de usuários simultâneos</strong>. Faça um piloto com o volume real e acompanhe uso de memória, disco e tempo de resposta.</p>
-<h2 id="secao-3">3. Preparar o acesso pela internet</h2>
-<p>Esta parte deve ser executada por quem administra a rede e o domínio da empresa. O instalador da aplicação pode acompanhar a lista, mas precisa das credenciais e atribuições correspondentes.</p>
+<h2 id="secao-5">O que a TI precisa liberar na rede</h2>
 <ol>
-<li>Reserve um IP interno fixo para o servidor. A TI pode fazer isso por reserva DHCP ou configuração do sistema.</li>
-<li>Escolha um subdomínio, por exemplo <code>treinamentos.suaempresa.com.br</code>. Não use esse exemplo literalmente se a empresa não for dona do domínio.</li>
-<li>No painel de DNS do domínio, crie um registro <strong>A</strong> para esse subdomínio apontando ao IP público de entrada da empresa.</li>
-<li>Só publique um registro <strong>AAAA</strong> se a TI também tiver configurado e testado a entrada por IPv6. Um registro IPv6 incorreto pode impedir acessos e a emissão do certificado.</li>
-<li>No firewall/roteador de borda, encaminhe TCP <strong>80 e 443</strong> ao IP interno do servidor. Se houver proxy corporativo, balanceador ou WAF, a TI deve adaptar o desenho; este roteiro pressupõe que o Caddy recebe HTTP/HTTPS diretamente.</li>
-<li>Mantenha <strong>5432 (PostgreSQL), 8000 (aplicação) e 2019 (administração local do Caddy)</strong> sem encaminhamento público. Elas não são portas dos usuários.</li>
-<li>Acesso administrativo por SSH/RDP deve seguir a VPN e as regras da empresa. Não é necessário abrir RDP/SSH publicamente para usar a plataforma.</li>
-<li>Permita saída para DNS, atualização de pacotes, emissão/renovação de certificados HTTPS e SMTP. A emissão automática do certificado depende de o domínio chegar ao Caddy e de acesso de saída às autoridades certificadoras.</li>
-<li>Se a internet da empresa estiver atrás de <strong>CGNAT</strong>, o simples encaminhamento de portas não será suficiente. A TI deve obter entrada pública com a operadora ou definir uma solução corporativa de publicação antes de continuar.</li>
-<li>Na rede interna, pode ser necessário DNS interno apontando o mesmo nome ao IP interno, ou suporte a retorno NAT no roteador. Use o <strong>mesmo nome HTTPS</strong> dentro e fora da empresa.</li>
+<li>Um registro <strong>DNS do tipo A</strong> apontando o endereço do site para o IP público da empresa.</li>
+<li>No firewall/roteador, encaminhar as portas <strong>TCP 80 e 443</strong> para o IP interno do servidor.</li>
+<li><strong>Não</strong> abrir para a internet a porta 8000 (aplicação) nem a 2019 (administração do Caddy).</li>
+<li>Permitir que o servidor acesse a internet para baixar programas, emitir o certificado HTTPS e enviar e-mails (SMTP).</li>
+<li>Se a internet da empresa estiver atrás de <strong>CGNAT</strong>, o encaminhamento de portas não funciona; a TI precisa resolver isso com a operadora antes.</li>
 </ol>
-<p>Se 80/443 já atendem outro sistema, não desligue esse sistema. A TI precisa configurar um host separado no proxy existente ou uma VM/IP adequados.</p>
-<h2 id="secao-4">4. Como ler e executar os manuais</h2>
+<h2 id="secao-6">Como ler os manuais</h2>
 <ul>
-<li>Execute os passos em ordem, no <strong>servidor</strong>, salvo indicação expressa de outra máquina.</li>
-<li>Um bloco com comandos é algo para copiar ao terminal; não copie os delimitadores de formatação.</li>
-<li>Execute um bloco por vez e confira o resultado antes do próximo. Se houver erro, pare naquele passo.</li>
-<li><code>SUBSTITUA_...</code> marca um valor que precisa ser preenchido. Caminhos e nomes fixos do roteiro devem ser mantidos para que os blocos seguintes funcionem.</li>
-<li>Senhas digitadas no terminal podem não aparecer. Isso é normal.</li>
-<li>Um <strong>serviço</strong> é um programa que continua funcionando quando ninguém está conectado e volta após reiniciar o servidor.</li>
-<li>Um <strong>ambiente virtual Python</strong> separa as bibliotecas desta plataforma das usadas por outros programas.</li>
-<li>Uma <strong>migração</strong> cria ou atualiza as tabelas do banco. Não significa copiar automaticamente dados antigos.</li>
-<li><code>127.0.0.1</code> significa “este próprio servidor”.</li>
+<li>Execute os passos <strong>em ordem</strong>, no servidor.</li>
+<li>Cada bloco cinza é um comando para copiar e colar no <strong>PowerShell como administrador</strong>. Rode um bloco por vez.</li>
+<li>Depois de cada bloco há um <strong>Resultado esperado</strong>. Se o resultado for diferente, pare e veja a seção de problemas no fim do manual.</li>
+<li>Onde aparecer <code>SUBSTITUA_...</code>, troque pelo valor real.</li>
+<li>Mantenha os caminhos <code>C:\Academia</code> e <code>C:\Python313</code> exatamente como estão; os passos seguintes dependem deles.</li>
 </ul>
-<h2 id="secao-5">5. Dados existentes e comandos de demonstração</h2>
-<p>Os roteiros principais começam com <strong>banco vazio</strong>. Se houver cadastros e treinamentos que precisam ser preservados, leia <a href="05_TRANSFERIR_DADOS_EXISTENTES.html">Transferência de dados existentes</a> antes de cadastrar qualquer informação no destino.</p>
-<p>Não execute <code>criar_cursos_demonstracao</code> para preparar produção: esse comando contém exclusões de dados de negócio. Não execute <code>criar_dados_teste_slt</code> como parte da instalação; ele é uma carga de testes. Para começar vazio, bastam as migrações e a criação do administrador.</p>
-<p>Os manuais não alteram as regras de acesso, permissões ou o código de negócio da plataforma. Há arquivos auxiliares de serviço e configuração que o instalador criará <strong>no servidor</strong> seguindo os exemplos.</p>
-<h2 id="secao-6">6. Entrega e aceite</h2>
-<p>A instalação só deve ser considerada concluída depois de:</p>
+<h2 id="secao-7">Quando a instalação está pronta</h2>
+<p>Considere concluído somente depois de conferir:</p>
 <ul>
-<li>Acesso HTTPS funcionando dentro da rede e em uma conexão externa, como celular com Wi-Fi desligado.</li>
-<li>Login administrativo e primeiro acesso de um técnico funcionando.</li>
-<li>PDF, vídeo e aparência da página funcionando.</li>
-<li>Curso de homologação concluído e certificado validado.</li>
-<li>E-mail de recuperação recebido e link funcionando.</li>
-<li>Reinício do servidor realizado em janela autorizada, com retorno automático do site.</li>
-<li>Backup gerado, copiado para fora do servidor e restaurado em banco separado de teste.</li>
-<li>Responsável definido para conferir backups, espaço livre, HTTPS e falhas de serviço.</li>
+<li><input disabled="" type="checkbox"> O site abre com HTTPS de dentro da empresa e de fora (ex.: celular sem Wi-Fi).</li>
+<li><input disabled="" type="checkbox"> O administrador entra no sistema.</li>
+<li><input disabled="" type="checkbox"> Um técnico de teste faz o primeiro acesso, conclui um curso e recebe o certificado.</li>
+<li><input disabled="" type="checkbox"> O PDF do curso abre para quem está logado e <strong>não</strong> abre sem login.</li>
+<li><input disabled="" type="checkbox"> O e-mail de &quot;Esqueci minha senha&quot; chega.</li>
+<li><input disabled="" type="checkbox"> Depois de reiniciar o servidor, o site volta sozinho.</li>
+<li><input disabled="" type="checkbox"> Um backup foi gerado, copiado para fora do servidor e testado.</li>
 </ul>
-<p>Registre a data, versão entregue, nome do instalador, localização dos backups e contato de suporte. Os procedimentos foram conferidos por leitura do projeto e documentação dos fornecedores; <strong>não foram executados em um servidor Windows/Ubuntu de produção nesta entrega</strong>. O aceite acima é a validação obrigatória no ambiente real.</p>
-<h2 id="secao-7">7. Fontes e manutenção do pacote</h2>
-<p>Compatibilidade Python/Django: <a href="https://docs.djangoproject.com/en/6.0/faq/install/">documentação do Django 6.0</a>. Publicação HTTPS: <a href="https://caddyserver.com/docs/automatic-https">Caddy — HTTPS automático</a>. As fontes específicas estão também em cada manual.</p>
-<p>As versões e telas podem mudar depois desta edição. Preserve as versões principais indicadas; a TI deve escolher as atualizações corretivas disponíveis e homologá-las. Não troque a versão do Django do projeto como parte desta instalação sem uma entrega de software correspondente.</p>
-<footer>Academia Técnica • Manual de instalação • Edição 08/09/2026. Os comandos devem ser executados pelo instalador no servidor correspondente.</footer></main></body></html>
+<footer>Academia Técnica • Manual de instalação • Edição 22/10/2026. Os comandos devem ser executados pelo instalador no servidor correspondente.</footer></main></body></html>

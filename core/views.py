@@ -12,14 +12,20 @@ from django.core.exceptions import PermissionDenied
 from django.db import connection
 from django.db import transaction
 from django.db.models import Q
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import (
+    FileResponse,
+    Http404,
+    HttpResponse,
+    HttpResponseRedirect,
+    JsonResponse,
+)
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .audit import registrar_evento
-from .emails import enviar_convite_responsavel
+from .emails import enviar_convite_responsavel, enviar_convite_tecnico
 from .forms import (
     AlternativaForm,
     CursoForm,
@@ -901,6 +907,27 @@ def _render_painel_empresa(request, empresa_contexto):
     )
 
 
+def _enviar_link_primeiro_acesso(request, tecnico, email):
+    usuario = tecnico.usuario
+    if usuario is None:
+        if User.objects.filter(username__iexact=email).exists():
+            return
+        with transaction.atomic():
+            usuario = User.objects.create_user(
+                username=email,
+                email=email,
+                password=None,
+                first_name=tecnico.nome.split()[0],
+            )
+            tecnico.usuario = usuario
+            tecnico.save(update_fields=["usuario"])
+            _vincular_tecnicos_equivalentes(usuario, tecnico)
+
+    # Quem ja definiu a senha usa "Esqueci minha senha".
+    if usuario.is_active and not usuario.has_usable_password():
+        enviar_convite_tecnico(request, usuario, tecnico)
+
+
 def primeiro_acesso(request):
     if request.user.is_authenticated:
         return redirect("home")
@@ -910,36 +937,25 @@ def primeiro_acesso(request):
         if form.is_valid():
             email = form.cleaned_data["email"].lower()
             matricula = form.cleaned_data["matricula"]
-            senha = form.cleaned_data["senha"]
-
-            try:
-                tecnico = Tecnico.objects.get(
+            tecnico = (
+                Tecnico.objects.filter(
                     email__iexact=email, matricula=matricula, ativo=True
                 )
-            except Tecnico.DoesNotExist:
-                messages.error(
-                    request,
-                    "Não encontramos um técnico ativo com esse e-mail e matrícula.",
-                )
-                return render(request, "core/primeiro_acesso.html", {"form": form})
-
-            if tecnico.usuario:
-                messages.warning(
-                    request,
-                    "Este técnico já possui usuário cadastrado. Faça login normalmente.",
-                )
-                return redirect("login")
-
-            usuario = User.objects.create_user(
-                username=email,
-                email=email,
-                password=senha,
-                first_name=tecnico.nome.split()[0],
+                .select_related("usuario")
+                .first()
             )
-            tecnico.usuario = usuario
-            tecnico.save(update_fields=["usuario"])
-            _vincular_tecnicos_equivalentes(usuario, tecnico)
-            messages.success(request, "Usuário criado. Agora faça seu login.")
+            if tecnico:
+                _enviar_link_primeiro_acesso(request, tecnico, email)
+
+            # A mesma resposta aparece com ou sem cadastro, para nao revelar
+            # quais e-mails e matriculas existem na plataforma.
+            messages.success(
+                request,
+                "Se o e-mail e a matrícula conferirem com um cadastro ativo, "
+                "enviamos um link para você criar sua senha. Confira sua caixa "
+                "de entrada e o spam. Se você já criou sua senha, use "
+                "\"Esqueci minha senha\".",
+            )
             return redirect("login")
     else:
         form = PrimeiroAcessoForm()
@@ -2345,6 +2361,39 @@ def cursos_por_produto(request, produto_id):
         "core/cursos_por_produto.html",
         {"produto": produto, "tecnico": tecnico, "cursos_com_status": cursos_com_status},
     )
+
+
+def _pode_ver_material_curso(request, curso):
+    empresa = curso.produto.empresa
+    if empresas_do_usuario(request.user).filter(pk=empresa.pk).exists():
+        return True
+    tecnico = _tecnico_logado(request, empresa)
+    return bool(tecnico) and _curso_liberado(tecnico, curso)
+
+
+@login_required
+def material_pdf_curso(request, curso_id):
+    curso = get_object_or_404(
+        Curso.objects.select_related("produto__empresa"),
+        id=curso_id,
+    )
+    if not curso.material_pdf:
+        raise Http404
+    if not _pode_ver_material_curso(request, curso):
+        raise PermissionDenied
+
+    try:
+        arquivo = curso.material_pdf.open("rb")
+    except FileNotFoundError as erro:
+        raise Http404 from erro
+
+    resposta = FileResponse(
+        arquivo,
+        content_type="application/pdf",
+        filename=f"curso-{curso.id}.pdf",
+    )
+    resposta["Cache-Control"] = "private, no-store"
+    return resposta
 
 
 @login_required

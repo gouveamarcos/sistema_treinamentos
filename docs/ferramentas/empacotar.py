@@ -24,8 +24,7 @@ with ZipFile(output, 'w', compression=ZIP_DEFLATED) as package:
         'MANUAIS DE INSTALACAO - ACADEMIA TECNICA\n\n'
         '1. Extraia o ZIP inteiro para uma pasta.\n'
         '2. Abra index.html no navegador.\n'
-        '3. Escolha Windows Server ou Ubuntu Server.\n'
-        '4. Leia primeiro PostgreSQL e depois Plataforma.\n'
+        '3. Siga os manuais na ordem: 00, 01 e, se for manter os dados, 02.\n'
         '5. Use o botao de imprimir para salvar em PDF, se desejar.\n\n'
         'As pastas de apoio devem permanecer junto dos manuais.\n'
         'Este pacote contem apenas documentacao, sem banco, credenciais ou codigo da plataforma.\n'
@@ -33,5 +32,5 @@ with ZipFile(output, 'w', compression=ZIP_DEFLATED) as package:
     ).encode('utf-8'))
 with ZipFile(output) as package:
     assert package.testzip() is None
-    assert len([name for name in included if name[:2] in ('01', '02', '03', '04') and name.endswith('.html')]) == 4
+    assert len([name for name in included if name[:2] in ('01', '02') and name.endswith('.html')]) == 2
 print(f'{output}: {len(included) + 1} arquivos; {output.stat().st_size} bytes; integridade OK.')

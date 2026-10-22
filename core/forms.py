@@ -1,7 +1,6 @@
 from django import forms
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.contrib.auth.password_validation import validate_password
 
 from .models import (
     Alternativa,
@@ -549,18 +548,3 @@ class PrimeiroAcessoForm(forms.Form):
         max_length=50,
         widget=forms.TextInput(attrs={"placeholder": "Digite sua matrícula"}),
     )
-    senha = forms.CharField(
-        label="Senha",
-        validators=[validate_password],
-        widget=forms.PasswordInput(attrs={"placeholder": "Crie uma senha"}),
-    )
-    confirmar_senha = forms.CharField(
-        label="Confirmar senha",
-        widget=forms.PasswordInput(attrs={"placeholder": "Confirme sua senha"}),
-    )
-
-    def clean(self):
-        dados = super().clean()
-        if dados.get("senha") and dados.get("senha") != dados.get("confirmar_senha"):
-            raise forms.ValidationError("As senhas não conferem.")
-        return dados

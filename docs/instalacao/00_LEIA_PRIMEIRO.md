@@ -1,117 +1,82 @@
 # Instalação da Academia Técnica — comece aqui
 
-Edição: 8 de setembro de 2026 · Público: equipe que receberá e instalará a plataforma.
+Edição: 22/10/2026 · Para: equipe que vai instalar a plataforma num **Windows Server**.
 
-Este pacote contém quatro manuais. Escolha **somente o par correspondente ao sistema do servidor**. Não execute os quatro no mesmo computador.
+## O que você vai montar
 
-Para usar o pacote ZIP: clique com o botão direito → **Extrair tudo** e abra `index.html` na pasta extraída. As páginas funcionam sem internet para leitura; downloads dos programas e links dos fornecedores exigem conexão. Use o botão **Imprimir ou salvar em PDF**, escolha a impressora ou o destino **Salvar como PDF** e papel A4. Para copiar comandos, prefira o texto da página HTML; linhas longas podem quebrar visualmente no PDF. Os arquivos `.md` são as versões de texto editáveis.
-
-| Servidor | Primeiro: banco de dados | Depois: plataforma |
-|---|---|---|
-| Windows Server 2022 ou 2025, com interface gráfica, 64 bits | [PostgreSQL no Windows](01_POSTGRESQL_WINDOWS.md) | [Plataforma no Windows](02_PLATAFORMA_WINDOWS.md) |
-| Ubuntu Server 24.04 LTS, 64 bits | [PostgreSQL no Ubuntu](03_POSTGRESQL_UBUNTU.md) | [Plataforma no Ubuntu](04_PLATAFORMA_UBUNTU.md) |
-
-Linux tem várias distribuições. Os comandos deste pacote são para **Ubuntu 24.04**, não para Debian, Red Hat, Rocky, CentOS ou qualquer Linux indistintamente. Windows Server Core, sem área de trabalho, também não é o cenário deste roteiro. Se o servidor tiver outro sistema, entregue este pacote à TI para adaptar ou disponibilizar uma máquina virtual com um dos sistemas acima.
-
-## 1. O que será montado
+Tudo fica num único servidor Windows. Os usuários só acessam o site pelo navegador; ninguém instala nada no próprio computador.
 
 ```text
-Computador/celular do usuário
-           |
-     Internet — HTTPS, porta 443
-           |
-Firewall/roteador da empresa
-           |
-Servidor da plataforma
-  Caddy: recebe o acesso e fornece HTTPS, CSS, vídeos locais e PDFs
-       |
-  Waitress (Windows) ou Gunicorn (Ubuntu): executa o Django
-       |
-  PostgreSQL: guarda usuários, cursos, respostas e certificados
+Navegador do usuário
+      |  https://treinamentos.suaempresa.com.br  (porta 443)
+      v
+Caddy ............ recebe o acesso, cuida do HTTPS e entrega CSS/vídeos
+      |
+Waitress ......... executa a aplicação (Django) em 127.0.0.1:8000
+      |
+SQLite ........... um único arquivo com todos os dados:
+                   C:\Academia\dados\academia.sqlite3
 ```
 
-O cenário principal é **uma máquina dedicada ou máquina virtual**, com aplicação e banco juntos. Os usuários acessam apenas o site. Não instalam Python, PostgreSQL ou a plataforma nas próprias máquinas.
+O banco de dados é **SQLite**: não há servidor de banco para instalar, configurar ou proteger com senha. O banco é um arquivo, e os PDFs dos cursos ficam numa pasta ao lado dele. Fazer backup é copiar esses dois itens do jeito certo (o manual já traz o script).
 
-O sistema operacional deve estar instalado, atualizado e com rede funcionando. Este pacote não ensina a formatar o servidor. Não reutilize estes passos às cegas em servidor que já hospeda outros sistemas: portas, bancos e configurações podem estar em uso.
+## Os manuais
 
-## 2. O que pedir à TI antes de começar
+Siga nesta ordem:
 
-Preencha e entregue a ficha abaixo ao instalador. Os valores de exemplo não são os dados reais da empresa.
-
-| Informação | Exemplo ou orientação | Valor real |
+| Ordem | Manual | Quando usar |
 |---|---|---|
-| Sistema e versão | Windows Server 2022/2025 ou Ubuntu 24.04 | __________________ |
-| Nome do servidor | SRV-ACADEMIA | __________________ |
-| IP fixo na rede interna | 192.168.10.50 | __________________ |
-| Endereço público do site | treinamentos.suaempresa.com.br | __________________ |
-| IP público de entrada | Informado pelo responsável pela internet | __________________ |
-| Responsável por DNS/firewall | Nome e contato | __________________ |
-| Conta administrativa do servidor | Guardar senha no cofre da empresa | __________________ |
-| SMTP: servidor, porta e usuário | SMTP autenticado com STARTTLS na porta 587 | __________________ |
-| Remetente autorizado | treinamentos@suaempresa.com.br | __________________ |
-| Destino de backup fora do servidor | Cofre corporativo/NAS/serviço de backup | __________________ |
-| Iniciar vazio ou trazer dados existentes? | Decisão do proprietário da plataforma | __________________ |
-| Janela de manutenção | Exemplo: diariamente às 02h00 | __________________ |
-| Responsável por monitoramento | Nome e contato | __________________ |
+| 1 | [Instalar no Windows Server](01_INSTALAR_WINDOWS_SERVER.md) | Sempre |
+| 2 | [Trazer os dados atuais](02_TRANSFERIR_DADOS.md) | Somente se houver cadastros, cursos e certificados que precisam ser mantidos. O manual 1 avisa em que momento fazer isso. |
 
-Não preencha senhas neste documento. Elas devem ser entregues por um canal reservado.
+Depois da instalação, entregue aos responsáveis o [Manual do usuário](../uso/MANUAL_USUARIO.md) e o [Manual do superadmin](../uso/MANUAL_SUPERADMIN.md).
 
-Como ponto de partida de planejamento, reserve 2 a 4 CPUs virtuais, 8 GB de RAM e 80 GB de SSD, ajustando armazenamento ao volume de PDFs, vídeos e backups. Isso é uma estimativa inicial, **não uma capacidade validada de usuários simultâneos**. Faça um piloto com o volume real e acompanhe uso de memória, disco e tempo de resposta.
+## Servidor necessário
 
-## 3. Preparar o acesso pela internet
+- **Windows Server 2022 ou 2025**, 64 bits, com interface gráfica (não use Server Core).
+- Ponto de partida: 2 CPUs, 4 GB de RAM e 40 GB livres em SSD. Aumente o disco conforme o volume de PDFs e de backups.
+- O servidor não deve hospedar outro site nas portas 80 e 443. Se hospedar, a TI precisa adaptar o Caddy ao proxy existente.
 
-Esta parte deve ser executada por quem administra a rede e o domínio da empresa. O instalador da aplicação pode acompanhar a lista, mas precisa das credenciais e atribuições correspondentes.
+> **Limite do SQLite:** ele grava uma coisa por vez. Para uma plataforma de treinamento com dezenas de pessoas usando ao mesmo tempo, isso é suficiente. Se a empresa planeja centenas de técnicos fazendo prova no mesmo minuto, avise o responsável pela plataforma antes de instalar.
 
-1. Reserve um IP interno fixo para o servidor. A TI pode fazer isso por reserva DHCP ou configuração do sistema.
-2. Escolha um subdomínio, por exemplo `treinamentos.suaempresa.com.br`. Não use esse exemplo literalmente se a empresa não for dona do domínio.
-3. No painel de DNS do domínio, crie um registro **A** para esse subdomínio apontando ao IP público de entrada da empresa.
-4. Só publique um registro **AAAA** se a TI também tiver configurado e testado a entrada por IPv6. Um registro IPv6 incorreto pode impedir acessos e a emissão do certificado.
-5. No firewall/roteador de borda, encaminhe TCP **80 e 443** ao IP interno do servidor. Se houver proxy corporativo, balanceador ou WAF, a TI deve adaptar o desenho; este roteiro pressupõe que o Caddy recebe HTTP/HTTPS diretamente.
-6. Mantenha **5432 (PostgreSQL), 8000 (aplicação) e 2019 (administração local do Caddy)** sem encaminhamento público. Elas não são portas dos usuários.
-7. Acesso administrativo por SSH/RDP deve seguir a VPN e as regras da empresa. Não é necessário abrir RDP/SSH publicamente para usar a plataforma.
-8. Permita saída para DNS, atualização de pacotes, emissão/renovação de certificados HTTPS e SMTP. A emissão automática do certificado depende de o domínio chegar ao Caddy e de acesso de saída às autoridades certificadoras.
-9. Se a internet da empresa estiver atrás de **CGNAT**, o simples encaminhamento de portas não será suficiente. A TI deve obter entrada pública com a operadora ou definir uma solução corporativa de publicação antes de continuar.
-10. Na rede interna, pode ser necessário DNS interno apontando o mesmo nome ao IP interno, ou suporte a retorno NAT no roteador. Use o **mesmo nome HTTPS** dentro e fora da empresa.
+## Ficha para preencher antes de começar
 
-Se 80/443 já atendem outro sistema, não desligue esse sistema. A TI precisa configurar um host separado no proxy existente ou uma VM/IP adequados.
+Peça estes dados à TI. Não escreva senhas nesta ficha; elas devem ser entregues por um canal reservado.
 
-## 4. Como ler e executar os manuais
+| Informação | Exemplo | Valor real |
+|---|---|---|
+| Endereço do site | `treinamentos.suaempresa.com.br` | __________________ |
+| IP interno fixo do servidor | `192.168.10.50` | __________________ |
+| Servidor SMTP, porta e usuário | `smtp.suaempresa.com.br`, 587 | __________________ |
+| E-mail remetente autorizado | `treinamentos@suaempresa.com.br` | __________________ |
+| E-mail da TI (para o certificado HTTPS) | `ti@suaempresa.com.br` | __________________ |
+| Onde guardar a cópia externa dos backups | NAS, cofre corporativo | __________________ |
+| Começar vazio ou trazer os dados atuais? | Decisão do responsável | __________________ |
 
-- Execute os passos em ordem, no **servidor**, salvo indicação expressa de outra máquina.
-- Um bloco com comandos é algo para copiar ao terminal; não copie os delimitadores de formatação.
-- Execute um bloco por vez e confira o resultado antes do próximo. Se houver erro, pare naquele passo.
-- `SUBSTITUA_...` marca um valor que precisa ser preenchido. Caminhos e nomes fixos do roteiro devem ser mantidos para que os blocos seguintes funcionem.
-- Senhas digitadas no terminal podem não aparecer. Isso é normal.
-- Um **serviço** é um programa que continua funcionando quando ninguém está conectado e volta após reiniciar o servidor.
-- Um **ambiente virtual Python** separa as bibliotecas desta plataforma das usadas por outros programas.
-- Uma **migração** cria ou atualiza as tabelas do banco. Não significa copiar automaticamente dados antigos.
-- `127.0.0.1` significa “este próprio servidor”.
+## O que a TI precisa liberar na rede
 
-## 5. Dados existentes e comandos de demonstração
+1. Um registro **DNS do tipo A** apontando o endereço do site para o IP público da empresa.
+2. No firewall/roteador, encaminhar as portas **TCP 80 e 443** para o IP interno do servidor.
+3. **Não** abrir para a internet a porta 8000 (aplicação) nem a 2019 (administração do Caddy).
+4. Permitir que o servidor acesse a internet para baixar programas, emitir o certificado HTTPS e enviar e-mails (SMTP).
+5. Se a internet da empresa estiver atrás de **CGNAT**, o encaminhamento de portas não funciona; a TI precisa resolver isso com a operadora antes.
 
-Os roteiros principais começam com **banco vazio**. Se houver cadastros e treinamentos que precisam ser preservados, leia [Transferência de dados existentes](05_TRANSFERIR_DADOS_EXISTENTES.md) antes de cadastrar qualquer informação no destino.
+## Como ler os manuais
 
-Não execute `criar_cursos_demonstracao` para preparar produção: esse comando contém exclusões de dados de negócio. Não execute `criar_dados_teste_slt` como parte da instalação; ele é uma carga de testes. Para começar vazio, bastam as migrações e a criação do administrador.
+- Execute os passos **em ordem**, no servidor.
+- Cada bloco cinza é um comando para copiar e colar no **PowerShell como administrador**. Rode um bloco por vez.
+- Depois de cada bloco há um **Resultado esperado**. Se o resultado for diferente, pare e veja a seção de problemas no fim do manual.
+- Onde aparecer `SUBSTITUA_...`, troque pelo valor real.
+- Mantenha os caminhos `C:\Academia` e `C:\Python313` exatamente como estão; os passos seguintes dependem deles.
 
-Os manuais não alteram as regras de acesso, permissões ou o código de negócio da plataforma. Há arquivos auxiliares de serviço e configuração que o instalador criará **no servidor** seguindo os exemplos.
+## Quando a instalação está pronta
 
-## 6. Entrega e aceite
+Considere concluído somente depois de conferir:
 
-A instalação só deve ser considerada concluída depois de:
-
-- Acesso HTTPS funcionando dentro da rede e em uma conexão externa, como celular com Wi-Fi desligado.
-- Login administrativo e primeiro acesso de um técnico funcionando.
-- PDF, vídeo e aparência da página funcionando.
-- Curso de homologação concluído e certificado validado.
-- E-mail de recuperação recebido e link funcionando.
-- Reinício do servidor realizado em janela autorizada, com retorno automático do site.
-- Backup gerado, copiado para fora do servidor e restaurado em banco separado de teste.
-- Responsável definido para conferir backups, espaço livre, HTTPS e falhas de serviço.
-
-Registre a data, versão entregue, nome do instalador, localização dos backups e contato de suporte. Os procedimentos foram conferidos por leitura do projeto e documentação dos fornecedores; **não foram executados em um servidor Windows/Ubuntu de produção nesta entrega**. O aceite acima é a validação obrigatória no ambiente real.
-
-## 7. Fontes e manutenção do pacote
-
-Compatibilidade Python/Django: [documentação do Django 6.0](https://docs.djangoproject.com/en/6.0/faq/install/). Publicação HTTPS: [Caddy — HTTPS automático](https://caddyserver.com/docs/automatic-https). As fontes específicas estão também em cada manual.
-
-As versões e telas podem mudar depois desta edição. Preserve as versões principais indicadas; a TI deve escolher as atualizações corretivas disponíveis e homologá-las. Não troque a versão do Django do projeto como parte desta instalação sem uma entrega de software correspondente.
+- [ ] O site abre com HTTPS de dentro da empresa e de fora (ex.: celular sem Wi-Fi).
+- [ ] O administrador entra no sistema.
+- [ ] Um técnico de teste faz o primeiro acesso, conclui um curso e recebe o certificado.
+- [ ] O PDF do curso abre para quem está logado e **não** abre sem login.
+- [ ] O e-mail de "Esqueci minha senha" chega.
+- [ ] Depois de reiniciar o servidor, o site volta sozinho.
+- [ ] Um backup foi gerado, copiado para fora do servidor e testado.

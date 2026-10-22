@@ -11,8 +11,12 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 import os
+import re
+import sys
 from pathlib import Path
 from urllib.parse import unquote, urlparse
+
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -28,11 +32,18 @@ def env_bool(nome, padrao=False):
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
-SECRET_KEY = os.getenv(
-    "DJANGO_SECRET_KEY",
-    "django-insecure-det6ry)d(7vcweolf*mi#6y7x=p*w*$4**9jnq6@3ldvt$8)bx",
-)
-DEBUG = env_bool("DJANGO_DEBUG", True)
+# DEBUG fica desligado por padrao. Para desenvolvimento local, defina
+# DJANGO_DEBUG=True no terminal antes de rodar o runserver.
+DEBUG = env_bool("DJANGO_DEBUG", False)
+EXECUTANDO_TESTES = len(sys.argv) > 1 and sys.argv[1] == "test"
+
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "").strip()
+if not SECRET_KEY:
+    if not (DEBUG or EXECUTANDO_TESTES):
+        raise ImproperlyConfigured(
+            "Defina DJANGO_SECRET_KEY (ou DJANGO_DEBUG=True para desenvolvimento)."
+        )
+    SECRET_KEY = "django-insecure-det6ry)d(7vcweolf*mi#6y7x=p*w*$4**9jnq6@3ldvt$8)bx"
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
@@ -88,13 +99,41 @@ TEMPLATES = [
 WSGI_APPLICATION = "treinamentos.wsgi.application"
 
 
+def sqlite_config(caminho):
+    # Ajustes para uso em servidor: espera ate 20s quando outra requisicao
+    # estiver gravando, abre transacoes de escrita imediatamente e usa WAL,
+    # que permite leituras enquanto uma gravacao acontece.
+    return {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": caminho,
+        "OPTIONS": {
+            "timeout": int(os.getenv("SQLITE_TIMEOUT", "20")),
+            "transaction_mode": "IMMEDIATE",
+            "init_command": (
+                "PRAGMA journal_mode=WAL;"
+                "PRAGMA synchronous=NORMAL;"
+                "PRAGMA foreign_keys=ON;"
+            ),
+        },
+    }
+
+
+def caminho_sqlite_da_url(url):
+    caminho = unquote(url.path)
+    # sqlite:///C:/Academia/dados/db.sqlite3 chega como /C:/Academia/...
+    if re.match(r"^/[A-Za-z]:[/\\]", caminho):
+        caminho = caminho[1:]
+    return caminho
+
+
 def database_config():
+    sqlite_path = os.getenv("SQLITE_PATH", "").strip()
+    if sqlite_path:
+        return sqlite_config(Path(sqlite_path))
+
     database_url = os.getenv("DATABASE_URL", "").strip()
     if not database_url:
-        return {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
+        return sqlite_config(BASE_DIR / "db.sqlite3")
 
     url = urlparse(database_url)
     if url.scheme in {"postgres", "postgresql"}:
@@ -113,10 +152,7 @@ def database_config():
         return config
 
     if url.scheme == "sqlite":
-        return {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": unquote(url.path),
-        }
+        return sqlite_config(caminho_sqlite_da_url(url))
 
     raise ValueError("DATABASE_URL deve usar postgres://, postgresql:// ou sqlite://.")
 
@@ -167,7 +203,8 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+# Em servidor, mantenha os PDFs fora da pasta do codigo (ex.: C:/Academia/dados/media).
+MEDIA_ROOT = Path(os.getenv("DJANGO_MEDIA_ROOT", "").strip() or BASE_DIR / "media")
 
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/login/"
@@ -193,7 +230,10 @@ MAX_CSV_IMPORT_SIZE_BYTES = int(
 if env_bool("USE_X_FORWARDED_PROTO", True):
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", not DEBUG)
+# Nos testes automatizados o cliente usa HTTP; em producao o padrao e redirecionar.
+SECURE_SSL_REDIRECT = env_bool(
+    "SECURE_SSL_REDIRECT", not DEBUG and not EXECUTANDO_TESTES
+)
 SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", not DEBUG)
 CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", not DEBUG)
 SECURE_HSTS_SECONDS = int(

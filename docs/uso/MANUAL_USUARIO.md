@@ -36,11 +36,17 @@ Use esta opção quando ainda não tiver senha.
 1. Clique em **Primeiro acesso**.
 2. Informe o e-mail cadastrado.
 3. Informe sua matrícula.
-4. Crie uma senha segura.
-5. Confirme a senha.
-6. Envie o formulário.
+4. Clique em **Receber link por e-mail**.
+5. Abra o e-mail "Crie sua senha na Academia Tecnica" e clique no link.
+6. Crie uma senha segura e confirme.
+7. Volte para a tela inicial e entre com seu e-mail e a senha criada.
 
-Depois disso, o sistema cria seu usuário e libera o acesso à área de cursos.
+O link vale por tempo limitado e funciona uma única vez. Se ele expirar, peça
+um novo em **Primeiro acesso**.
+
+Por segurança, a tela mostra a mesma mensagem mesmo quando o e-mail ou a
+matrícula estão errados. Se o e-mail não chegar em alguns minutos, confira a
+caixa de spam e os dados digitados.
 
 ### Se o primeiro acesso não funcionar
 
@@ -48,7 +54,8 @@ Verifique:
 
 - se o e-mail foi digitado igual ao cadastro;
 - se a matrícula está correta;
-- se você já não criou acesso anteriormente;
+- se o e-mail chegou na caixa de spam;
+- se você já não criou a senha antes (nesse caso, use **Esqueci minha senha**);
 - se seu cadastro está ativo.
 
 Se ainda assim não conseguir entrar, procure o responsável operacional.

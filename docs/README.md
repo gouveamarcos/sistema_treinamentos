@@ -6,7 +6,7 @@ Escolha o material conforme sua atividade. Os arquivos editáveis ficam separado
 |---|---|
 | Usar a plataforma como técnico | [Manual do usuário](uso/MANUAL_USUARIO.md) |
 | Administrar a plataforma | [Manual do superadmin](uso/MANUAL_SUPERADMIN.md) |
-| Instalar no servidor | [Comece aqui: Windows ou Ubuntu](instalacao/00_LEIA_PRIMEIRO.md) |
+| Instalar no servidor | [Comece aqui: Windows Server](instalacao/00_LEIA_PRIMEIRO.md) |
 | Ler e imprimir os manuais no navegador | [Índice dos manuais publicados](publicados/instalacao/index.html) |
 | Entregar os manuais à equipe instaladora | [Pacote ZIP completo](distribuicao/Manuais_Instalacao_Academia_Tecnica.zip) |
 | Testar o funcionamento | [Roteiro de testes ponta a ponta](testes/ROTEIROS_TESTE_E2E.md) |
@@ -20,6 +20,7 @@ docs/
 ├── README.md                 Índice geral
 ├── uso/                      Manuais para técnicos e administradores
 ├── instalacao/               Fontes dos manuais de instalação e transferência
+│   └── antigos_postgresql/   Manuais anteriores (PostgreSQL/Ubuntu), fora de uso
 ├── testes/                   Roteiros e registros de validação
 │   └── validacao-manuais/
 │       ├── evidencias/       Imagens e resultados das verificações
@@ -33,14 +34,15 @@ docs/
 
 ## Manuais de instalação
 
-Execute apenas o par correspondente ao sistema do servidor:
+A plataforma é instalada em **Windows Server**, com banco **SQLite** (um arquivo, sem servidor de banco):
 
-| Sistema | Banco de dados | Plataforma |
-|---|---|---|
-| Windows Server 2022/2025 | [PostgreSQL](instalacao/01_POSTGRESQL_WINDOWS.md) | [Plataforma](instalacao/02_PLATAFORMA_WINDOWS.md) |
-| Ubuntu Server 24.04 | [PostgreSQL](instalacao/03_POSTGRESQL_UBUNTU.md) | [Plataforma](instalacao/04_PLATAFORMA_UBUNTU.md) |
+| Ordem | Manual |
+|---|---|
+| 0 | [Comece aqui](instalacao/00_LEIA_PRIMEIRO.md) |
+| 1 | [Instalar no Windows Server](instalacao/01_INSTALAR_WINDOWS_SERVER.md) |
+| 2 | [Trazer os dados atuais](instalacao/02_TRANSFERIR_DADOS.md) (somente se for manter os dados) |
 
-Para preservar os cadastros existentes, consulte [Transferência de dados](instalacao/05_TRANSFERIR_DADOS_EXISTENTES.md).
+Os manuais antigos, para PostgreSQL e Ubuntu, ficaram em `instalacao/antigos_postgresql/` apenas como referência.
 
 ## Como manter a documentação
 
@@ -50,4 +52,4 @@ Para preservar os cadastros existentes, consulte [Transferência de dados](insta
 - Evidências e fragmentos de verificação não são instruções de instalação.
 - Para implantação em servidor, siga os manuais de `instalacao/`; o roteiro E2E também contém preparação de ambiente local de testes.
 
-Esta reorganização preserva o conteúdo dos manuais. A revisão de conteúdo apontada anteriormente permanece pendente: a orientação sobre validade zero no manual do superadmin e seus trechos resumidos de implantação/backup precisam ser alinhados ao comportamento atual e aos manuais específicos.
+Pendente de revisão: a orientação sobre validade zero no manual do superadmin.

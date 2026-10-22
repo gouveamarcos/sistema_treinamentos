@@ -46,7 +46,7 @@ function render(markdown, inSupport = false) {
   const toc = headings.length ? `<nav aria-label="Sumário"><strong>Neste manual</strong><ol>${headings.join('')}</ol></nav>` : '';
   html = html.replace(/(<\/h1>)/, `$1${toc}`);
   const home = inSupport ? '../index.html' : 'index.html';
-  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(title)}</title><style>${css}</style></head><body><header>Academia Técnica · Instalação e operação · Setembro 2026</header><div class="toolbar"><a href="${home}">Comece aqui / escolher o sistema</a><button onclick="window.print()">Imprimir ou salvar em PDF</button></div><main>${html}<footer>Academia Técnica • Manual de instalação • Edição 08/09/2026. Os comandos devem ser executados pelo instalador no servidor correspondente.</footer></main></body></html>`;
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(title)}</title><style>${css}</style></head><body><header>Academia Técnica · Instalação e operação · Outubro 2026</header><div class="toolbar"><a href="${home}">Comece aqui</a><button onclick="window.print()">Imprimir ou salvar em PDF</button></div><main>${html}<footer>Academia Técnica • Manual de instalação • Edição 22/10/2026. Os comandos devem ser executados pelo instalador no servidor correspondente.</footer></main></body></html>`;
 }
 
 const files = fs.readdirSync(root).filter(name => /^\d\d_.*\.md$/.test(name)).sort();

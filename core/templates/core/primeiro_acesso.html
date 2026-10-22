@@ -5,7 +5,7 @@
     <section class="card-formulario">
         <span class="eyebrow">Ativação de conta</span>
         <h2>Crie seu acesso</h2>
-        <p>Use o e-mail e a matrícula previamente cadastrados pela empresa.</p>
+        <p>Informe o e-mail e a matrícula cadastrados pela empresa. Vamos enviar um link para o seu e-mail para você criar a senha.</p>
         {% if form.non_field_errors %}<div class="mensagem error">{{ form.non_field_errors }}</div>{% endif %}
         <form method="post">
             {% csrf_token %}
@@ -16,7 +16,7 @@
                     {% for error in field.errors %}<small class="erro-campo">{{ error }}</small>{% endfor %}
                 </div>
             {% endfor %}
-            <button type="submit" class="botao-principal">Criar minha senha</button>
+            <button type="submit" class="botao-principal">Receber link por e-mail</button>
         </form>
         <p class="link-apoio">Já possui acesso? <a href="{% url 'login' %}">Faça login</a></p>
     </section>

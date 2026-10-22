@@ -14,7 +14,7 @@ blockquote{border-left:4px solid #d7a237;margin:20px 0;padding:8px 20px;backgrou
 footer{font-size:12px;color:#50636e;border-top:1px solid var(--line);margin-top:36px;padding-top:16px}
 @media(max-width:700px){main{padding:24px 18px;margin:0;border:0}h1{font-size:27px}nav ol{columns:1}table{font-size:12px}td,th{padding:7px}.toolbar{margin:12px auto}}
 @media print{@page{size:A4;margin:17mm 15mm}body{background:white;font:10pt/1.45 Arial,sans-serif}header,.toolbar{display:none}main{border:0;box-shadow:none;padding:0;margin:0;max-width:none}h1{font-size:23pt}h2{font-size:15pt;break-after:avoid;margin-top:24px;padding-top:12px}h3{break-after:avoid}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:8.5pt;overflow:visible;break-inside:auto}table{font-size:9pt}tr{break-inside:avoid}thead{display:table-header-group}nav{break-inside:avoid}a{color:inherit}p{orphans:3;widows:3}footer{font-size:8pt}}
-</style></head><body><header>Academia Técnica · Instalação e operação · Setembro 2026</header><div class="toolbar"><a href="../index.html">Comece aqui / escolher o sistema</a><button onclick="window.print()">Imprimir ou salvar em PDF</button></div><main><h1>Manual do Superadmin</h1><nav aria-label="Sumário"><strong>Neste manual</strong><ol><li><a href="#secao-1">Papel do superadmin</a></li><li><a href="#secao-2">Acesso administrativo</a></li><li><a href="#secao-3">Recuperar ou redefinir acesso do superadmin</a></li><li><a href="#secao-4">Estrutura operacional recomendada</a></li><li><a href="#secao-5">Empresas</a></li><li><a href="#secao-6">Técnicos</a></li><li><a href="#secao-7">Responsáveis por empresa</a></li><li><a href="#secao-8">Produtos</a></li><li><a href="#secao-9">Cursos</a></li><li><a href="#secao-10">Construtor de conteúdo</a></li><li><a href="#secao-11">Videoaulas</a></li><li><a href="#secao-12">Questões e alternativas</a></li><li><a href="#secao-13">Liberação de cursos</a></li><li><a href="#secao-14">Importar liberações por CSV</a></li><li><a href="#secao-15">Relatórios gerenciais</a></li><li><a href="#secao-16">Histórico e auditoria</a></li><li><a href="#secao-17">Validação de certificados</a></li><li><a href="#secao-18">Lembretes de reciclagem</a></li><li><a href="#secao-19">Saúde da aplicação</a></li><li><a href="#secao-20">Produção e PostgreSQL</a></li><li><a href="#secao-21">Backup e restauração</a></li><li><a href="#secao-22">Boas práticas de administração</a></li><li><a href="#secao-23">Checklist de implantação</a></li></ol></nav>
+</style></head><body><header>Academia Técnica · Instalação e operação · Outubro 2026</header><div class="toolbar"><a href="../index.html">Comece aqui</a><button onclick="window.print()">Imprimir ou salvar em PDF</button></div><main><h1>Manual do Superadmin</h1><nav aria-label="Sumário"><strong>Neste manual</strong><ol><li><a href="#secao-1">Papel do superadmin</a></li><li><a href="#secao-2">Acesso administrativo</a></li><li><a href="#secao-3">Recuperar ou redefinir acesso do superadmin</a></li><li><a href="#secao-4">Estrutura operacional recomendada</a></li><li><a href="#secao-5">Empresas</a></li><li><a href="#secao-6">Técnicos</a></li><li><a href="#secao-7">Responsáveis por empresa</a></li><li><a href="#secao-8">Produtos</a></li><li><a href="#secao-9">Cursos</a></li><li><a href="#secao-10">Construtor de conteúdo</a></li><li><a href="#secao-11">Videoaulas</a></li><li><a href="#secao-12">Questões e alternativas</a></li><li><a href="#secao-13">Liberação de cursos</a></li><li><a href="#secao-14">Importar liberações por CSV</a></li><li><a href="#secao-15">Relatórios gerenciais</a></li><li><a href="#secao-16">Histórico e auditoria</a></li><li><a href="#secao-17">Validação de certificados</a></li><li><a href="#secao-18">Lembretes de reciclagem</a></li><li><a href="#secao-19">Saúde da aplicação</a></li><li><a href="#secao-20">Produção</a></li><li><a href="#secao-21">Backup e restauração</a></li><li><a href="#secao-22">Boas práticas de administração</a></li><li><a href="#secao-23">Checklist de implantação</a></li></ol></nav>
 <p>Manual completo para administração da Academia Técnica Sem Parar.</p>
 <h2 id="secao-1">1. Papel do superadmin</h2>
 <p>O superadmin é o usuário com acesso total à plataforma.</p>
@@ -58,6 +58,12 @@ responsáveis com papéis específicos.</p>
 <pre><code class="language-powershell">.\venv\Scripts\python.exe manage.py redefinir_admin --username admin --email seu.email@empresa.com --password &quot;NOVA-SENHA&quot; --noinput
 </code></pre>
 <p>Evite deixar senhas registradas em histórico de terminal.</p>
+<p>No servidor Windows instalado pelo manual, o mesmo comando é executado pelo
+iniciador da plataforma:</p>
+<pre><code class="language-powershell">&amp; C:\Academia\venv\Scripts\python.exe C:\Academia\operacao\executar.py redefinir_admin --username admin --email seu.email@empresa.com
+</code></pre>
+<p>Se a senha for recusada (curta, comum ou só com números), o comando informa o
+motivo e não cria nem altera nenhum usuário.</p>
 <h2 id="secao-4">4. Estrutura operacional recomendada</h2>
 <p>Antes de cadastrar cursos, siga esta ordem:</p>
 <ol>
@@ -102,7 +108,9 @@ atuar apenas nas empresas atribuídas a eles.</p>
 <li>região;</li>
 <li>status ativo/inativo.</li>
 </ul>
-<p>O e-mail e a matrícula são usados no primeiro acesso do técnico.</p>
+<p>O e-mail e a matrícula são usados no primeiro acesso do técnico. Ao pedir o
+primeiro acesso, o técnico recebe nesse e-mail um link para criar a senha, por
+isso o e-mail cadastrado precisa ser válido e de uso pessoal do técnico.</p>
 <h3>Importar técnicos por CSV</h3>
 <p>Na tela de técnicos, use a importação CSV.</p>
 <p>Colunas esperadas:</p>
@@ -323,30 +331,25 @@ técnicos, parceiros ou clientes.</p>
 <pre><code class="language-json">{&quot;status&quot;: &quot;ok&quot;, &quot;database&quot;: &quot;ok&quot;}
 </code></pre>
 <p>Se o banco estiver indisponível, retorna erro HTTP 503.</p>
-<h2 id="secao-20">20. Produção e PostgreSQL</h2>
-<p>Para produção, configure no ambiente:</p>
-<pre><code class="language-text">DJANGO_DEBUG=False
-DJANGO_SECRET_KEY=uma-chave-longa-e-secreta
-DJANGO_ALLOWED_HOSTS=treinamentos.suaempresa.com.br
-DJANGO_CSRF_TRUSTED_ORIGINS=https://treinamentos.suaempresa.com.br
-DATABASE_URL=postgres://usuario:senha@host:5432/sistema_treinamentos
-</code></pre>
-<p>Depois execute:</p>
-<pre><code class="language-bash">python manage.py migrate --noinput
-python manage.py collectstatic --noinput
-python manage.py check --deploy
-</code></pre>
-<p>Consulte também:</p>
-<pre><code class="language-text">deploy/PRODUCTION.md
-</code></pre>
+<h2 id="secao-20">20. Produção</h2>
+<p>A instalação em servidor está descrita passo a passo em
+<code>docs/instalacao/00_LEIA_PRIMEIRO.md</code> e
+<code>docs/instalacao/01_INSTALAR_WINDOWS_SERVER.md</code>.</p>
+<p>O banco de dados é um arquivo SQLite (no servidor,
+<code>C:\Academia\dados\academia.sqlite3</code>), e os PDFs dos cursos ficam em
+<code>C:\Academia\dados\media</code>. A configuração fica em
+<code>C:\Academia\config\ambiente.json</code>.</p>
+<p>Os PDFs dos cursos só abrem para usuários logados: técnicos com o curso
+liberado, responsáveis da empresa do curso e o superadmin.</p>
 <h2 id="secao-21">21. Backup e restauração</h2>
-<p>Para exportar dados:</p>
-<pre><code class="language-bash">python manage.py dumpdata --exclude auth.permission --exclude contenttypes --indent 2 &gt; backup.json
-</code></pre>
-<p>Para restaurar:</p>
-<pre><code class="language-bash">python manage.py loaddata backup.json
-</code></pre>
-<p>Em produção com PostgreSQL, prefira também backups nativos do provedor.</p>
+<p>No servidor, o script <code>C:\Academia\operacao\backup.py</code> roda todos os dias
+pelo Agendador de Tarefas. Ele copia o banco com segurança, mesmo com o site
+em uso, junto com os PDFs e a configuração, e guarda as últimas 14 cópias em
+<code>C:\Academia\backups</code>.</p>
+<p>Confira periodicamente se as pastas de backup estão sendo criadas e se a TI
+está copiando essa pasta para fora do servidor. O passo a passo de restauração
+está no manual de instalação.</p>
+<p>Nunca copie o arquivo do banco com o site ligado: a cópia pode sair corrompida.</p>
 <h2 id="secao-22">22. Boas práticas de administração</h2>
 <ul>
 <li>Use superadmin somente quando necessário.</li>
@@ -367,13 +370,12 @@ python manage.py check --deploy
 <li><code>DJANGO_SECRET_KEY</code> forte;</li>
 <li>domínio em <code>DJANGO_ALLOWED_HOSTS</code>;</li>
 <li>origem HTTPS em <code>DJANGO_CSRF_TRUSTED_ORIGINS</code>;</li>
-<li>PostgreSQL configurado;</li>
+<li>banco SQLite em <code>C:\Academia\dados</code> e backup diário agendado;</li>
 <li>SMTP testado;</li>
-<li><code>python manage.py migrate --noinput</code> executado;</li>
-<li><code>python manage.py collectstatic --noinput</code> executado;</li>
-<li><code>python manage.py check --deploy</code> sem alertas;</li>
+<li><code>migrate</code> e <code>collectstatic</code> executados;</li>
+<li><code>check --deploy</code> sem alertas além do HSTS ainda não ativado;</li>
 <li>superadmin criado ou redefinido;</li>
 <li><code>/saude/</code> respondendo;</li>
 <li>primeiro curso testado do início ao certificado.</li>
 </ul>
-<footer>Academia Técnica • Manual de instalação • Edição 08/09/2026. Os comandos devem ser executados pelo instalador no servidor correspondente.</footer></main></body></html>
+<footer>Academia Técnica • Manual de instalação • Edição 22/10/2026. Os comandos devem ser executados pelo instalador no servidor correspondente.</footer></main></body></html>

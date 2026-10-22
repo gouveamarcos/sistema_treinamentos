@@ -1,0 +1,13 @@
+Ola, {{ tecnico.nome }}.
+
+Recebemos um pedido de primeiro acesso a Academia Tecnica com o seu e-mail e matricula.
+
+Para criar sua senha, use o link abaixo:
+{{ link_acesso }}
+
+O link vale por tempo limitado e funciona uma unica vez.
+Seu usuario de acesso e o e-mail cadastrado: {{ usuario.email }}
+
+Se nao foi voce quem pediu, ignore esta mensagem; nada sera alterado.
+
+Academia Tecnica Sem Parar

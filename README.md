@@ -25,15 +25,20 @@ Plataforma Django para treinamento, avaliação e reciclagem periódica de técn
 - Relatório operacional de treinamentos por empresa, técnico, curso e situação.
 
 - Painel gerencial com risco por empresa e curso, além de exportação CSV.
-- Configuração por `DATABASE_URL` para PostgreSQL em produção.
+- Banco SQLite configurado para uso em servidor (`SQLITE_PATH`); PostgreSQL continua aceito via `DATABASE_URL`.
+- PDFs dos cursos entregues somente a usuários logados com acesso ao curso.
 - Endpoint público `/saude/` para monitoramento da aplicação e do banco.
 
 ## Executar localmente
 
 ```powershell
+$env:DJANGO_DEBUG = "True"
 .\venv\Scripts\python.exe manage.py migrate
 .\venv\Scripts\python.exe manage.py runserver
 ```
+
+O `DEBUG` fica desligado por padrão. Sem `DJANGO_DEBUG=True`, a aplicação
+exige `DJANGO_SECRET_KEY` e redireciona para HTTPS, como em produção.
 
 Acesse `http://127.0.0.1:8000/`.
 
@@ -43,7 +48,7 @@ Acesse `http://127.0.0.1:8000/`.
 - [Manual do Usuário](docs/uso/MANUAL_USUARIO.md)
 - [Manual do Superadmin](docs/uso/MANUAL_SUPERADMIN.md)
 - [Roteiros de Teste Ponta a Ponta](docs/testes/ROTEIROS_TESTE_E2E.md)
-- [Instalação em servidor Windows ou Ubuntu](docs/instalacao/00_LEIA_PRIMEIRO.md)
+- [Instalação em Windows Server](docs/instalacao/00_LEIA_PRIMEIRO.md)
 
 ## Cadastrar conteúdo
 
@@ -103,31 +108,23 @@ Agendador de Tarefas do Windows, cron ou serviço equivalente.
 Configure SMTP pelas variáveis `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`,
 `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` e `DEFAULT_FROM_EMAIL`.
 
-## PythonAnywhere
-
-O roteiro completo para publicação está em
-[`deploy/PYTHONANYWHERE.md`](deploy/PYTHONANYWHERE.md).
-
-Para criar o catálogo no servidor sem gerar o técnico demonstrativo:
-
-```bash
-python manage.py criar_cursos_demonstracao --sem-tecnico
-```
-
 ## Produção
 
-Para uma hospedagem mais robusta com PostgreSQL e processo web, use o roteiro:
+A instalação em servidor Windows, com SQLite, Waitress e Caddy, está em
+[`docs/instalacao/00_LEIA_PRIMEIRO.md`](docs/instalacao/00_LEIA_PRIMEIRO.md).
 
-[`deploy/PRODUCTION.md`](deploy/PRODUCTION.md).
-
-Defina ao menos:
+Variáveis principais:
 
 ```text
 DJANGO_DEBUG=False
 DJANGO_SECRET_KEY=uma-chave-longa-e-secreta
 DJANGO_ALLOWED_HOSTS=treinamentos.suaempresa.com.br
 DJANGO_CSRF_TRUSTED_ORIGINS=https://treinamentos.suaempresa.com.br
-DATABASE_URL=postgres://usuario:senha@host:5432/sistema_treinamentos
+SQLITE_PATH=C:/Academia/dados/academia.sqlite3
+DJANGO_MEDIA_ROOT=C:/Academia/dados/media
 ```
 
 Depois da publicação, monitore `/saude/`.
+
+Os roteiros antigos de PythonAnywhere e PostgreSQL continuam em `deploy/` e
+`docs/instalacao/antigos_postgresql/` apenas como referência.

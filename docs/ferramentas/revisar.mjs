@@ -23,7 +23,7 @@ for (const file of fs.readdirSync(root).filter(n => /^\d\d_.*\.html$/.test(n))) 
   report.push({ file, ...result });
 }
 await page.setViewportSize({ width: 390, height: 844 });
-await page.goto(pathToFileURL(path.join(root, '02_PLATAFORMA_WINDOWS.html')).href);
+await page.goto(pathToFileURL(path.join(root, '01_INSTALAR_WINDOWS_SERVER.html')).href);
 await page.screenshot({ path: path.join(evidence, 'windows-mobile.png') });
 report.push(await page.evaluate(() => ({ mobileWidth: document.body.scrollWidth, viewport: innerWidth })));
 await browser.close();

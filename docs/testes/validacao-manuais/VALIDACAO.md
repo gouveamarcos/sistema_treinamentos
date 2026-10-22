@@ -1,22 +1,23 @@
 # Registro de revisão dos manuais
 
-Edição: 08/09/2026.
+Edição: 22/10/2026.
 
-Foram produzidos quatro manuais de instalação, um guia inicial e um apêndice de transferência de dados. As versões HTML são geradas das fontes Markdown e incluem navegação e impressão pelo navegador.
+Os manuais de instalação foram reescritos para **Windows Server com SQLite**: um guia inicial (00), o manual de instalação (01) e o de transferência de dados (02). Os manuais anteriores, para PostgreSQL e Ubuntu, foram movidos para `docs/instalacao/antigos_postgresql/`.
 
 ## Verificações realizadas
 
-- Leitura da configuração, dependências, rotas, comandos administrativos e migrações do projeto.
-- Consulta à documentação oficial de Django, PostgreSQL, Ubuntu, Python, Waitress, Caddy, WinSW e Microsoft.
-- Análise de sintaxe, sem execução, dos 28 blocos PowerShell, 37 blocos Bash, três blocos Python, dois exemplos XML e um JSON.
-- Conferência de links locais e âncoras das versões HTML.
-- Abertura das seis páginas principais em navegador sem interface, inspeção de imagens e verificação de largura em computador e celular.
-- Conferência de que as alterações desta entrega ficaram na pasta de documentação de instalação.
+Em ambiente Linux com Python 3.13 e Django 6.0.5:
+
+- Suíte automática do projeto (130 testes), incluindo os novos testes de configuração SQLite, PDF protegido e `redefinir_admin`.
+- Sintaxe do `ambiente.json`, dos dois programas Python (`executar.py`, `backup.py`) e dos dois XML do WinSW.
+- `Caddyfile` validado com `caddy validate` (Caddy 2.8.4).
+- Iniciador `executar.py` com a configuração do manual: `migrate`, leitura de `DEBUG` e do caminho do banco, Waitress respondendo `/saude/`, redirecionamento para HTTPS e PDF exigindo login.
+- `backup.py`: cópia consistente do banco, verificação de integridade, cópia dos PDFs e remoção das cópias antigas.
+- Comandos de conferência do Manual 2 executados sobre uma cópia do banco atual.
+- `redefinir_admin` com senha recusada (nada é alterado) e com senha válida.
 
 ## Limites da revisão
 
-Não houve instalação de PostgreSQL, Caddy, Waitress ou Gunicorn para operar a plataforma nesta entrega. Não foram criados usuários, migrados bancos, enviados e-mails, abertas portas ou alteradas permissões da aplicação existente.
+Não houve execução em Windows Server. Não foram testados os comandos PowerShell, `icacls`, a instalação dos serviços pelo WinSW, a emissão de certificado pelo Caddy, o Agendador de Tarefas nem o envio real de e-mails.
 
-Os blocos SQL e as configurações Caddy/systemd foram revisados por leitura e comparação com as fontes; não executados contra serviços reais. A validação de sintaxe de scripts não comprova conectividade, credenciais, permissões do servidor nem capacidade de atendimento.
-
-O instalador deve executar os testes locais e externos, de e-mail, reinício e restauração indicados nos manuais antes de considerar a implantação concluída.
+O instalador deve executar os testes de aceite do Manual 1 (Passos 13, 14 e 17) e uma restauração de backup antes de considerar a implantação concluída.
