@@ -451,8 +451,7 @@ Se o banco estiver indisponível, retorna erro HTTP 503.
 ## 20. Produção
 
 A instalação em servidor está descrita passo a passo em
-`docs/instalacao/00_LEIA_PRIMEIRO.md` e
-`docs/instalacao/01_INSTALAR_WINDOWS_SERVER.md`.
+[`docs/MANUAL_INSTALACAO.md`](MANUAL_INSTALACAO.md).
 
 O banco de dados é um arquivo SQLite (no servidor,
 `C:\Academia\dados\academia.sqlite3`), e os PDFs dos cursos ficam em

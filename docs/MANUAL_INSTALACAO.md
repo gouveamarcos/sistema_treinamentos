@@ -1,12 +1,72 @@
-# Manual 1 — Instalar no Windows Server
+# Manual de instalação — Academia Técnica
 
-Academia Técnica · Edição de 22/10/2026 · Windows Server 2022/2025, 64 bits, com interface gráfica.
+Edição de 22/10/2026 · Windows Server 2022/2025, 64 bits, com interface gráfica.
 
-Leia antes o [Comece aqui](00_LEIA_PRIMEIRO.md) e tenha a ficha preenchida. Tempo estimado: 2 a 3 horas, sem contar as liberações de rede da TI.
+Este é o único documento necessário para instalar a plataforma. Siga as partes em ordem. Tempo estimado: 2 a 3 horas, sem contar as liberações de rede da TI.
+
+Depois da instalação, entregue aos responsáveis o [Manual do usuário](MANUAL_USUARIO.md) e o [Manual do superadmin](MANUAL_SUPERADMIN.md).
+
+## Parte 1 — Antes de começar
+
+### O que você vai montar
+
+Tudo fica num único servidor Windows. Os usuários só acessam o site pelo navegador; ninguém instala nada no próprio computador.
+
+```text
+Navegador do usuário
+      |  https://treinamentos.suaempresa.com.br  (porta 443)
+      v
+Caddy ............ recebe o acesso, cuida do HTTPS e entrega CSS/vídeos
+      |
+Waitress ......... executa a aplicação (Django) em 127.0.0.1:8000
+      |
+SQLite ........... um único arquivo com todos os dados:
+                   C:\Academia\dados\academia.sqlite3
+```
+
+O banco de dados é **SQLite**: não há servidor de banco para instalar, configurar ou proteger com senha. O banco é um arquivo, e os PDFs dos cursos ficam numa pasta ao lado dele. Fazer backup é copiar esses dois itens do jeito certo (o manual já traz o script).
+
+### Servidor necessário
+
+- **Windows Server 2022 ou 2025**, 64 bits, com interface gráfica (não use Server Core).
+- Ponto de partida: 2 CPUs, 4 GB de RAM e 40 GB livres em SSD. Aumente o disco conforme o volume de PDFs e de backups.
+- O servidor não deve hospedar outro site nas portas 80 e 443. Se hospedar, a TI precisa adaptar o Caddy ao proxy existente.
+
+> **Limite do SQLite:** ele grava uma coisa por vez. Para uma plataforma de treinamento com dezenas de pessoas usando ao mesmo tempo, isso é suficiente. Se a empresa planeja centenas de técnicos fazendo prova no mesmo minuto, avise o responsável pela plataforma antes de instalar.
+
+### Ficha para preencher antes de começar
+
+Peça estes dados à TI. Não escreva senhas nesta ficha; elas devem ser entregues por um canal reservado.
+
+| Informação | Exemplo | Valor real |
+|---|---|---|
+| Endereço do site | `treinamentos.suaempresa.com.br` | __________________ |
+| IP interno fixo do servidor | `192.168.10.50` | __________________ |
+| Servidor SMTP, porta e usuário | `smtp.suaempresa.com.br`, 587 | __________________ |
+| E-mail remetente autorizado | `treinamentos@suaempresa.com.br` | __________________ |
+| E-mail da TI (para o certificado HTTPS) | `ti@suaempresa.com.br` | __________________ |
+| Onde guardar a cópia externa dos backups | NAS, cofre corporativo | __________________ |
+| Começar vazio ou trazer os dados atuais? | Decisão do responsável | __________________ |
+
+### O que a TI precisa liberar na rede
+
+1. Um registro **DNS do tipo A** apontando o endereço do site para o IP público da empresa.
+2. No firewall/roteador, encaminhar as portas **TCP 80 e 443** para o IP interno do servidor.
+3. **Não** abrir para a internet a porta 8000 (aplicação) nem a 2019 (administração do Caddy).
+4. Permitir que o servidor acesse a internet para baixar programas, emitir o certificado HTTPS e enviar e-mails (SMTP).
+5. Se a internet da empresa estiver atrás de **CGNAT**, o encaminhamento de portas não funciona; a TI precisa resolver isso com a operadora antes.
+
+### Como ler este manual
+
+- Execute os passos **em ordem**, no servidor.
+- Cada bloco cinza é um comando para copiar e colar no **PowerShell como administrador**. Rode um bloco por vez.
+- Depois de cada bloco há um **Resultado esperado**. Se o resultado for diferente, pare e veja a seção de problemas no fim do manual.
+- Onde aparecer `SUBSTITUA_...`, troque pelo valor real.
+- Mantenha os caminhos `C:\Academia` e `C:\Python313` exatamente como estão; os passos seguintes dependem deles.
 
 **Como executar os comandos:** abra o menu Iniciar, procure **Windows PowerShell**, clique com o botão direito e escolha **Executar como administrador**. Use essa janela para todos os blocos. Não use o Prompt de Comando.
 
-## Visão geral das pastas
+### Pastas no servidor
 
 Ao final, o servidor terá esta estrutura:
 
@@ -26,7 +86,9 @@ C:\Academia\
 
 O que é mais importante proteger e copiar no backup: **`dados`** e **`config`**.
 
-## Passo 1 — Instalar o Python 3.13
+## Parte 2 — Instalação passo a passo
+
+### Passo 1 — Instalar o Python 3.13
 
 1. Abra [python.org/downloads/windows](https://www.python.org/downloads/windows/).
 2. Baixe o **Windows installer (64-bit)** da versão **Python 3.13** mais recente. Não use versões "pre-release", "embeddable" nem ARM64.
@@ -41,7 +103,7 @@ O que é mais importante proteger e copiar no backup: **`dados`** e **`config`**
 
 **Resultado esperado:** `Python 3.13.x`.
 
-## Passo 2 — Criar as pastas e definir permissões
+### Passo 2 — Criar as pastas e definir permissões
 
 ```powershell
 New-Item -ItemType Directory -Force -Path C:\Academia\app,C:\Academia\config,C:\Academia\operacao,C:\Academia\dados\media,C:\Academia\backups,C:\Academia\servicos,C:\Academia\caddy,C:\Academia\caddy-data,C:\Academia\logs | Out-Null
@@ -62,11 +124,11 @@ icacls C:\Academia\backups /inheritance:r /grant:r '*S-1-5-32-544:(OI)(CI)F' '*S
 
 Os códigos `S-1-5-...` representam Administradores, SYSTEM e LocalService e funcionam em Windows de qualquer idioma. LocalService é a conta que vai executar o site.
 
-## Passo 3 — Copiar o código da plataforma
+### Passo 3 — Copiar o código da plataforma
 
 Copie a pasta do projeto para `C:\Academia\app` pelo Explorador. O arquivo `manage.py` precisa ficar **diretamente** em `C:\Academia\app`.
 
-**Não copie** estas pastas e arquivos, se existirem: `venv`, `.venv`, `.git`, `__pycache__`, `db.sqlite3`, `media`, `staticfiles`, `dist`. Os dados atuais, se houver, são levados pelo [Manual 2](02_TRANSFERIR_DADOS.md), no momento indicado no Passo 7.
+**Não copie** estas pastas e arquivos, se existirem: `venv`, `.venv`, `.git`, `__pycache__`, `db.sqlite3`, `media`, `staticfiles`, `dist`. Os dados atuais, se houver, são levados no Passo 7.
 
 ```powershell
 Test-Path C:\Academia\app\manage.py
@@ -75,7 +137,7 @@ Test-Path C:\Academia\app\requirements.txt
 
 **Resultado esperado:** `True` duas vezes.
 
-## Passo 4 — Instalar as bibliotecas
+### Passo 4 — Instalar as bibliotecas
 
 ```powershell
 & C:\Python313\python.exe -m venv C:\Academia\venv
@@ -88,7 +150,7 @@ Test-Path C:\Academia\app\requirements.txt
 
 O `requirements.txt` também instala o Gunicorn, que só funciona em Linux. Ele fica instalado sem uso; no Windows quem executa o site é o **Waitress**.
 
-## Passo 5 — Criar a configuração
+### Passo 5 — Criar a configuração
 
 Primeiro gere uma chave secreta e copie o resultado (uma linha longa de letras e números):
 
@@ -149,7 +211,7 @@ Teste se o arquivo está correto (o comando não mostra as senhas):
 
 **Resultado esperado:** `JSON valido` e `Falta preencher: nada`.
 
-## Passo 6 — Criar o iniciador
+### Passo 6 — Criar o iniciador
 
 O projeto não lê o `ambiente.json` sozinho. Este pequeno programa carrega a configuração e depois executa o site ou um comando administrativo.
 
@@ -213,11 +275,11 @@ Confira se a configuração aponta para o banco certo:
 
 **Resultado esperado:** `C:\Academia\dados\academia.sqlite3` (ou com barras `/`) e `DEBUG = False`.
 
-## Passo 7 — Preparar o banco de dados
+### Passo 7 — Preparar o banco de dados
 
 Escolha **um** dos caminhos:
 
-### Caminho A — Começar com o banco vazio
+#### Caminho A — Começar com o banco vazio
 
 ```powershell
 & C:\Academia\venv\Scripts\python.exe C:\Academia\operacao\executar.py migrate --noinput
@@ -225,11 +287,76 @@ Escolha **um** dos caminhos:
 
 **Resultado esperado:** várias linhas `Applying ... OK`, terminando sem erro. O arquivo `C:\Academia\dados\academia.sqlite3` passa a existir.
 
-### Caminho B — Trazer os dados atuais
+#### Caminho B — Trazer os dados atuais
 
-Siga agora o [Manual 2 — Trazer os dados atuais](02_TRANSFERIR_DADOS.md) e volte para o Passo 8 ao terminar.
+A plataforma atual e o servidor novo usam **SQLite**, então a transferência é uma cópia de dois itens:
 
-## Passo 8 — Criar ou redefinir o administrador
+| Item | Na máquina atual | No servidor |
+|---|---|---|
+| Banco de dados | `D:\Projetos\sistema_treinamentos\db.sqlite3` | `C:\Academia\dados\academia.sqlite3` |
+| PDFs dos cursos | `D:\Projetos\sistema_treinamentos\media\` | `C:\Academia\dados\media\` |
+
+Os técnicos continuam com as mesmas senhas. A senha do administrador pode ser trocada no Passo 8, caso ninguém lembre dela.
+
+Faça esta etapa antes de criar o administrador e antes de cadastrar qualquer coisa no servidor.
+
+#### B1. Na máquina atual: preparar a cópia
+
+1. **Desligue a plataforma.** Se ela estiver rodando num terminal (`runserver`), clique na janela e pressione `Ctrl + C`. Copiar o banco com a plataforma ligada pode gerar uma cópia corrompida.
+2. Confira que, na pasta `D:\Projetos\sistema_treinamentos`, **não** existem os arquivos `db.sqlite3-wal` nem `db.sqlite3-journal`. Se existirem, a plataforma ainda está ligada ou foi fechada no meio de uma gravação: ligue e desligue de novo com `Ctrl + C`.
+3. Copie para um pendrive ou pasta de rede protegida:
+   - o arquivo `db.sqlite3`;
+   - a pasta `media` inteira (se ela não existir, nenhum PDF foi enviado ainda).
+4. Guarde também uma cópia desses itens na própria máquina, como garantia. Não apague nada da origem.
+
+Os arquivos contêm dados pessoais e senhas criptografadas dos usuários. Transfira por um meio protegido e apague a cópia do pendrive depois.
+
+#### B2. No servidor: colocar os dados no lugar
+
+Garanta que o site não está rodando (na primeira instalação ele ainda não existe; numa reinstalação, pare-o):
+
+```powershell
+if (Get-Service AcademiaWeb -ErrorAction SilentlyContinue) { Stop-Service AcademiaWeb }
+```
+
+Pelo Explorador:
+
+1. Copie o `db.sqlite3` para `C:\Academia\dados\` e **renomeie** para `academia.sqlite3`.
+2. Copie **o conteúdo** da pasta `media` (a subpasta `cursos`) para dentro de `C:\Academia\dados\media\`. O resultado deve ser `C:\Academia\dados\media\cursos\pdfs\...`.
+
+Reaplique as permissões (arquivos copiados podem chegar com outras permissões):
+
+```powershell
+icacls C:\Academia\dados /grant '*S-1-5-19:(OI)(CI)M' /T
+Test-Path C:\Academia\dados\academia.sqlite3
+```
+
+**Resultado esperado:** `True`.
+
+#### B3. Conferir e atualizar o banco
+
+```powershell
+& C:\Academia\venv\Scripts\python.exe C:\Academia\operacao\executar.py migrate --noinput
+& C:\Academia\venv\Scripts\python.exe C:\Academia\operacao\executar.py shell -c "from core.models import Empresa, Tecnico, Curso, ConclusaoTreinamento; from django.contrib.auth.models import User; print('Usuarios:', User.objects.count()); print('Empresas:', Empresa.objects.count()); print('Tecnicos:', Tecnico.objects.count()); print('Cursos:', Curso.objects.count()); print('Certificados:', ConclusaoTreinamento.objects.count())"
+```
+
+**Resultado esperado:** o `migrate` termina sem erro (pode dizer `No migrations to apply`). As contagens devem bater com o que existe na plataforma atual.
+
+Confira se os PDFs vieram junto:
+
+```powershell
+& C:\Academia\venv\Scripts\python.exe C:\Academia\operacao\executar.py shell -c "from core.models import Curso; faltando=[c.nome for c in Curso.objects.exclude(material_pdf='').exclude(material_pdf=None) if not c.material_pdf.storage.exists(c.material_pdf.name)]; print('PDFs faltando:', faltando or 'nenhum')"
+```
+
+**Resultado esperado:** `PDFs faltando: nenhum`. Se aparecer algum curso, copie de novo a pasta `media`.
+
+#### Dados de teste
+
+Se o banco atual tiver cadastros de teste (empresas, técnicos ou cursos criados só para experimentar), remova-os pelo painel `/admin/` depois da instalação, ou comece com o banco vazio (Caminho A) e cadastre tudo de novo.
+
+Ao terminar, siga para o Passo 8, onde você redefine a senha do administrador. Os demais usuários mantêm as senhas que já tinham. Depois que o site estiver no ar, a máquina antiga **não deve mais ser usada** para cadastros.
+
+### Passo 8 — Criar ou redefinir o administrador
 
 Este comando cria o administrador do site, ou troca a senha dele se já existir (por exemplo, quando os dados foram trazidos e ninguém lembra a senha):
 
@@ -241,7 +368,7 @@ O comando pede a senha duas vezes; ela não aparece enquanto você digita. Use p
 
 **Resultado esperado:** `Administrador 'admin' criado com sucesso.` (ou `redefinido`). Se a senha for recusada, o comando explica o motivo e **nada é alterado**; basta rodar de novo.
 
-## Passo 9 — Preparar os arquivos visuais e conferir
+### Passo 9 — Preparar os arquivos visuais e conferir
 
 ```powershell
 & C:\Academia\venv\Scripts\python.exe C:\Academia\operacao\executar.py collectstatic --noinput
@@ -250,7 +377,7 @@ O comando pede a senha duas vezes; ela não aparece enquanto você digita. Use p
 
 **Resultado esperado:** o primeiro mostra `... static files copied to 'C:\Academia\app\staticfiles'`. O segundo pode mostrar avisos sobre **HSTS** (`security.W004`, `W005`, `W021`); eles são esperados neste momento e serão tratados no Passo 13. Qualquer outro aviso deve ser resolvido antes de seguir.
 
-## Passo 10 — Baixar o Caddy e o WinSW
+### Passo 10 — Baixar o Caddy e o WinSW
 
 1. Baixe o Caddy em [caddyserver.com/download](https://caddyserver.com/download): plataforma **Windows amd64**, sem plugins. Salve como `C:\Academia\caddy\caddy.exe`.
 2. Baixe o WinSW 2.12.0 em [github.com/winsw/winsw/releases/tag/v2.12.0](https://github.com/winsw/winsw/releases/tag/v2.12.0): arquivo `WinSW-x64.exe`. Use a versão 2.x; os modelos abaixo não servem para a versão 3.
@@ -264,7 +391,7 @@ Test-Path C:\Academia\servicos\AcademiaWeb.exe, C:\Academia\servicos\AcademiaPro
 
 **Resultado esperado:** a versão do Caddy e `True` duas vezes.
 
-## Passo 11 — Criar o serviço da plataforma
+### Passo 11 — Criar o serviço da plataforma
 
 Um **serviço** é um programa que o Windows mantém ligado, mesmo sem ninguém conectado, e que volta sozinho depois de reiniciar o servidor.
 
@@ -307,7 +434,7 @@ curl.exe -s -H "X-Forwarded-Proto: https" http://127.0.0.1:8000/saude/
 
 Se não funcionar, abra o arquivo mais recente em `C:\Academia\logs` que começa com `AcademiaWeb` para ver o erro.
 
-## Passo 12 — Configurar o HTTPS com o Caddy
+### Passo 12 — Configurar o HTTPS com o Caddy
 
 ```powershell
 notepad C:\Academia\caddy\Caddyfile
@@ -397,7 +524,7 @@ Get-Service AcademiaWeb, AcademiaProxy
 
 O Caddy obtém o certificado HTTPS sozinho, desde que o DNS e o encaminhamento das portas 80/443 estejam prontos.
 
-## Passo 13 — Testar o acesso
+### Passo 13 — Testar o acesso
 
 1. Em outro computador, abra `https://SEU_ENDERECO/saude/`. Deve aparecer `{"status": "ok", "database": "ok"}` e o navegador não deve dar aviso de certificado.
 2. Repita num celular com o Wi-Fi desligado (acesso de fora da empresa).
@@ -411,7 +538,7 @@ Restart-Service AcademiaWeb
 
 **Nunca** ligue `DJANGO_DEBUG` em produção para investigar um problema; use os logs.
 
-## Passo 14 — Teste completo de funcionamento
+### Passo 14 — Teste completo de funcionamento
 
 1. Entre em `https://SEU_ENDERECO/admin/` com o administrador do Passo 8.
 2. Cadastre uma empresa, um produto e um curso de teste com um PDF, uma etapa de conteúdo e uma prova.
@@ -423,7 +550,7 @@ Restart-Service AcademiaWeb
 8. Cadastre um responsável de teste e confira se o convite por e-mail chega.
 9. Ao final, desative os cadastros de teste.
 
-## Passo 15 — Backup automático
+### Passo 15 — Backup automático
 
 O backup copia o banco com segurança **sem desligar o site**, junto com os PDFs e a configuração, e mantém as últimas 14 cópias.
 
@@ -491,7 +618,7 @@ Agende para rodar todo dia:
 
 > **Nunca copie o arquivo `academia.sqlite3` com o Explorador enquanto o site está ligado.** A cópia pode sair corrompida. Use sempre o `backup.py` ou pare o serviço `AcademiaWeb` antes.
 
-## Passo 16 — Lembretes de reciclagem por e-mail (opcional)
+### Passo 16 — Lembretes de reciclagem por e-mail (opcional)
 
 A plataforma pode avisar os técnicos sobre certificados vencidos ou perto de vencer. Só ative depois de validar o e-mail no Passo 14 e com o aval do responsável.
 
@@ -502,7 +629,7 @@ Crie outra tarefa no Agendador, como no Passo 15, com:
 
 O comando envia e-mails reais a cada execução.
 
-## Passo 17 — Reiniciar e entregar
+### Passo 17 — Reiniciar e entregar
 
 Reinicie o servidor numa janela combinada. Sem abrir nada manualmente, confira:
 
@@ -514,7 +641,9 @@ Os dois devem estar `Running`, e o site deve abrir de fora da empresa. Refaça o
 
 Registre: data, versão do projeto entregue, endereço do site, local dos backups externos, quem instalou e o contato de suporte.
 
-## Atualizar a plataforma no futuro
+## Parte 3 — Manutenção
+
+### Atualizar a plataforma no futuro
 
 1. Rode o backup: `& C:\Academia\venv\Scripts\python.exe C:\Academia\operacao\backup.py`.
 2. Pare o site: `Stop-Service AcademiaWeb`.
@@ -531,7 +660,7 @@ Start-Service AcademiaWeb
 
 6. Teste login, um curso e um PDF. Se algo der errado, pare o serviço, volte a pasta `app-anterior` e restaure o banco do backup (veja abaixo).
 
-## Restaurar um backup
+### Restaurar um backup
 
 1. Pare o site: `Stop-Service AcademiaWeb`.
 2. Renomeie `C:\Academia\dados` para `C:\Academia\dados-com-problema` (não apague).
@@ -541,7 +670,7 @@ Start-Service AcademiaWeb
 
 Teste a restauração pelo menos uma vez, de preferência numa máquina separada, para garantir que os backups funcionam.
 
-## Problemas comuns
+### Problemas comuns
 
 Comandos úteis:
 
@@ -572,3 +701,15 @@ curl.exe -s -H "X-Forwarded-Proto: https" http://127.0.0.1:8000/saude/
 | Esqueci a senha do administrador | Rode o comando do Passo 8 de novo. |
 
 Ao pedir suporte, envie os logs, mas **nunca** envie o `ambiente.json` nem o banco.
+
+## Parte 4 — Checklist de entrega
+
+Considere concluído somente depois de conferir:
+
+- [ ] O site abre com HTTPS de dentro da empresa e de fora (ex.: celular sem Wi-Fi).
+- [ ] O administrador entra no sistema.
+- [ ] Um técnico de teste faz o primeiro acesso, conclui um curso e recebe o certificado.
+- [ ] O PDF do curso abre para quem está logado e **não** abre sem login.
+- [ ] O e-mail de "Esqueci minha senha" chega.
+- [ ] Depois de reiniciar o servidor, o site volta sozinho.
+- [ ] Um backup foi gerado, copiado para fora do servidor e testado.

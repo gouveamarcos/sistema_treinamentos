@@ -44,11 +44,9 @@ Acesse `http://127.0.0.1:8000/`.
 
 ## Manuais
 
-- [Índice da documentação](docs/README.md)
-- [Manual do Usuário](docs/uso/MANUAL_USUARIO.md)
-- [Manual do Superadmin](docs/uso/MANUAL_SUPERADMIN.md)
-- [Roteiros de Teste Ponta a Ponta](docs/testes/ROTEIROS_TESTE_E2E.md)
-- [Instalação em Windows Server](docs/instalacao/00_LEIA_PRIMEIRO.md)
+- [Manual de instalação (Windows Server)](docs/MANUAL_INSTALACAO.md)
+- [Manual do Usuário](docs/MANUAL_USUARIO.md)
+- [Manual do Superadmin](docs/MANUAL_SUPERADMIN.md)
 
 ## Cadastrar conteúdo
 
@@ -111,7 +109,7 @@ Configure SMTP pelas variáveis `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`,
 ## Produção
 
 A instalação em servidor Windows, com SQLite, Waitress e Caddy, está em
-[`docs/instalacao/00_LEIA_PRIMEIRO.md`](docs/instalacao/00_LEIA_PRIMEIRO.md).
+[`docs/MANUAL_INSTALACAO.md`](docs/MANUAL_INSTALACAO.md).
 
 Variáveis principais:
 
@@ -125,6 +123,3 @@ DJANGO_MEDIA_ROOT=C:/Academia/dados/media
 ```
 
 Depois da publicação, monitore `/saude/`.
-
-Os roteiros antigos de PythonAnywhere e PostgreSQL continuam em `deploy/` e
-`docs/instalacao/antigos_postgresql/` apenas como referência.
