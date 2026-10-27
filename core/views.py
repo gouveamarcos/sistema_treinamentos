@@ -910,15 +910,17 @@ def _render_painel_empresa(request, empresa_contexto):
 def _enviar_link_primeiro_acesso(request, tecnico, email):
     usuario = tecnico.usuario
     if usuario is None:
-        if User.objects.filter(username__iexact=email).exists():
-            return
         with transaction.atomic():
-            usuario = User.objects.create_user(
-                username=email,
-                email=email,
-                password=None,
-                first_name=tecnico.nome.split()[0],
-            )
+            # O e-mail pode ja ter conta, por exemplo de um responsavel da
+            # empresa. Nesse caso o tecnico passa a usar a mesma conta.
+            usuario = User.objects.filter(username__iexact=email).first()
+            if usuario is None:
+                usuario = User.objects.create_user(
+                    username=email,
+                    email=email,
+                    password=None,
+                    first_name=tecnico.nome.split()[0],
+                )
             tecnico.usuario = usuario
             tecnico.save(update_fields=["usuario"])
             _vincular_tecnicos_equivalentes(usuario, tecnico)

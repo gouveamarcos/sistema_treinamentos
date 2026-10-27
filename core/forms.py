@@ -1,5 +1,6 @@
 from django import forms
 from django.conf import settings
+from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth.models import User
 
 from .models import (
@@ -12,6 +13,7 @@ from .models import (
     ResponsavelEmpresa,
     Tecnico,
 )
+from .emails import link_definir_senha
 from .scopes import empresas_do_usuario
 
 
@@ -548,3 +550,25 @@ class PrimeiroAcessoForm(forms.Form):
         max_length=50,
         widget=forms.TextInput(attrs={"placeholder": "Digite sua matrícula"}),
     )
+
+
+class RedefinirSenhaForm(PasswordResetForm):
+    # Quem recebeu o convite mas ainda nao criou a senha tambem pode pedir
+    # um novo link por aqui. O Django, por padrao, ignora essas contas.
+    def get_users(self, email):
+        return User._default_manager.filter(
+            email__iexact=email,
+            is_active=True,
+        )
+
+    def save(self, *args, request=None, **kwargs):
+        self._request = request
+        return super().save(*args, request=request, **kwargs)
+
+    def send_mail(self, subject_template_name, email_template_name, context, *args, **kwargs):
+        context["link_acesso"] = link_definir_senha(
+            self._request, context["uid"], context["token"]
+        )
+        super().send_mail(
+            subject_template_name, email_template_name, context, *args, **kwargs
+        )

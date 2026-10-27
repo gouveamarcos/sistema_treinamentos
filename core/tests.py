@@ -554,6 +554,116 @@ class PrimeiroAcessoTecnicoMultiempresaTest(TestCase):
         self.assertEqual(len(mail.outbox), 1)
 
 
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    SITE_URL="https://monitoramento.exemplo.com.br/treinamento",
+)
+class LinksDeEmailAtrasDoProxyTest(TestCase):
+    def setUp(self):
+        self.empresa = Empresa.objects.create(nome="Empresa Proxy")
+        self.convidado = User.objects.create_user(
+            username="convidado@exemplo.com",
+            email="convidado@exemplo.com",
+            password=None,
+            is_staff=True,
+        )
+
+    def _caminho_do_link(self, corpo):
+        link = re.search(r"https://\S+/senha/redefinir/\S+/\S+/", corpo).group(0)
+        prefixo = "https://monitoramento.exemplo.com.br/treinamento/"
+        self.assertTrue(link.startswith(prefixo + "senha/redefinir/"), link)
+        return "/" + link[len(prefixo):]
+
+    def test_esqueci_senha_usa_endereco_publico_no_link(self):
+        User.objects.create_user(
+            username="ativo@exemplo.com",
+            email="ativo@exemplo.com",
+            password="SenhaAntiga123!",
+        )
+
+        self.client.post(reverse("password_reset"), {"email": "ativo@exemplo.com"})
+
+        self.assertEqual(len(mail.outbox), 1)
+        self._caminho_do_link(mail.outbox[0].body)
+        self.assertNotIn("testserver", mail.outbox[0].body)
+
+    def test_esqueci_senha_envia_link_para_quem_ainda_nao_criou_senha(self):
+        resposta = self.client.post(
+            reverse("password_reset"), {"email": "CONVIDADO@exemplo.com"}
+        )
+
+        self.assertRedirects(resposta, reverse("password_reset_done"))
+        self.assertEqual(len(mail.outbox), 1)
+        caminho = self._caminho_do_link(mail.outbox[0].body)
+        resposta_link = self.client.get(caminho)
+        self.client.post(
+            resposta_link.url,
+            {
+                "new_password1": "SenhaConvidado123!",
+                "new_password2": "SenhaConvidado123!",
+            },
+        )
+        self.convidado.refresh_from_db()
+        self.assertTrue(self.convidado.check_password("SenhaConvidado123!"))
+
+    def test_esqueci_senha_ignora_conta_inativa(self):
+        self.convidado.is_active = False
+        self.convidado.save()
+
+        self.client.post(reverse("password_reset"), {"email": "convidado@exemplo.com"})
+
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_primeiro_acesso_de_tecnico_que_ja_tem_conta_de_responsavel(self):
+        tecnico = Tecnico.objects.create(
+            empresa=self.empresa,
+            nome="Responsavel Tecnico",
+            email="convidado@exemplo.com",
+            matricula="RESP-001",
+        )
+
+        self.client.post(
+            reverse("primeiro_acesso"),
+            {"email": "convidado@exemplo.com", "matricula": "RESP-001"},
+        )
+
+        tecnico.refresh_from_db()
+        self.assertEqual(tecnico.usuario, self.convidado)
+        self.assertEqual(User.objects.filter(email="convidado@exemplo.com").count(), 1)
+        self.assertEqual(len(mail.outbox), 1)
+        self._caminho_do_link(mail.outbox[0].body)
+
+    def test_convite_de_responsavel_usa_endereco_publico_no_link(self):
+        responsabilidade = ResponsavelEmpresa.objects.create(
+            empresa=self.empresa,
+            usuario=self.convidado,
+            papel=ResponsavelEmpresa.Papel.EDITOR_CURSOS,
+        )
+        from .emails import enviar_convite_responsavel
+
+        request = RequestFactory().get("/", HTTP_HOST="127.0.0.1:8000")
+        enviar_convite_responsavel(request, self.convidado, responsabilidade)
+
+        self.assertEqual(len(mail.outbox), 1)
+        self._caminho_do_link(mail.outbox[0].body)
+        self.assertNotIn("127.0.0.1", mail.outbox[0].body)
+
+    def test_prefixo_do_script_nao_fica_duplicado(self):
+        from django.urls import set_script_prefix
+
+        from .emails import link_absoluto
+
+        set_script_prefix("/treinamento/")
+        try:
+            link = link_absoluto(None, reverse("login"))
+        finally:
+            set_script_prefix("/")
+
+        self.assertEqual(
+            link, "https://monitoramento.exemplo.com.br/treinamento/login/"
+        )
+
+
 class CargaDemonstracaoTest(TestCase):
     def test_cria_catalogo_sem_tecnico(self):
         saida = StringIO()

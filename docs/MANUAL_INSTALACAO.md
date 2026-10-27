@@ -172,6 +172,7 @@ O Bloco de Notas pergunta se quer criar o arquivo: responda **Sim**. Cole o cont
   "DJANGO_SECRET_KEY": "SUBSTITUA_PELA_CHAVE_GERADA",
   "DJANGO_ALLOWED_HOSTS": "SUBSTITUA_ENDERECO_DO_SITE,127.0.0.1,localhost",
   "DJANGO_CSRF_TRUSTED_ORIGINS": "https://SUBSTITUA_ENDERECO_DO_SITE",
+  "DJANGO_SITE_URL": "https://SUBSTITUA_ENDERECO_DO_SITE",
 
   "SQLITE_PATH": "C:/Academia/dados/academia.sqlite3",
   "DJANGO_MEDIA_ROOT": "C:/Academia/dados/media",
@@ -197,6 +198,7 @@ O Bloco de Notas pergunta se quer criar o arquivo: responda **Sim**. Cole o cont
 Cuidados:
 
 - `SUBSTITUA_ENDERECO_DO_SITE` é só o nome, sem `https://` e sem barra no final. Exemplo: `treinamentos.suaempresa.com.br`. Na linha `DJANGO_CSRF_TRUSTED_ORIGINS` o `https://` já está escrito.
+- `DJANGO_SITE_URL` é o endereço que as pessoas usam no navegador, sem barra no final. Ele vai nos links dos e-mails de convite, primeiro acesso e "Esqueci minha senha". Se o site ficar numa subpasta, inclua a subpasta (ex.: `https://monitoramento.viafacil.com.br/treinamento`) e acrescente também `"DJANGO_URL_PREFIX": "treinamento"`.
 - Use barras normais `/` nos caminhos, como no modelo.
 - Se a senha do SMTP tiver `"` ou `\`, escreva `\"` ou `\\` no lugar.
 - O SMTP precisa aceitar usuário e senha com STARTTLS na porta 587. Se a empresa só permitir OAuth ou a porta 465, peça à TI um relay compatível.

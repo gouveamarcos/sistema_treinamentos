@@ -199,16 +199,22 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = "/static/"
+URL_PREFIX = os.getenv("DJANGO_URL_PREFIX", "").strip().strip("/")
+URL_BASE = f"/{URL_PREFIX}/" if URL_PREFIX else "/"
+STATIC_URL = f"{URL_BASE}static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-MEDIA_URL = "/media/"
+MEDIA_URL = f"{URL_BASE}media/"
 # Em servidor, mantenha os PDFs fora da pasta do codigo (ex.: C:/Academia/dados/media).
 MEDIA_ROOT = Path(os.getenv("DJANGO_MEDIA_ROOT", "").strip() or BASE_DIR / "media")
 
-LOGIN_REDIRECT_URL = "/"
-LOGOUT_REDIRECT_URL = "/login/"
-LOGIN_URL = "/login/"
+LOGIN_REDIRECT_URL = "home"
+LOGOUT_REDIRECT_URL = "login"
+LOGIN_URL = "login"
+
+# Endereco publico do site, usado nos links enviados por e-mail.
+# Ex.: https://monitoramento.viafacil.com.br/treinamento
+SITE_URL = os.getenv("DJANGO_SITE_URL", "").strip().rstrip("/")
 
 DEFAULT_FROM_EMAIL = os.getenv(
     "DEFAULT_FROM_EMAIL", "Academia Técnica <treinamentos@semparar.com.br>"

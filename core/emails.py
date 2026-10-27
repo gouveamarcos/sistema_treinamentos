@@ -1,22 +1,39 @@
+from urllib.parse import urlparse
+
+from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
-from django.contrib.sites.shortcuts import get_current_site
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
-from django.urls import reverse
+from django.urls import get_script_prefix, reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
+
+
+def link_absoluto(request, caminho):
+    # Atras de um proxy o servidor nao enxerga o endereco publico do site.
+    # Com DJANGO_SITE_URL definido, os links dos e-mails usam esse endereco.
+    if settings.SITE_URL:
+        prefixo = get_script_prefix()
+        if caminho.startswith(prefixo):
+            caminho = caminho[len(prefixo):]
+        return f"{settings.SITE_URL}/{caminho.lstrip('/')}"
+    return request.build_absolute_uri(caminho)
+
+
+def link_definir_senha(request, uid, token):
+    caminho = reverse(
+        "password_reset_confirm",
+        kwargs={"uidb64": uid, "token": token},
+    )
+    return link_absoluto(request, caminho)
 
 
 def _link_definir_senha(request, usuario):
     uid = urlsafe_base64_encode(force_bytes(usuario.pk))
     token = default_token_generator.make_token(usuario)
-    site = get_current_site(request)
-    protocolo = "https" if request.is_secure() else "http"
-    caminho = reverse(
-        "password_reset_confirm",
-        kwargs={"uidb64": uid, "token": token},
-    )
-    return protocolo, site.domain, f"{protocolo}://{site.domain}{caminho}"
+    link = link_definir_senha(request, uid, token)
+    endereco = urlparse(link)
+    return endereco.scheme, endereco.netloc, link
 
 
 def enviar_convite_responsavel(request, usuario, responsabilidade):
