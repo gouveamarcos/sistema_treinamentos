@@ -1,63 +1,24 @@
-from datetime import timedelta
-
-from django.conf import settings
-from django.core.mail import send_mail
 from django.core.management.base import BaseCommand
-from django.db.models import OuterRef, Subquery
-from django.utils import timezone
 
-from core.models import ConclusaoTreinamento, CursoLiberado
+from core.reciclagem import DIAS_DE_ANTECEDENCIA, enviar_avisos_reciclagem
 
 
 class Command(BaseCommand):
-    help = "Envia avisos de cursos vencidos ou que vencem nos próximos dias."
+    help = (
+        "Envia agora os avisos de reciclagem que faltam. Com o site ligado, "
+        "isso ja acontece sozinho de hora em hora."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--dias",
             type=int,
-            default=30,
-            help="Janela de dias antes do vencimento (padrão: 30).",
+            default=DIAS_DE_ANTECEDENCIA,
+            help=f"Dias de antecedencia do primeiro aviso (padrao: {DIAS_DE_ANTECEDENCIA}).",
         )
 
     def handle(self, *args, **options):
-        hoje = timezone.localdate()
-        limite = hoje + timedelta(days=options["dias"])
-        ultima_conclusao = ConclusaoTreinamento.objects.filter(
-            tecnico=OuterRef("tecnico"), curso=OuterRef("curso")
-        ).order_by("-data_conclusao")
-
-        liberacoes = (
-            CursoLiberado.objects.filter(
-                ativo=True, tecnico__ativo=True, curso__ativo=True
-            )
-            .annotate(
-                vencimento=Subquery(ultima_conclusao.values("data_vencimento")[:1])
-            )
-            .filter(vencimento__lte=limite)
-            .select_related("tecnico", "curso")
-        )
-
-        # Sem DJANGO_SITE_URL o e-mail sai sem o endereco do site.
-        acesso = f" em {settings.SITE_URL}/" if settings.SITE_URL else ""
-        enviados = 0
-        for liberacao in liberacoes:
-            situacao = (
-                "está vencido"
-                if liberacao.vencimento < hoje
-                else f"vence em {liberacao.vencimento:%d/%m/%Y}"
-            )
-            send_mail(
-                subject=f"Reciclagem necessária: {liberacao.curso.nome}",
-                message=(
-                    f"Olá, {liberacao.tecnico.nome}.\n\n"
-                    f"Seu treinamento {liberacao.curso.nome} {situacao}. "
-                    f"Acesse a Academia Técnica{acesso} para realizar a reciclagem.\n\n"
-                    "Academia Técnica Sem Parar"
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[liberacao.tecnico.email],
-            )
-            enviados += 1
-
+        enviados, falhas = enviar_avisos_reciclagem(antecedencia=options["dias"])
         self.stdout.write(self.style.SUCCESS(f"{enviados} lembrete(s) enviado(s)."))
+        if falhas:
+            self.stdout.write(self.style.ERROR(f"{falhas} lembrete(s) falharam."))

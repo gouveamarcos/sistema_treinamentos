@@ -424,3 +424,27 @@ class ConclusaoTreinamento(models.Model):
             codigo = f"CERT-{secrets.token_hex(4).upper()}"
             if not cls.objects.filter(codigo_certificado=codigo).exists():
                 return codigo
+
+
+class AvisoReciclagem(models.Model):
+    # Registra cada aviso enviado, para o tecnico nao receber o mesmo
+    # aviso duas vezes. Uma nova conclusao do curso comeca um novo ciclo.
+    class Tipo(models.TextChoices):
+        VENCENDO = "vencendo", "Vence em breve"
+        VENCIDO = "vencido", "Vencido"
+
+    conclusao = models.ForeignKey(
+        ConclusaoTreinamento, on_delete=models.CASCADE, related_name="avisos"
+    )
+    tipo = models.CharField(max_length=20, choices=Tipo.choices)
+    enviado_em = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("conclusao", "tipo"), name="aviso_reciclagem_unico"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.conclusao} - {self.get_tipo_display()}"

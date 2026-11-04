@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date, timedelta
 from io import StringIO
 import os
 from pathlib import Path
@@ -3706,4 +3706,79 @@ class ConviteTecnicoTest(TestCase):
         self.assertIn(
             "https://academia.exemplo.com.br/treinamento/", mail.outbox[0].body
         )
+
+
+@override_settings(SITE_URL="https://academia.exemplo.com.br/treinamento")
+class AvisosReciclagemTest(TestCase):
+    def setUp(self):
+        empresa = Empresa.objects.create(nome="Empresa Reciclagem")
+        self.tecnico = Tecnico.objects.create(
+            empresa=empresa,
+            nome="Tecnico Reciclagem",
+            email="recicla@exemplo.com",
+            matricula="REC-2",
+        )
+        produto = Produto.objects.create(empresa=empresa, nome="Produto")
+        self.curso = Curso.objects.create(
+            nome="Curso Trimestral", produto=produto, validade_meses=3
+        )
+        CursoLiberado.objects.create(tecnico=self.tecnico, curso=self.curso)
+        self.conclusao = ConclusaoTreinamento.objects.create(
+            tecnico=self.tecnico,
+            curso=self.curso,
+            data_conclusao=date(2026, 1, 10),
+        )
+
+    def _rodar(self, dia):
+        from .reciclagem import enviar_avisos_reciclagem
+
+        return enviar_avisos_reciclagem(hoje=dia)
+
+    def test_vencimento_conta_a_partir_da_conclusao_com_o_prazo_do_curso(self):
+        self.assertEqual(self.conclusao.data_vencimento, date(2026, 4, 10))
+
+    def test_um_aviso_antes_de_vencer_e_outro_ao_vencer_sem_repetir(self):
+        self.assertEqual(self._rodar(date(2026, 3, 1)), (0, 0))
+        self.assertEqual(self._rodar(date(2026, 3, 11)), (1, 0))
+        self.assertEqual(self._rodar(date(2026, 3, 12)), (0, 0))
+        self.assertEqual(self._rodar(date(2026, 4, 10)), (1, 0))
+        self.assertEqual(self._rodar(date(2026, 4, 20)), (0, 0))
+
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertIn("vence em 10/04/2026", mail.outbox[0].body)
+        self.assertIn("venceu em 10/04/2026", mail.outbox[1].body)
+        self.assertIn(
+            "https://academia.exemplo.com.br/treinamento/", mail.outbox[1].body
+        )
+
+    def test_ja_vencido_recebe_so_o_aviso_de_vencido(self):
+        self._rodar(date(2026, 6, 1))
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Reciclagem necessária", mail.outbox[0].subject)
+
+    def test_refazer_o_curso_comeca_novo_ciclo(self):
+        self._rodar(date(2026, 4, 10))
+        ConclusaoTreinamento.objects.create(
+            tecnico=self.tecnico, curso=self.curso, data_conclusao=date(2026, 4, 15)
+        )
+
+        self.assertEqual(self._rodar(date(2026, 5, 1)), (0, 0))
+        self.assertEqual(self._rodar(date(2026, 6, 20)), (1, 0))
+        self.assertIn("vence em 15/07/2026", mail.outbox[-1].body)
+
+    def test_tecnico_inativo_ou_liberacao_inativa_nao_recebe(self):
+        self.tecnico.ativo = False
+        self.tecnico.save()
+
+        self.assertEqual(self._rodar(date(2026, 6, 1)), (0, 0))
+
+    def test_falha_no_envio_tenta_de_novo_depois(self):
+        with (
+            patch("core.reciclagem.send_mail", side_effect=OSError("smtp")),
+            self.assertLogs("core.reciclagem", level="ERROR"),
+        ):
+            self.assertEqual(self._rodar(date(2026, 6, 1)), (0, 1))
+
+        self.assertEqual(self._rodar(date(2026, 6, 2)), (1, 0))
 
