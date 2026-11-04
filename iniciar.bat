@@ -2,6 +2,8 @@
 rem Liga a Academia Tecnica. Basta dar dois cliques neste arquivo.
 rem Para mudar a porta, troque o numero abaixo.
 set PORTA=8000
+rem Esconde o aviso em ingles do runserver, que nao e um erro.
+set DJANGO_RUNSERVER_HIDE_WARNING=true
 
 cd /d "%~dp0"
 if exist venv\Scripts\activate.bat call venv\Scripts\activate.bat
@@ -15,6 +17,11 @@ if %CONFIGURAR%==sim (
     python manage.py configurar_servidor
     if errorlevel 1 goto erro
 )
+
+echo.
+echo Atualizando o banco de dados...
+python manage.py migrate --noinput
+if errorlevel 1 goto erro
 
 echo.
 echo Ligando a Academia Tecnica na porta %PORTA%.

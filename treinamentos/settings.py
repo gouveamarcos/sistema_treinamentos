@@ -266,10 +266,9 @@ MAX_CSV_IMPORT_SIZE_BYTES = int(
 if env_bool("USE_X_FORWARDED_PROTO", True):
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-# Nos testes automatizados o cliente usa HTTP; em producao o padrao e redirecionar.
-SECURE_SSL_REDIRECT = env_bool(
-    "SECURE_SSL_REDIRECT", not DEBUG and not EXECUTANDO_TESTES
-)
+# O HTTPS fica a cargo do proxy. Sem proxy (ex.: teste em http://localhost),
+# redirecionar para https deixaria o site inacessivel.
+SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", False)
 SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", not DEBUG)
 CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", not DEBUG)
 SECURE_HSTS_SECONDS = int(

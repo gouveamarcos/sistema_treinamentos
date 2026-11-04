@@ -3450,7 +3450,15 @@ class ServidorSimplesTest(TestCase):
                 encoding="utf-8",
             )
             respostas = iter(
-                ["http://localhost:8000", "eu@empresa.com.br", "", "", ""]
+                [
+                    "N",
+                    "http://localhost:8000 e aperte Enter",
+                    "",
+                    "eu@empresa.com.br",
+                    "",
+                    "",
+                    "",
+                ]
             )
             with (
                 override_settings(BASE_DIR=base),
@@ -3467,3 +3475,22 @@ class ServidorSimplesTest(TestCase):
         self.assertIn("DJANGO_SITE_URL=http://localhost:8000", env)
         self.assertIn("DJANGO_URL_PREFIX=\n", env)
         self.assertIn("SESSION_COOKIE_SECURE=False", env)
+
+    def test_comando_configurar_servidor_aceita_endereco_do_servidor_com_s(self):
+        with tempfile.TemporaryDirectory() as pasta:
+            base = Path(pasta)
+            respostas = iter(["s", "eu@empresa.com.br", "", "", ""])
+            with (
+                override_settings(BASE_DIR=base),
+                patch("builtins.input", lambda _: next(respostas)),
+                patch("getpass.getpass", lambda _: "senha"),
+            ):
+                call_command("configurar_servidor", stdout=StringIO())
+
+            env = (base / ".env").read_text(encoding="utf-8")
+
+        self.assertIn(
+            "DJANGO_SITE_URL=https://monitoramento.viafacil.com.br/treinamento\n",
+            env,
+        )
+        self.assertIn("DJANGO_URL_PREFIX=treinamento\n", env)

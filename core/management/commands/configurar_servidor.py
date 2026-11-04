@@ -10,6 +10,7 @@ from django.core.management.utils import get_random_secret_key
 
 SITE_PADRAO = "https://monitoramento.viafacil.com.br/treinamento"
 SMTP_PADRAO = "smtp.office365.com"
+SITE_TESTE = "http://localhost:8000"
 
 
 def ler_env(arquivo):
@@ -23,6 +24,15 @@ def ler_env(arquivo):
         nome, valor = linha.split("=", 1)
         valores[nome.strip()] = valor.strip().strip('"').strip("'")
     return valores
+
+
+def site_valido(site):
+    endereco = urlparse(site)
+    return (
+        " " not in site
+        and endereco.scheme in {"http", "https"}
+        and bool(endereco.hostname)
+    )
 
 
 def nomes_deste_computador():
@@ -94,6 +104,28 @@ class Command(BaseCommand):
         resposta = input(f"{texto}{sufixo}: ").strip()
         return resposta or padrao
 
+    def perguntar_site(self, padrao):
+        if site_valido(padrao):
+            resposta = self.perguntar(
+                f"O endereco do site e {padrao} ? (S/N)", "S"
+            )
+            if resposta.lower().startswith("s"):
+                return padrao
+        while True:
+            site = self.perguntar(
+                "Qual e o endereco do site? Para testar neste computador, "
+                "so aperte Enter",
+                SITE_TESTE,
+            ).rstrip("/")
+            if site_valido(site):
+                return site
+            self.stdout.write(
+                self.style.ERROR(
+                    "Endereco invalido. Digite so o endereco, por exemplo "
+                    f"{SITE_TESTE}"
+                )
+            )
+
     def handle(self, *args, **options):
         arquivo = settings.BASE_DIR / ".env"
         atual = ler_env(arquivo)
@@ -103,9 +135,7 @@ class Command(BaseCommand):
         self.stdout.write("Aperte Enter para aceitar o valor entre colchetes.")
         self.stdout.write("")
 
-        site = self.perguntar(
-            "Endereco do site", atual.get("DJANGO_SITE_URL") or SITE_PADRAO
-        ).rstrip("/")
+        site = self.perguntar_site(atual.get("DJANGO_SITE_URL") or SITE_PADRAO)
         email = self.perguntar(
             "E-mail do Outlook que envia as mensagens",
             atual.get("EMAIL_HOST_USER", ""),
