@@ -3544,3 +3544,38 @@ class ServidorSimplesTest(TestCase):
         self.assertEqual(itens[0].To, "a@exemplo.com;b@exemplo.com")
         self.assertEqual(itens[0].Subject, "Assunto")
         self.assertEqual(itens[0].Body, "Corpo")
+
+
+class LoginPorEmailTest(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_superuser(
+            username="admin",
+            email="chefe@empresa.com.br",
+            password="SenhaForte123!",
+        )
+
+    def test_superadmin_entra_com_o_email_ou_com_admin(self):
+        self.assertTrue(
+            self.client.login(username="Chefe@Empresa.com.br", password="SenhaForte123!")
+        )
+        self.client.logout()
+        self.assertTrue(self.client.login(username="admin", password="SenhaForte123!"))
+
+    def test_senha_errada_ou_conta_inativa_nao_entra(self):
+        self.assertFalse(
+            self.client.login(username="chefe@empresa.com.br", password="errada")
+        )
+        self.admin.is_active = False
+        self.admin.save()
+        self.assertFalse(
+            self.client.login(username="chefe@empresa.com.br", password="SenhaForte123!")
+        )
+
+    def test_tela_de_login_aceita_o_email(self):
+        resposta = self.client.post(
+            reverse("login"),
+            {"username": "chefe@empresa.com.br", "password": "SenhaForte123!"},
+        )
+
+        self.assertRedirects(resposta, reverse("home"), fetch_redirect_response=False)
+
