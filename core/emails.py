@@ -57,7 +57,7 @@ def enviar_convite_responsavel(request, usuario, responsabilidade):
     send_mail(assunto, mensagem, None, [usuario.email])
 
 
-def enviar_convite_tecnico(request, usuario, tecnico):
+def enviar_convite_tecnico(request, usuario, tecnico, pedido_pelo_tecnico=False):
     protocolo, dominio, link = _link_definir_senha(request, usuario)
     contexto = {
         "usuario": usuario,
@@ -66,12 +66,14 @@ def enviar_convite_tecnico(request, usuario, tecnico):
         "dominio": dominio,
         "link_acesso": link,
     }
+    # Pedido pela tela "Primeiro acesso" ou convite enviado no cadastro.
+    modelo = "tecnico_primeiro_acesso" if pedido_pelo_tecnico else "tecnico_convite"
     assunto = render_to_string(
-        "core/emails/tecnico_primeiro_acesso_subject.txt",
+        f"core/emails/{modelo}_subject.txt",
         contexto,
     ).strip()
     mensagem = render_to_string(
-        "core/emails/tecnico_primeiro_acesso_email.txt",
+        f"core/emails/{modelo}_email.txt",
         contexto,
     )
     send_mail(assunto, mensagem, None, [usuario.email])

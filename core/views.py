@@ -1,4 +1,5 @@
 import csv
+import logging
 from collections import defaultdict
 from io import TextIOWrapper
 from datetime import timedelta
@@ -64,6 +65,8 @@ from .scopes import (
     usuario_pode_gerenciar_catalogo,
     usuario_pode_operar_empresas,
 )
+
+logger = logging.getLogger(__name__)
 
 JANELA_VENCIMENTO_DIAS = 30
 EMPRESA_CONTEXTO_SESSION_KEY = "empresa_operacional_id"
@@ -637,7 +640,7 @@ def _importar_tecnicos_csv(empresa, arquivo):
     if erros:
         return {"criados": 0, "atualizados": 0, "erros": erros}
 
-    resultado = {"criados": 0, "atualizados": 0, "erros": []}
+    resultado = {"criados": 0, "atualizados": 0, "erros": [], "novos": []}
     with transaction.atomic():
         for item in dados_validos:
             tecnico = item.pop("existente")
@@ -648,7 +651,9 @@ def _importar_tecnicos_csv(empresa, arquivo):
                 tecnico.save()
                 resultado["atualizados"] += 1
             else:
-                Tecnico.objects.create(empresa=empresa, **item)
+                resultado["novos"].append(
+                    Tecnico.objects.create(empresa=empresa, **item)
+                )
                 resultado["criados"] += 1
     return resultado
 
@@ -907,27 +912,77 @@ def _render_painel_empresa(request, empresa_contexto):
     )
 
 
-def _enviar_link_primeiro_acesso(request, tecnico, email):
-    usuario = tecnico.usuario
-    if usuario is None:
-        with transaction.atomic():
-            # O e-mail pode ja ter conta, por exemplo de um responsavel da
-            # empresa. Nesse caso o tecnico passa a usar a mesma conta.
-            usuario = User.objects.filter(username__iexact=email).first()
-            if usuario is None:
-                usuario = User.objects.create_user(
-                    username=email,
-                    email=email,
-                    password=None,
-                    first_name=tecnico.nome.split()[0],
-                )
-            tecnico.usuario = usuario
-            tecnico.save(update_fields=["usuario"])
-            _vincular_tecnicos_equivalentes(usuario, tecnico)
+def _usuario_do_tecnico(tecnico):
+    if tecnico.usuario is not None:
+        return tecnico.usuario
+    email = tecnico.email.lower()
+    with transaction.atomic():
+        # O e-mail pode ja ter conta, por exemplo de um responsavel da
+        # empresa. Nesse caso o tecnico passa a usar a mesma conta.
+        usuario = User.objects.filter(username__iexact=email).first()
+        if usuario is None:
+            usuario = User.objects.create_user(
+                username=email,
+                email=email,
+                password=None,
+                first_name=tecnico.nome.split()[0],
+            )
+        tecnico.usuario = usuario
+        tecnico.save(update_fields=["usuario"])
+        _vincular_tecnicos_equivalentes(usuario, tecnico)
+    return usuario
 
+
+def _convidar_tecnico(request, tecnico, pedido_pelo_tecnico=False):
+    # Devolve "enviado", "ja_tem_senha", "inativo" ou "falhou".
+    if not tecnico.ativo or not tecnico.email:
+        return "inativo"
+    usuario = _usuario_do_tecnico(tecnico)
+    if not usuario.is_active:
+        return "inativo"
     # Quem ja definiu a senha usa "Esqueci minha senha".
-    if usuario.is_active and not usuario.has_usable_password():
-        enviar_convite_tecnico(request, usuario, tecnico)
+    if usuario.has_usable_password():
+        return "ja_tem_senha"
+    try:
+        enviar_convite_tecnico(
+            request, usuario, tecnico, pedido_pelo_tecnico=pedido_pelo_tecnico
+        )
+    except Exception:
+        logger.exception("Falha ao enviar convite para %s", tecnico.email)
+        return "falhou"
+    return "enviado"
+
+
+def _convidar_responsavel(request, responsabilidade):
+    usuario = responsabilidade.usuario
+    try:
+        enviar_convite_responsavel(request, usuario, responsabilidade)
+    except Exception:
+        logger.exception("Falha ao enviar convite para %s", usuario.email)
+        messages.warning(
+            request,
+            f"O e-mail para {usuario.email} nao foi enviado. Confira a "
+            "configuracao de e-mail e use Reenviar convite.",
+        )
+        return False
+    return True
+
+
+def _avisar_convite_tecnico(request, tecnico, situacao):
+    if situacao == "enviado":
+        messages.success(request, f"Convite de acesso enviado para {tecnico.email}.")
+    elif situacao == "falhou":
+        messages.warning(
+            request,
+            f"O tecnico foi salvo, mas o e-mail para {tecnico.email} nao foi "
+            "enviado. Confira a configuracao de e-mail e use Reenviar convite.",
+        )
+    elif situacao == "ja_tem_senha":
+        messages.info(
+            request,
+            f"{tecnico.email} ja criou a senha. Se esqueceu, use "
+            "\"Esqueci minha senha\" na tela de login.",
+        )
 
 
 def primeiro_acesso(request):
@@ -947,7 +1002,7 @@ def primeiro_acesso(request):
                 .first()
             )
             if tecnico:
-                _enviar_link_primeiro_acesso(request, tecnico, email)
+                _convidar_tecnico(request, tecnico, pedido_pelo_tecnico=True)
 
             # A mesma resposta aparece com ou sem cadastro, para nao revelar
             # quais e-mails e matriculas existem na plataforma.
@@ -1294,11 +1349,7 @@ def responsaveis_empresas(request):
                     total_empresas = _replicar_responsavel_para_todas_empresas(
                         responsabilidade
                     )
-            enviar_convite_responsavel(
-                request,
-                responsabilidade.usuario,
-                responsabilidade,
-            )
+            _convidar_responsavel(request, responsabilidade)
             registrar_evento(
                 request.user,
                 EventoAuditoria.Acao.CADASTRO,
@@ -1429,18 +1480,18 @@ def reenviar_convite_responsavel(request, responsavel_id):
         _responsaveis_visiveis(request),
         pk=responsavel_id,
     )
-    enviar_convite_responsavel(request, responsabilidade.usuario, responsabilidade)
-    registrar_evento(
-        request.user,
-        EventoAuditoria.Acao.CONVITE,
-        responsabilidade,
-        empresa=responsabilidade.empresa,
-        detalhes=f"Convite reenviado para {responsabilidade.usuario.email}.",
-    )
-    messages.success(
-        request,
-        f"Convite reenviado para {responsabilidade.usuario.email}.",
-    )
+    if _convidar_responsavel(request, responsabilidade):
+        registrar_evento(
+            request.user,
+            EventoAuditoria.Acao.CONVITE,
+            responsabilidade,
+            empresa=responsabilidade.empresa,
+            detalhes=f"Convite reenviado para {responsabilidade.usuario.email}.",
+        )
+        messages.success(
+            request,
+            f"Convite reenviado para {responsabilidade.usuario.email}.",
+        )
     return redirect("responsaveis_empresas")
 
 
@@ -1592,6 +1643,7 @@ def tecnicos_operacionais(request):
                 empresa=tecnico.empresa,
                 detalhes="Tecnico salvo pela tela operacional.",
             )
+            _avisar_convite_tecnico(request, tecnico, _convidar_tecnico(request, tecnico))
             mensagem = f"Tecnico {tecnico.nome} salvo com sucesso"
             if total_empresas > 1:
                 mensagem += (
@@ -1648,14 +1700,26 @@ def importar_tecnicos_operacionais(request):
                 "Importacao nao realizada. Corrija os erros do arquivo e tente novamente.",
             )
         else:
+            situacoes = [
+                _convidar_tecnico(request, tecnico)
+                for tecnico in resultado_importacao["novos"]
+            ]
             messages.success(
                 request,
                 (
                     "Importacao concluida: "
                     f"{resultado_importacao['criados']} criado(s), "
-                    f"{resultado_importacao['atualizados']} atualizado(s)."
+                    f"{resultado_importacao['atualizados']} atualizado(s). "
+                    f"Convite enviado para {situacoes.count('enviado')} "
+                    "tecnico(s) novo(s)."
                 ),
             )
+            if "falhou" in situacoes:
+                messages.warning(
+                    request,
+                    f"{situacoes.count('falhou')} convite(s) nao foram enviados. "
+                    "Confira a configuracao de e-mail e use Reenviar convite.",
+                )
             registrar_evento(
                 request.user,
                 EventoAuditoria.Acao.IMPORTACAO,
@@ -1739,6 +1803,27 @@ def alternar_tecnico_operacional(request, tecnico_id):
     )
     status = "ativado" if tecnico.ativo else "desativado"
     messages.success(request, f"Tecnico {status} com sucesso.")
+    return redirect("tecnicos_operacionais")
+
+
+@staff_member_required
+@require_POST
+def reenviar_convite_tecnico(request, tecnico_id):
+    _exigir_operador_empresas(request)
+    tecnico = get_object_or_404(_tecnicos_visiveis(request), pk=tecnico_id)
+    situacao = _convidar_tecnico(request, tecnico)
+    if situacao == "inativo":
+        messages.warning(request, "Ative o tecnico antes de enviar o convite.")
+    else:
+        _avisar_convite_tecnico(request, tecnico, situacao)
+    if situacao == "enviado":
+        registrar_evento(
+            request.user,
+            EventoAuditoria.Acao.CONVITE,
+            tecnico,
+            empresa=tecnico.empresa,
+            detalhes=f"Convite enviado para {tecnico.email}.",
+        )
     return redirect("tecnicos_operacionais")
 
 

@@ -3579,3 +3579,131 @@ class LoginPorEmailTest(TestCase):
 
         self.assertRedirects(resposta, reverse("home"), fetch_redirect_response=False)
 
+
+@override_settings(SITE_URL="https://academia.exemplo.com.br/treinamento")
+class ConviteTecnicoTest(TestCase):
+    def setUp(self):
+        self.empresa = Empresa.objects.create(nome="Empresa Convite")
+        self.superadmin = User.objects.create_superuser(
+            username="admin", email="admin@exemplo.com", password="SenhaForte123!"
+        )
+        self.client.force_login(self.superadmin)
+
+    def _cadastrar(self, email="novo.tecnico@exemplo.com", ativo=True):
+        dados = {
+            "empresa": self.empresa.id,
+            "nome": "Tecnico Convidado",
+            "email": email,
+            "matricula": "CONV-001",
+            "telefone": "",
+            "equipe": "",
+            "regiao": "",
+        }
+        if ativo:
+            dados["ativo"] = "on"
+        return self.client.post(reverse("tecnicos_operacionais"), dados, follow=True)
+
+    def test_cadastro_envia_convite_com_link_e_tecnico_cria_senha(self):
+        resposta = self._cadastrar()
+
+        self.assertContains(resposta, "Convite de acesso enviado")
+        self.assertEqual(len(mail.outbox), 1)
+        mensagem = mail.outbox[0]
+        self.assertEqual(mensagem.to, ["novo.tecnico@exemplo.com"])
+        self.assertIn("Você foi cadastrado", mensagem.body)
+        self.assertIn("CONV-001", mensagem.body)
+        link = re.search(
+            r"https://academia\.exemplo\.com\.br/treinamento(/senha/redefinir/\S+/)",
+            mensagem.body,
+        )
+        self.assertIsNotNone(link)
+
+        self.client.logout()
+        resposta_link = self.client.get(link.group(1))
+        self.client.post(
+            resposta_link.url,
+            {"new_password1": "SenhaTecnico123!", "new_password2": "SenhaTecnico123!"},
+        )
+        self.assertTrue(
+            self.client.login(
+                username="novo.tecnico@exemplo.com", password="SenhaTecnico123!"
+            )
+        )
+
+    def test_tecnico_inativo_nao_recebe_convite(self):
+        self._cadastrar(ativo=False)
+
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_falha_no_envio_nao_impede_o_cadastro(self):
+        with (
+            patch("core.views.enviar_convite_tecnico", side_effect=OSError("smtp")),
+            self.assertLogs("core.views", level="ERROR"),
+        ):
+            resposta = self._cadastrar()
+
+        self.assertTrue(Tecnico.objects.filter(matricula="CONV-001").exists())
+        self.assertContains(resposta, "nao foi enviado")
+
+    def test_reenviar_convite(self):
+        self._cadastrar()
+        tecnico = Tecnico.objects.get(matricula="CONV-001")
+
+        resposta = self.client.post(
+            reverse("reenviar_convite_tecnico", args=(tecnico.id,)), follow=True
+        )
+
+        self.assertContains(resposta, "Convite de acesso enviado")
+        self.assertEqual(len(mail.outbox), 2)
+
+    def test_importacao_envia_convite_so_para_tecnicos_novos_e_ativos(self):
+        Tecnico.objects.create(
+            empresa=self.empresa,
+            nome="Ja Existia",
+            email="antigo@exemplo.com",
+            matricula="IMP-ANTIGO",
+        )
+        arquivo = SimpleUploadedFile(
+            "tecnicos.csv",
+            (
+                "nome,email,matricula,ativo\n"
+                "Tecnico Um,um@exemplo.com,IMP-1,sim\n"
+                "Tecnico Dois,dois@exemplo.com,IMP-2,nao\n"
+                "Ja Existia,antigo@exemplo.com,IMP-ANTIGO,sim\n"
+            ).encode(),
+            content_type="text/csv",
+        )
+
+        resposta = self.client.post(
+            reverse("importar_tecnicos_operacionais"),
+            {"empresa": self.empresa.id, "arquivo": arquivo},
+            follow=True,
+        )
+
+        self.assertContains(resposta, "Convite enviado para 1 tecnico(s)")
+        self.assertEqual([m.to for m in mail.outbox], [["um@exemplo.com"]])
+
+    def test_lembrete_de_reciclagem_leva_o_endereco_do_site(self):
+        tecnico = Tecnico.objects.create(
+            empresa=self.empresa,
+            nome="Tecnico Vencido",
+            email="vencido@exemplo.com",
+            matricula="REC-1",
+        )
+        produto = Produto.objects.create(empresa=self.empresa, nome="Produto")
+        curso = Curso.objects.create(nome="Curso Reciclagem", produto=produto)
+        CursoLiberado.objects.create(tecnico=tecnico, curso=curso)
+        ConclusaoTreinamento.objects.create(
+            tecnico=tecnico,
+            curso=curso,
+            data_conclusao=timezone.localdate() - timedelta(days=400),
+        )
+
+        call_command("enviar_lembretes_reciclagem", stdout=StringIO())
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["vencido@exemplo.com"])
+        self.assertIn(
+            "https://academia.exemplo.com.br/treinamento/", mail.outbox[0].body
+        )
+

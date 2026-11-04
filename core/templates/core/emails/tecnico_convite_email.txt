@@ -1,0 +1,12 @@
+Olá, {{ tecnico.nome }}.
+
+Você foi cadastrado na Academia Técnica Sem Parar, a plataforma de treinamentos, avaliações e certificados dos técnicos.
+
+Para criar sua senha e fazer o primeiro acesso, use o link abaixo:
+{{ link_acesso }}
+
+Seu usuário de acesso é este e-mail: {{ usuario.email }}
+
+O link funciona uma única vez e vale por 7 dias. Se ele expirar, entre no site e clique em "Primeiro acesso? Crie sua senha", informando seu e-mail e sua matrícula ({{ tecnico.matricula }}).
+
+Academia Técnica Sem Parar

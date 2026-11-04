@@ -38,6 +38,8 @@ class Command(BaseCommand):
             .select_related("tecnico", "curso")
         )
 
+        # Sem DJANGO_SITE_URL o e-mail sai sem o endereco do site.
+        acesso = f" em {settings.SITE_URL}/" if settings.SITE_URL else ""
         enviados = 0
         for liberacao in liberacoes:
             situacao = (
@@ -50,7 +52,7 @@ class Command(BaseCommand):
                 message=(
                     f"Olá, {liberacao.tecnico.nome}.\n\n"
                     f"Seu treinamento {liberacao.curso.nome} {situacao}. "
-                    "Acesse a Academia Técnica para realizar a reciclagem.\n\n"
+                    f"Acesse a Academia Técnica{acesso} para realizar a reciclagem.\n\n"
                     "Academia Técnica Sem Parar"
                 ),
                 from_email=settings.DEFAULT_FROM_EMAIL,

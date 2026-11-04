@@ -137,6 +137,11 @@ urlpatterns = [
         name="alternar_tecnico_operacional",
     ),
     path(
+        "tecnicos/<int:tecnico_id>/reenviar-convite/",
+        views.reenviar_convite_tecnico,
+        name="reenviar_convite_tecnico",
+    ),
+    path(
         "tecnicos/<int:tecnico_id>/excluir/",
         views.excluir_tecnico_operacional,
         name="excluir_tecnico_operacional",

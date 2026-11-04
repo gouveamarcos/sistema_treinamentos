@@ -129,6 +129,12 @@
                         </td>
                         <td class="acoes-tabela">
                             <a href="{% url 'editar_tecnico_operacional' tecnico.id %}">Editar</a>
+                            {% if tecnico.ativo %}
+                            <form method="post" action="{% url 'reenviar_convite_tecnico' tecnico.id %}">
+                                {% csrf_token %}
+                                <button class="link-button" type="submit">Reenviar convite</button>
+                            </form>
+                            {% endif %}
                             <form method="post" action="{% url 'alternar_tecnico_operacional' tecnico.id %}">
                                 {% csrf_token %}
                                 <button class="link-button" type="submit">
