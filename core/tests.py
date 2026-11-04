@@ -3107,13 +3107,13 @@ class EscopoEmpresaTest(TestCase):
         )
         self.tecnico_a = Tecnico.objects.create(
             empresa=self.empresa_a,
-            nome="TÃ©cnico Empresa A",
+            nome="Técnico Empresa A",
             email="tecnico.a@exemplo.com",
             matricula="ESCOPO-A",
         )
         self.tecnico_b = Tecnico.objects.create(
             empresa=self.empresa_b,
-            nome="TÃ©cnico Empresa B",
+            nome="Técnico Empresa B",
             email="tecnico.b@exemplo.com",
             matricula="ESCOPO-B",
         )
@@ -3374,3 +3374,96 @@ class MaterialPdfCursoTest(TestCase):
 
         self.assertContains(resposta, self.url)
         self.assertNotContains(resposta, "/media/")
+
+
+class ServidorSimplesTest(TestCase):
+    def test_cria_e_reaproveita_chave_secreta_quando_falta_no_env(self):
+        from treinamentos.settings import chave_secreta_salva
+
+        with tempfile.TemporaryDirectory() as pasta:
+            arquivo = Path(pasta) / ".chave_secreta"
+            primeira = chave_secreta_salva(arquivo)
+            segunda = chave_secreta_salva(arquivo)
+
+        self.assertGreaterEqual(len(primeira), 40)
+        self.assertEqual(primeira, segunda)
+
+    @override_settings(FORCE_SCRIPT_NAME="/treinamento")
+    def test_subpasta_funciona_com_e_sem_prefixo_repassado_pelo_proxy(self):
+        from django.urls import set_script_prefix
+
+        # O cliente de testes nao define o prefixo sozinho, como o servidor faz.
+        set_script_prefix("/treinamento/")
+        self.addCleanup(set_script_prefix, "/")
+        for caminho in ("/treinamento/login/", "/login/"):
+            resposta = self.client.get(caminho)
+            self.assertEqual(resposta.status_code, 200, caminho)
+            self.assertContains(resposta, 'href="/treinamento/senha/esqueci/"')
+
+        resposta = self.client.get("/treinamento/")
+        self.assertRedirects(
+            resposta,
+            "/treinamento/login/?next=/treinamento/",
+            fetch_redirect_response=False,
+        )
+
+    def test_css_e_entregue_sem_debug(self):
+        resposta = self.client.get("/static/core/css/style.css")
+
+        self.assertEqual(resposta.status_code, 200)
+
+    def test_configuracao_do_servidor_para_subpasta_e_outlook(self):
+        from core.management.commands.configurar_servidor import montar_configuracao
+
+        valores = montar_configuracao(
+            {"SQLITE_PATH": "C:/dados/academia.sqlite3"},
+            "https://monitoramento.viafacil.com.br/treinamento",
+            "treinamentos@empresa.com.br",
+            "senha",
+            "smtp.office365.com",
+            587,
+        )
+
+        self.assertEqual(valores["DJANGO_URL_PREFIX"], "treinamento")
+        self.assertEqual(
+            valores["DJANGO_CSRF_TRUSTED_ORIGINS"],
+            "https://monitoramento.viafacil.com.br",
+        )
+        self.assertIn(
+            "monitoramento.viafacil.com.br",
+            valores["DJANGO_ALLOWED_HOSTS"].split(","),
+        )
+        self.assertEqual(valores["SECURE_SSL_REDIRECT"], "False")
+        self.assertEqual(valores["SESSION_COOKIE_SECURE"], "True")
+        self.assertEqual(
+            valores["DEFAULT_FROM_EMAIL"],
+            "Academia Tecnica <treinamentos@empresa.com.br>",
+        )
+        self.assertEqual(valores["SQLITE_PATH"], "C:/dados/academia.sqlite3")
+        self.assertTrue(valores["DJANGO_SECRET_KEY"])
+
+    def test_comando_configurar_servidor_grava_env_e_guarda_o_antigo(self):
+        with tempfile.TemporaryDirectory() as pasta:
+            base = Path(pasta)
+            (base / ".env").write_text(
+                "DJANGO_SECRET_KEY=chave-antiga\nEMAIL_HOST_PASSWORD=velha\n",
+                encoding="utf-8",
+            )
+            respostas = iter(
+                ["http://localhost:8000", "eu@empresa.com.br", "", "", ""]
+            )
+            with (
+                override_settings(BASE_DIR=base),
+                patch("builtins.input", lambda _: next(respostas)),
+                patch("getpass.getpass", lambda _: ""),
+            ):
+                call_command("configurar_servidor", stdout=StringIO())
+
+            env = (base / ".env").read_text(encoding="utf-8")
+            self.assertTrue((base / ".env.anterior").exists())
+
+        self.assertIn("DJANGO_SECRET_KEY=chave-antiga", env)
+        self.assertIn("EMAIL_HOST_PASSWORD=velha", env)
+        self.assertIn("DJANGO_SITE_URL=http://localhost:8000", env)
+        self.assertIn("DJANGO_URL_PREFIX=\n", env)
+        self.assertIn("SESSION_COOKIE_SECURE=False", env)

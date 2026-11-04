@@ -150,7 +150,7 @@ class ResponsavelEmpresaForm(forms.Form):
     nome = forms.CharField(
         label="Nome",
         max_length=150,
-        widget=forms.TextInput(attrs={"placeholder": "Nome do responsÃ¡vel"}),
+        widget=forms.TextInput(attrs={"placeholder": "Nome do responsável"}),
     )
     email = forms.EmailField(
         label="E-mail",
@@ -161,7 +161,7 @@ class ResponsavelEmpresaForm(forms.Form):
         choices=ResponsavelEmpresa.Papel.choices,
     )
     ativo = forms.BooleanField(
-        label="ResponsÃ¡vel ativo",
+        label="Responsável ativo",
         required=False,
         initial=True,
     )
@@ -235,7 +235,7 @@ class ResponsavelEmpresaForm(forms.Form):
                 existente = existente.exclude(pk=self.instance.pk)
             if existente.exists():
                 raise forms.ValidationError(
-                    "Este usuÃ¡rio jÃ¡ possui esse papel para a empresa escolhida."
+                    "Este usuário já possui esse papel para a empresa escolhida."
                 )
 
         return dados

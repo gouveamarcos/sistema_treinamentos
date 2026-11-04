@@ -16,10 +16,20 @@ import sys
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
-from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Carrega as configuracoes do arquivo .env (se ele existir). Variaveis ja
+# definidas no Windows ou no terminal tem prioridade sobre o arquivo.
+_arquivo_env = BASE_DIR / ".env"
+if _arquivo_env.exists():
+    for _linha in _arquivo_env.read_text(encoding="utf-8-sig").splitlines():
+        _linha = _linha.strip()
+        if not _linha or _linha.startswith("#") or "=" not in _linha:
+            continue
+        _nome, _valor = _linha.split("=", 1)
+        os.environ.setdefault(_nome.strip(), _valor.strip().strip('"').strip("'"))
 
 
 def env_bool(nome, padrao=False):
@@ -37,13 +47,27 @@ def env_bool(nome, padrao=False):
 DEBUG = env_bool("DJANGO_DEBUG", False)
 EXECUTANDO_TESTES = len(sys.argv) > 1 and sys.argv[1] == "test"
 
+
+def chave_secreta_salva(arquivo):
+    # Sem DJANGO_SECRET_KEY no .env, o sistema cria uma chave aleatoria uma
+    # unica vez e a guarda neste arquivo, para nao depender de configuracao.
+    if arquivo.exists():
+        chave = arquivo.read_text(encoding="utf-8").strip()
+        if chave:
+            return chave
+    from django.core.management.utils import get_random_secret_key
+
+    chave = get_random_secret_key()
+    arquivo.write_text(chave, encoding="utf-8")
+    return chave
+
+
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "").strip()
 if not SECRET_KEY:
-    if not (DEBUG or EXECUTANDO_TESTES):
-        raise ImproperlyConfigured(
-            "Defina DJANGO_SECRET_KEY (ou DJANGO_DEBUG=True para desenvolvimento)."
-        )
-    SECRET_KEY = "django-insecure-det6ry)d(7vcweolf*mi#6y7x=p*w*$4**9jnq6@3ldvt$8)bx"
+    if DEBUG or EXECUTANDO_TESTES:
+        SECRET_KEY = "django-insecure-det6ry)d(7vcweolf*mi#6y7x=p*w*$4**9jnq6@3ldvt$8)bx"
+    else:
+        SECRET_KEY = chave_secreta_salva(BASE_DIR / ".chave_secreta")
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
@@ -69,6 +93,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "core.middleware.PrefixoUrlMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -201,6 +226,11 @@ USE_TZ = True
 
 URL_PREFIX = os.getenv("DJANGO_URL_PREFIX", "").strip().strip("/")
 URL_BASE = f"/{URL_PREFIX}/" if URL_PREFIX else "/"
+# Com o site numa subpasta (ex.: /treinamento), os links gerados pelo sistema
+# passam a incluir a subpasta, venha ela ou nao no endereco repassado pelo proxy.
+FORCE_SCRIPT_NAME = f"/{URL_PREFIX}" if URL_PREFIX else None
+# Sem DEBUG, o proprio Django entrega CSS e imagens (util com runserver).
+SERVIR_ARQUIVOS_ESTATICOS = env_bool("DJANGO_SERVIR_ESTATICOS", True)
 STATIC_URL = f"{URL_BASE}static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
