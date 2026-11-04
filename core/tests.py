@@ -3454,6 +3454,7 @@ class ServidorSimplesTest(TestCase):
                     "N",
                     "http://localhost:8000 e aperte Enter",
                     "",
+                    "2",
                     "eu@empresa.com.br",
                     "",
                     "",
@@ -3479,7 +3480,7 @@ class ServidorSimplesTest(TestCase):
     def test_comando_configurar_servidor_aceita_endereco_do_servidor_com_s(self):
         with tempfile.TemporaryDirectory() as pasta:
             base = Path(pasta)
-            respostas = iter(["s", "eu@empresa.com.br", "", "", ""])
+            respostas = iter(["s", "", ""])
             with (
                 override_settings(BASE_DIR=base),
                 patch("builtins.input", lambda _: next(respostas)),
@@ -3494,3 +3495,52 @@ class ServidorSimplesTest(TestCase):
             env,
         )
         self.assertIn("DJANGO_URL_PREFIX=treinamento\n", env)
+        self.assertIn(
+            "EMAIL_BACKEND=core.email_outlook.OutlookEmailBackend\n", env
+        )
+        self.assertNotIn("EMAIL_HOST_PASSWORD", env)
+
+    def test_envio_pelo_outlook_instalado_no_windows(self):
+        import sys
+        import types
+
+        from django.core.mail import EmailMessage, get_connection
+
+        itens = []
+
+        class Item:
+            def Send(self):
+                itens.append(self)
+
+        class Outlook:
+            def CreateItem(self, tipo):
+                return Item()
+
+        win32com = types.ModuleType("win32com")
+        win32com.client = types.SimpleNamespace(Dispatch=lambda nome: Outlook())
+        pythoncom = types.SimpleNamespace(
+            CoInitialize=lambda: None, CoUninitialize=lambda: None
+        )
+        with patch.dict(
+            sys.modules,
+            {
+                "win32com": win32com,
+                "win32com.client": win32com.client,
+                "pythoncom": pythoncom,
+            },
+        ):
+            conexao = get_connection(
+                backend="core.email_outlook.OutlookEmailBackend"
+            )
+            enviados = conexao.send_messages(
+                [
+                    EmailMessage(
+                        "Assunto", "Corpo", None, ["a@exemplo.com", "b@exemplo.com"]
+                    )
+                ]
+            )
+
+        self.assertEqual(enviados, 1)
+        self.assertEqual(itens[0].To, "a@exemplo.com;b@exemplo.com")
+        self.assertEqual(itens[0].Subject, "Assunto")
+        self.assertEqual(itens[0].Body, "Corpo")

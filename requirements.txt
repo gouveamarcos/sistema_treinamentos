@@ -2,3 +2,4 @@ Django==6.0.5
 gunicorn>=23,<24
 psycopg[binary]>=3.2,<4
 python-dateutil==2.9.0.post0
+pywin32>=306; sys_platform == "win32"

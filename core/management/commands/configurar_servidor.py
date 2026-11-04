@@ -11,6 +11,8 @@ from django.core.management.utils import get_random_secret_key
 SITE_PADRAO = "https://monitoramento.viafacil.com.br/treinamento"
 SMTP_PADRAO = "smtp.office365.com"
 SITE_TESTE = "http://localhost:8000"
+BACKEND_OUTLOOK = "core.email_outlook.OutlookEmailBackend"
+BACKEND_SMTP = "django.core.mail.backends.smtp.EmailBackend"
 
 
 def ler_env(arquivo):
@@ -46,7 +48,7 @@ def nomes_deste_computador():
     return nomes
 
 
-def montar_configuracao(atual, site, email, senha, smtp, porta):
+def montar_configuracao(atual, site, email, senha, smtp, porta, outlook=False):
     endereco = urlparse(site)
     if endereco.scheme not in {"http", "https"} or not endereco.hostname:
         raise CommandError(
@@ -73,7 +75,14 @@ def montar_configuracao(atual, site, email, senha, smtp, porta):
             "SECURE_HSTS_SECONDS": "0",
             "SECURE_HSTS_INCLUDE_SUBDOMAINS": "False",
             "SECURE_HSTS_PRELOAD": "False",
-            "EMAIL_BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+        }
+    )
+    if outlook:
+        valores["EMAIL_BACKEND"] = BACKEND_OUTLOOK
+        return valores
+    valores.update(
+        {
+            "EMAIL_BACKEND": BACKEND_SMTP,
             "EMAIL_HOST": smtp,
             "EMAIL_PORT": str(porta),
             "EMAIL_HOST_USER": email,
@@ -136,6 +145,46 @@ class Command(BaseCommand):
         self.stdout.write("")
 
         site = self.perguntar_site(atual.get("DJANGO_SITE_URL") or SITE_PADRAO)
+
+        self.stdout.write("")
+        self.stdout.write("Como o sistema vai enviar os e-mails?")
+        self.stdout.write(
+            "  1 = pelo Outlook aberto neste computador "
+            "(usa o seu login do Windows, sem senha)"
+        )
+        self.stdout.write("  2 = por usuario e senha (SMTP)")
+        padrao = "2" if atual.get("EMAIL_BACKEND") == BACKEND_SMTP else "1"
+        if self.perguntar("Digite 1 ou 2", padrao) != "2":
+            valores = montar_configuracao(atual, site, "", "", "", 0, outlook=True)
+        else:
+            valores = self.perguntar_smtp(atual, site)
+
+        if arquivo.exists():
+            shutil.copyfile(arquivo, settings.BASE_DIR / ".env.anterior")
+            self.stdout.write("Copia do .env antigo salva em .env.anterior")
+        escrever_env(arquivo, valores)
+        self.stdout.write(self.style.SUCCESS(f"Configuracao salva em {arquivo}"))
+
+        banco = settings.DATABASES["default"]["NAME"]
+        if "sqlite3" in settings.DATABASES["default"]["ENGINE"] and not (
+            settings.BASE_DIR / banco
+        ).exists():
+            self.stdout.write(
+                self.style.WARNING(
+                    f"O banco de dados ainda nao existe em {banco}; ele sera "
+                    "criado vazio ao ligar. Se voce tem um db.sqlite3 com dados, "
+                    "copie para esta pasta antes de ligar."
+                )
+            )
+
+        destino = self.perguntar(
+            "Para testar, digite um e-mail que deve receber uma mensagem "
+            "(ou Enter para pular)"
+        )
+        if destino:
+            self.enviar_teste(valores, destino)
+
+    def perguntar_smtp(self, atual, site):
         email = self.perguntar(
             "E-mail do Outlook que envia as mensagens",
             atual.get("EMAIL_HOST_USER", ""),
@@ -155,49 +204,28 @@ class Command(BaseCommand):
         except ValueError:
             raise CommandError("A porta deve ser um numero, por exemplo 587.")
 
-        valores = montar_configuracao(atual, site, email, senha, smtp, porta)
-
-        if arquivo.exists():
-            shutil.copyfile(arquivo, settings.BASE_DIR / ".env.anterior")
-            self.stdout.write("Copia do .env antigo salva em .env.anterior")
-        escrever_env(arquivo, valores)
-        self.stdout.write(self.style.SUCCESS(f"Configuracao salva em {arquivo}"))
-
-        banco = settings.DATABASES["default"]["NAME"]
-        if "sqlite3" in settings.DATABASES["default"]["ENGINE"] and not (
-            settings.BASE_DIR / banco
-        ).exists():
-            self.stdout.write(
-                self.style.WARNING(
-                    f"ATENCAO: o banco de dados nao foi encontrado em {banco}. "
-                    "Copie o db.sqlite3 de volta para esta pasta antes de ligar."
-                )
-            )
-
-        destino = self.perguntar(
-            "Para testar, digite um e-mail que deve receber uma mensagem "
-            "(ou Enter para pular)"
-        )
-        if destino:
-            self.enviar_teste(valores, destino)
+        return montar_configuracao(atual, site, email, senha, smtp, porta)
 
     def enviar_teste(self, valores, destino):
-        conexao = get_connection(
-            backend=valores["EMAIL_BACKEND"],
-            host=valores["EMAIL_HOST"],
-            port=int(valores["EMAIL_PORT"]),
-            username=valores["EMAIL_HOST_USER"],
-            password=valores["EMAIL_HOST_PASSWORD"],
-            use_tls=valores["EMAIL_USE_TLS"] == "True",
-            use_ssl=valores["EMAIL_USE_SSL"] == "True",
-            timeout=20,
-        )
+        if valores["EMAIL_BACKEND"] == BACKEND_SMTP:
+            conexao = get_connection(
+                backend=BACKEND_SMTP,
+                host=valores["EMAIL_HOST"],
+                port=int(valores["EMAIL_PORT"]),
+                username=valores["EMAIL_HOST_USER"],
+                password=valores["EMAIL_HOST_PASSWORD"],
+                use_tls=valores["EMAIL_USE_TLS"] == "True",
+                use_ssl=valores["EMAIL_USE_SSL"] == "True",
+                timeout=20,
+            )
+        else:
+            conexao = get_connection(backend=valores["EMAIL_BACKEND"])
         try:
             EmailMessage(
                 "Teste da Academia Tecnica",
                 "Se esta mensagem chegou, o envio de e-mails esta funcionando.\n\n"
                 f"Endereco do site: {valores['DJANGO_SITE_URL']}/",
-                valores["DEFAULT_FROM_EMAIL"],
+                valores.get("DEFAULT_FROM_EMAIL"),
                 [destino],
                 connection=conexao,
             ).send()
