@@ -631,6 +631,14 @@ Crie outra tarefa no Agendador, como no Passo 15, com:
 
 O comando envia e-mails reais a cada execução.
 
+### Passo 16b — Chat dos técnicos com a IA (opcional)
+
+O botão "Tirar dúvida" das páginas dos técnicos conversa com um fluxo do N8N. Quem chama o N8N é o servidor (nunca o navegador), levando o segredo no cabeçalho `x-chat-secret`.
+
+Rode `python manage.py configurar_servidor` e, na pergunta "Endereço da IA", informe o endereço de **produção** do fluxo (`.../webhook/...`) e depois o segredo combinado. Para desligar o chat, responda `0`. As linhas ficam no `.env` como `CHAT_IA_URL`, `CHAT_IA_SEGREDO` e `CHAT_IA_TIMEOUT` (segundos, padrão 60). Reinicie o sistema depois de mudar.
+
+O endereço `.../webhook-test/...` só funciona enquanto o fluxo está aberto em modo de teste no editor do N8N; use-o apenas nos testes combinados com o responsável da IA.
+
 ### Passo 17 — Reiniciar e entregar
 
 Reinicie o servidor numa janela combinada. Sem abrir nada manualmente, confira:
@@ -700,6 +708,7 @@ curl.exe -s -H "X-Forwarded-Proto: https" http://127.0.0.1:8000/saude/
 | Funciona só dentro da empresa | DNS público, firewall, NAT ou CGNAT (TI). |
 | Funciona só fora da empresa | Falta DNS interno ou retorno de NAT (TI). |
 | E-mail não chega | Servidor, porta 587, usuário/senha SMTP, remetente autorizado, caixa de spam. |
+| Chat responde "Não consegui falar com o assistente" | Endereço e segredo no `.env` (Passo 16b); servidor consegue acessar o N8N; fluxo do N8N ativo (o `/webhook-test/` só vale em modo de teste). |
 | Esqueci a senha do administrador | Rode o comando do Passo 8 de novo. |
 
 Ao pedir suporte, envie os logs, mas **nunca** envie o `ambiente.json` nem o banco.

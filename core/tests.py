@@ -3459,6 +3459,7 @@ class ServidorSimplesTest(TestCase):
                     "",
                     "",
                     "",
+                    "",
                 ]
             )
             with (
@@ -3480,7 +3481,7 @@ class ServidorSimplesTest(TestCase):
     def test_comando_configurar_servidor_aceita_endereco_do_servidor_com_s(self):
         with tempfile.TemporaryDirectory() as pasta:
             base = Path(pasta)
-            respostas = iter(["s", "", ""])
+            respostas = iter(["s", "", "", ""])
             with (
                 override_settings(BASE_DIR=base),
                 patch("builtins.input", lambda _: next(respostas)),
@@ -3782,3 +3783,223 @@ class AvisosReciclagemTest(TestCase):
 
         self.assertEqual(self._rodar(date(2026, 6, 2)), (1, 0))
 
+
+
+class RespostaFalsaN8N:
+    """Imita a resposta do urllib para o teste nao chamar o N8N de verdade."""
+
+    def __init__(self, corpo):
+        self.corpo = corpo
+
+    def read(self, *args):
+        return self.corpo
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+
+@override_settings(
+    CHAT_IA_URL="https://n8n.exemplo.test/webhook/assistente",
+    CHAT_IA_SEGREDO="segredo-de-teste",
+    CHAT_IA_TIMEOUT=5,
+)
+class ChatTecnicoIATest(TestCase):
+    def setUp(self):
+        self.usuario = User.objects.create_user(
+            username="chat@exemplo.com", password="SenhaForte123!"
+        )
+        self.tecnico = Tecnico.objects.create(
+            empresa=Empresa.objects.create(nome="Empresa Chat"),
+            usuario=self.usuario,
+            nome="Técnico Chat",
+            email="chat@exemplo.com",
+            matricula="CHAT001",
+        )
+        self.produto = Produto.objects.create(
+            nome="Abastece", empresa=self.tecnico.empresa
+        )
+        self.curso = Curso.objects.create(nome="Instalação", produto=self.produto)
+        CursoLiberado.objects.create(tecnico=self.tecnico, curso=self.curso)
+        EtapaCurso.objects.create(
+            curso=self.curso,
+            titulo="Aula",
+            tipo=EtapaCurso.Tipo.TEXTO,
+            ordem=1,
+            conteudo="Conteúdo.",
+        )
+        self.client.force_login(self.usuario)
+        self.url = reverse("chat_tecnico")
+
+    def perguntar(self, dados):
+        import json
+
+        return self.client.post(
+            self.url, data=json.dumps(dados), content_type="application/json"
+        )
+
+    def test_envia_pergunta_ao_n8n_com_segredo_no_cabecalho(self):
+        import json
+
+        chamadas = []
+
+        def falso_urlopen(requisicao, timeout):
+            chamadas.append((requisicao, timeout))
+            return RespostaFalsaN8N(b'{"resposta": "Reinicie o equipamento."}')
+
+        with patch("core.chat_ia.urllib.request.urlopen", falso_urlopen):
+            resposta = self.perguntar(
+                {"mensagem": "Como resolvo o erro 12?", "curso_id": self.curso.pk}
+            )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(resposta.json(), {"resposta": "Reinicie o equipamento."})
+        requisicao, timeout = chamadas[0]
+        self.assertEqual(requisicao.full_url, "https://n8n.exemplo.test/webhook/assistente")
+        self.assertEqual(requisicao.get_method(), "POST")
+        self.assertEqual(requisicao.get_header("X-chat-secret"), "segredo-de-teste")
+        self.assertEqual(timeout, 5)
+        corpo = json.loads(requisicao.data)
+        self.assertEqual(corpo["mensagem"], "Como resolvo o erro 12?")
+        self.assertEqual(corpo["tecnico"]["matricula"], "CHAT001")
+        self.assertEqual(corpo["tecnico"]["empresa"], "Empresa Chat")
+        self.assertEqual(corpo["curso"], {"id": self.curso.pk, "nome": "Instalação"})
+        self.assertTrue(corpo["sessao_id"])
+
+    def test_mantem_o_mesmo_id_de_sessao_entre_perguntas(self):
+        import json
+
+        sessoes = []
+
+        def falso_urlopen(requisicao, timeout):
+            sessoes.append(json.loads(requisicao.data)["sessao_id"])
+            return RespostaFalsaN8N(b'{"resposta": "ok"}')
+
+        with patch("core.chat_ia.urllib.request.urlopen", falso_urlopen):
+            self.perguntar({"mensagem": "primeira"})
+            self.perguntar({"mensagem": "segunda"})
+
+        self.assertEqual(len(sessoes), 2)
+        self.assertEqual(sessoes[0], sessoes[1])
+
+    def test_aceita_formatos_comuns_de_resposta_do_n8n(self):
+        from core.chat_ia import extrair_resposta
+
+        self.assertEqual(extrair_resposta(b'{"resposta": "a"}'), "a")
+        self.assertEqual(extrair_resposta(b'{"output": "b"}'), "b")
+        self.assertEqual(extrair_resposta(b'[{"text": "c"}]'), "c")
+        self.assertEqual(extrair_resposta("texto puro".encode()), "texto puro")
+        self.assertEqual(extrair_resposta(b'{"outra": 1}'), "")
+
+    def test_mensagem_amigavel_quando_n8n_demora(self):
+        def falso_urlopen(requisicao, timeout):
+            raise TimeoutError
+
+        with patch("core.chat_ia.urllib.request.urlopen", falso_urlopen):
+            resposta = self.perguntar({"mensagem": "Oi"})
+
+        self.assertEqual(resposta.status_code, 502)
+        self.assertIn("demorou", resposta.json()["erro"])
+
+    def test_mensagem_amigavel_quando_n8n_recusa(self):
+        import urllib.error
+
+        def falso_urlopen(requisicao, timeout):
+            raise urllib.error.HTTPError(requisicao.full_url, 403, "Forbidden", {}, None)
+
+        with patch("core.chat_ia.urllib.request.urlopen", falso_urlopen):
+            resposta = self.perguntar({"mensagem": "Oi"})
+
+        self.assertEqual(resposta.status_code, 502)
+        self.assertIn("Não consegui", resposta.json()["erro"])
+        self.assertNotIn("segredo", resposta.content.decode())
+
+    def test_mensagem_amigavel_quando_n8n_fora_do_ar(self):
+        import urllib.error
+
+        def falso_urlopen(requisicao, timeout):
+            raise urllib.error.URLError("conexao recusada")
+
+        with patch("core.chat_ia.urllib.request.urlopen", falso_urlopen):
+            resposta = self.perguntar({"mensagem": "Oi"})
+
+        self.assertEqual(resposta.status_code, 502)
+
+    @override_settings(CHAT_IA_URL="")
+    def test_chat_desligado_avisa_sem_chamar_o_n8n(self):
+        with patch("core.chat_ia.urllib.request.urlopen") as urlopen:
+            resposta = self.perguntar({"mensagem": "Oi"})
+
+        urlopen.assert_not_called()
+        self.assertEqual(resposta.status_code, 502)
+        self.assertIn("ainda não está ligado", resposta.json()["erro"])
+
+    def test_recusa_pergunta_vazia_ou_grande_demais(self):
+        with patch("core.chat_ia.urllib.request.urlopen") as urlopen:
+            self.assertEqual(self.perguntar({"mensagem": "  "}).status_code, 400)
+            self.assertEqual(self.perguntar({"mensagem": "x" * 1001}).status_code, 400)
+        urlopen.assert_not_called()
+
+    def test_exige_login_e_post(self):
+        self.assertEqual(self.client.get(self.url).status_code, 405)
+        self.client.logout()
+        resposta = self.perguntar({"mensagem": "Oi"})
+        self.assertEqual(resposta.status_code, 302)
+
+    def test_usuario_sem_tecnico_nao_usa_o_chat(self):
+        outro = User.objects.create_user(username="qualquer", password="SenhaForte123!")
+        self.client.force_login(outro)
+        with patch("core.chat_ia.urllib.request.urlopen") as urlopen:
+            resposta = self.perguntar({"mensagem": "Oi"})
+        self.assertEqual(resposta.status_code, 403)
+        urlopen.assert_not_called()
+
+    def test_segredo_nunca_vai_para_a_pagina(self):
+        for endereco in (
+            reverse("home"),
+            reverse("cursos_por_produto", args=[self.produto.pk]),
+            reverse("curso_detalhe", args=[self.curso.pk]),
+        ):
+            resposta = self.client.get(endereco, follow=True)
+            pagina = resposta.content.decode()
+            self.assertIn("data-chat-tecnico", pagina, endereco)
+            self.assertNotIn("segredo-de-teste", pagina)
+            self.assertNotIn("n8n.exemplo.test", pagina)
+
+
+class ConfigurarChatIATest(TestCase):
+    def test_comando_configurar_servidor_grava_url_e_segredo_da_ia(self):
+        with tempfile.TemporaryDirectory() as pasta:
+            base = Path(pasta)
+            respostas = iter(
+                ["s", "", "https://n8n.exemplo.test/webhook/assistente", ""]
+            )
+            with (
+                override_settings(BASE_DIR=base),
+                patch("builtins.input", lambda _: next(respostas)),
+                patch("getpass.getpass", lambda _: "segredo-de-teste"),
+            ):
+                call_command("configurar_servidor", stdout=StringIO())
+            env = (base / ".env").read_text(encoding="utf-8")
+
+        self.assertIn("CHAT_IA_URL=https://n8n.exemplo.test/webhook/assistente\n", env)
+        self.assertIn("CHAT_IA_SEGREDO=segredo-de-teste\n", env)
+
+    def test_comando_configurar_servidor_desliga_o_chat_com_zero(self):
+        with tempfile.TemporaryDirectory() as pasta:
+            base = Path(pasta)
+            (base / ".env").write_text(
+                "CHAT_IA_URL=https://n8n.exemplo.test/webhook/a\n", encoding="utf-8"
+            )
+            respostas = iter(["s", "", "0", ""])
+            with (
+                override_settings(BASE_DIR=base),
+                patch("builtins.input", lambda _: next(respostas)),
+                patch("getpass.getpass", lambda _: ""),
+            ):
+                call_command("configurar_servidor", stdout=StringIO())
+            env = (base / ".env").read_text(encoding="utf-8")
+
+        self.assertIn("CHAT_IA_URL=\n", env)

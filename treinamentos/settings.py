@@ -288,3 +288,10 @@ CSRF_COOKIE_HTTPONLY = env_bool("CSRF_COOKIE_HTTPONLY", True)
 SESSION_COOKIE_SAMESITE = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")
 CSRF_COOKIE_SAMESITE = os.getenv("CSRF_COOKIE_SAMESITE", "Lax")
 X_FRAME_OPTIONS = os.getenv("X_FRAME_OPTIONS", "DENY")
+
+# Chat dos tecnicos com a IA (fluxo N8N).
+# A chamada sai sempre do servidor, nunca do navegador, para o segredo nao vazar.
+# CHAT_IA_URL vazio = chat desligado (mostra um aviso amigavel ao tecnico).
+CHAT_IA_URL = os.getenv("CHAT_IA_URL", "").strip()
+CHAT_IA_SEGREDO = os.getenv("CHAT_IA_SEGREDO", "").strip()
+CHAT_IA_TIMEOUT = int(os.getenv("CHAT_IA_TIMEOUT", "60"))

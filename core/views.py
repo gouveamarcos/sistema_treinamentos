@@ -1,5 +1,7 @@
 import csv
+import json
 import logging
+import uuid
 from collections import defaultdict
 from io import TextIOWrapper
 from datetime import timedelta
@@ -26,6 +28,12 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .audit import registrar_evento
+from .chat_ia import (
+    TAMANHO_MAXIMO_MENSAGEM,
+    ErroChatIA,
+    montar_pedido,
+    perguntar_ia,
+)
 from .emails import enviar_convite_responsavel, enviar_convite_tecnico
 from .forms import (
     AlternativaForm,
@@ -156,6 +164,55 @@ def saude(request):
         return JsonResponse({"status": "erro", "database": "indisponivel"}, status=503)
 
     return JsonResponse({"status": "ok", "database": "ok"})
+
+
+CHAT_SESSAO_KEY = "chat_ia_sessao_id"
+
+
+@login_required
+@require_POST
+def chat_tecnico(request):
+    """Recebe a pergunta do chat e repassa para a IA (N8N) pelo servidor."""
+    tecnico = _tecnico_logado(request)
+    if tecnico is None and not usuario_pode_gerenciar_catalogo(request.user):
+        # So tecnicos (ou quem testa os cursos, como o editor) usam o chat.
+        return JsonResponse({"erro": "Chat disponível apenas para técnicos."}, status=403)
+
+    try:
+        dados = json.loads(request.body or b"{}")
+    except ValueError:
+        dados = {}
+    if not isinstance(dados, dict):
+        dados = {}
+    mensagem = str(dados.get("mensagem") or "").strip()
+    if not mensagem:
+        return JsonResponse({"erro": "Digite uma pergunta."}, status=400)
+    if len(mensagem) > TAMANHO_MAXIMO_MENSAGEM:
+        return JsonResponse(
+            {"erro": f"A pergunta pode ter no máximo {TAMANHO_MAXIMO_MENSAGEM} caracteres."},
+            status=400,
+        )
+
+    curso = None
+    curso_id = dados.get("curso_id")
+    if curso_id:
+        try:
+            curso = Curso.objects.filter(pk=int(curso_id)).first()
+        except (TypeError, ValueError):
+            curso = None
+
+    # Um numero por sessao de login, para a IA lembrar da conversa.
+    sessao_id = request.session.get(CHAT_SESSAO_KEY)
+    if not sessao_id:
+        sessao_id = uuid.uuid4().hex
+        request.session[CHAT_SESSAO_KEY] = sessao_id
+
+    pedido = montar_pedido(mensagem, sessao_id, tecnico, request.user, curso)
+    try:
+        resposta = perguntar_ia(pedido)
+    except ErroChatIA as erro:
+        return JsonResponse({"erro": str(erro)}, status=502)
+    return JsonResponse({"resposta": resposta})
 
 
 def _situacao_certificado(conclusao):

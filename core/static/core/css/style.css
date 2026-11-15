@@ -205,6 +205,10 @@ a { color: inherit; }
 .chat-mensagem { max-width: 88%; padding: 12px 14px; border-radius: 14px; font-size: 13px; line-height: 1.5; }
 .chat-mensagem-bot { justify-self: start; color: var(--texto); background: white; border: 1px solid var(--borda); }
 .chat-mensagem-usuario { justify-self: end; color: white; background: var(--verde); }
+.chat-mensagem { white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-mensagem-aguarde { color: var(--muted); font-style: italic; }
+.chat-mensagem-erro { border-color: #f1c9d6; background: #fff5f8; }
+.chat-tecnico-form button:disabled, .chat-tecnico-form input:disabled { opacity: .6; cursor: wait; }
 .chat-tecnico-form { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 14px; border-top: 1px solid var(--borda); }
 .chat-tecnico-form input { min-width: 0; padding: 12px 13px; border: 1px solid #cbd5d6; border-radius: 12px; font: inherit; }
 .chat-tecnico-form button { padding: 0 15px; border: 0; border-radius: 12px; color: white; background: var(--verde); font: inherit; font-weight: 800; cursor: pointer; }

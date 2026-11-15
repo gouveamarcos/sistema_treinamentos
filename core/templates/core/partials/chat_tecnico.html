@@ -1,0 +1,104 @@
+{% comment %}
+Chat "Tirar dúvida" das páginas dos técnicos.
+O navegador envia a pergunta para o NOSSO servidor (chat_tecnico), e o servidor
+é quem conversa com a IA no N8N. O segredo da IA nunca chega ao navegador.
+Uso: {% include "core/partials/chat_tecnico.html" with curso=curso %}
+{% endcomment %}
+<section class="chat-tecnico" data-chat-tecnico data-chat-url="{% url 'chat_tecnico' %}"{% if curso %} data-chat-curso="{{ curso.id }}"{% endif %}>
+    <button class="chat-tecnico-botao" type="button" data-chat-toggle aria-expanded="false" aria-controls="chat-tecnico-painel">
+        <span>?</span>
+        Tirar dúvida
+    </button>
+    <div class="chat-tecnico-painel" id="chat-tecnico-painel" hidden>
+        <div class="chat-tecnico-topo">
+            <div>
+                <strong>Assistente técnico</strong>
+                <small>Respostas geradas por IA. Confira antes de agir.</small>
+            </div>
+            <button type="button" data-chat-close aria-label="Fechar chat">×</button>
+        </div>
+        <div class="chat-tecnico-mensagens" data-chat-messages aria-live="polite">
+            <div class="chat-mensagem chat-mensagem-bot">Olá! Posso ajudar com dúvidas sobre cursos, procedimentos e atendimentos. Escreva sua pergunta abaixo.</div>
+        </div>
+        <form class="chat-tecnico-form" data-chat-form>
+            {% csrf_token %}
+            <input type="text" data-chat-input placeholder="Digite sua dúvida..." autocomplete="off" maxlength="1000">
+            <button type="submit" data-chat-enviar>Enviar</button>
+        </form>
+    </div>
+</section>
+
+<script>
+    (() => {
+        const chat = document.querySelector("[data-chat-tecnico]");
+        if (!chat) return;
+        const painel = chat.querySelector("#chat-tecnico-painel");
+        const toggle = chat.querySelector("[data-chat-toggle]");
+        const fechar = chat.querySelector("[data-chat-close]");
+        const form = chat.querySelector("[data-chat-form]");
+        const input = chat.querySelector("[data-chat-input]");
+        const enviar = chat.querySelector("[data-chat-enviar]");
+        const mensagens = chat.querySelector("[data-chat-messages]");
+        const csrf = form.querySelector("[name=csrfmiddlewaretoken]").value;
+        const ERRO_PADRAO = "Não consegui falar com o assistente agora. Tente de novo em instantes.";
+
+        const abrir = () => {
+            painel.hidden = false;
+            toggle.setAttribute("aria-expanded", "true");
+            input.focus();
+        };
+        const fecharChat = () => {
+            painel.hidden = true;
+            toggle.setAttribute("aria-expanded", "false");
+        };
+        // textContent (e não innerHTML) impede que a resposta injete código na página.
+        const adicionarMensagem = (texto, classe) => {
+            const mensagem = document.createElement("div");
+            mensagem.className = `chat-mensagem ${classe}`;
+            mensagem.textContent = texto;
+            mensagens.appendChild(mensagem);
+            mensagens.scrollTop = mensagens.scrollHeight;
+            return mensagem;
+        };
+        const ocupado = (sim) => {
+            input.disabled = sim;
+            enviar.disabled = sim;
+        };
+
+        toggle.addEventListener("click", () => painel.hidden ? abrir() : fecharChat());
+        fechar.addEventListener("click", fecharChat);
+        form.addEventListener("submit", async (evento) => {
+            evento.preventDefault();
+            const texto = input.value.trim();
+            if (!texto || enviar.disabled) return;
+            adicionarMensagem(texto, "chat-mensagem-usuario");
+            input.value = "";
+            ocupado(true);
+            const aguarde = adicionarMensagem("Pensando...", "chat-mensagem-bot chat-mensagem-aguarde");
+            try {
+                const resposta = await fetch(chat.dataset.chatUrl, {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json", "X-CSRFToken": csrf},
+                    credentials: "same-origin",
+                    body: JSON.stringify({mensagem: texto, curso_id: chat.dataset.chatCurso || null}),
+                });
+                let dados = {};
+                try { dados = await resposta.json(); } catch (erro) { dados = {}; }
+                aguarde.remove();
+                if (resposta.ok && dados.resposta) {
+                    adicionarMensagem(dados.resposta, "chat-mensagem-bot");
+                } else if (resposta.status === 403 && !dados.erro) {
+                    adicionarMensagem("Sua sessão expirou. Atualize a página e entre de novo.", "chat-mensagem-bot chat-mensagem-erro");
+                } else {
+                    adicionarMensagem(dados.erro || ERRO_PADRAO, "chat-mensagem-bot chat-mensagem-erro");
+                }
+            } catch (erro) {
+                aguarde.remove();
+                adicionarMensagem(ERRO_PADRAO, "chat-mensagem-bot chat-mensagem-erro");
+            } finally {
+                ocupado(false);
+                input.focus();
+            }
+        });
+    })();
+</script>

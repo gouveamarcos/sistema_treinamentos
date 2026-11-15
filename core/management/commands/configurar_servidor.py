@@ -159,6 +159,8 @@ class Command(BaseCommand):
         else:
             valores = self.perguntar_smtp(atual, site)
 
+        self.perguntar_chat_ia(valores)
+
         if arquivo.exists():
             shutil.copyfile(arquivo, settings.BASE_DIR / ".env.anterior")
             self.stdout.write("Copia do .env antigo salva em .env.anterior")
@@ -183,6 +185,39 @@ class Command(BaseCommand):
         )
         if destino:
             self.enviar_teste(valores, destino)
+
+    def perguntar_chat_ia(self, valores):
+        """Pergunta o endereco e o segredo da IA (N8N) do chat dos tecnicos."""
+        self.stdout.write("")
+        self.stdout.write("Chat dos tecnicos com a IA (N8N)")
+        self.stdout.write(
+            "  Use o endereco de PRODUCAO (/webhook/...). O /webhook-test/ so "
+            "funciona enquanto o fluxo esta em modo de teste no N8N."
+        )
+        url_atual = valores.get("CHAT_IA_URL", "")
+        url = self.perguntar(
+            "Endereco da IA (Enter mantem o atual; digite 0 para desligar o chat)",
+            url_atual,
+        ).strip()
+        if url == "0" or not url:
+            valores["CHAT_IA_URL"] = ""
+            if url == "0":
+                self.stdout.write("Chat com a IA desligado.")
+            return
+        if not site_valido(url):
+            raise CommandError(
+                "Endereco da IA invalido. Exemplo: "
+                "https://n8n.empresa.com.br/webhook/assistente"
+            )
+        valores["CHAT_IA_URL"] = url
+        segredo = getpass.getpass(
+            "Segredo da IA (x-chat-secret; nao aparece enquanto digita; "
+            "Enter mantem o atual): "
+        ).strip() or valores.get("CHAT_IA_SEGREDO", "")
+        if not segredo:
+            raise CommandError("Informe o segredo combinado com o responsavel da IA.")
+        valores["CHAT_IA_SEGREDO"] = segredo
+        valores.setdefault("CHAT_IA_TIMEOUT", "60")
 
     def perguntar_smtp(self, atual, site):
         email = self.perguntar(

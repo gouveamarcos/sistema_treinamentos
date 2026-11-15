@@ -6,6 +6,7 @@ from .forms import RedefinirSenhaForm
 urlpatterns = [
     path("", views.home, name="home"),
     path("saude/", views.saude, name="saude"),
+    path("chat/perguntar/", views.chat_tecnico, name="chat_tecnico"),
     path(
         "login/",
         auth_views.LoginView.as_view(template_name="core/login.html"),
